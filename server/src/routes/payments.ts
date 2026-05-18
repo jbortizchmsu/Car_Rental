@@ -1,0 +1,319 @@
+import { Router } from 'express';
+import { prisma } from '../lib/prisma';
+import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
+import { upload } from '../middleware/upload';
+import { createNotification, createAdminNotification } from '../lib/notifications';
+import { checkVehicleAvailability } from '../lib/booking-availability';
+
+const router = Router();
+
+// Customer: Submit Payment
+router.post('/:id/submit', authenticate, upload.single('proof'), async (req: AuthRequest, res) => {
+  const { amount, paymentType, referenceNumber } = req.body;
+  const bookingId = req.params.id;
+
+  try {
+    const booking = await prisma.booking.findUnique({ 
+      where: { id: bookingId },
+      include: { customer: true }
+    });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    // Ownership check
+    if (booking.customerId !== req.user!.id) {
+      return res.status(403).json({ error: 'Unauthorized to submit payment for this booking' });
+    }
+
+    // Re-check availability before payment
+    const availability = await checkVehicleAvailability(
+      booking.vehicleId, 
+      booking.startDate, 
+      booking.endDate, 
+      bookingId
+    );
+
+    if (!availability.available) {
+      return res.status(409).json({ 
+        error: `Vehicle is no longer available for your dates: ${availability.message}` 
+      });
+    }
+
+    // Optional Duplicate Reference Check
+    if (referenceNumber) {
+      const existing = await prisma.paymentProof.findFirst({
+        where: { referenceNumber }
+      });
+      if (existing) {
+        return res.status(400).json({ error: 'This reference number has already been used.' });
+      }
+    }
+
+    // Enforce amount on backend
+    let validatedAmount = Number(booking.totalAmount);
+    if (paymentType === 'DOWNPAYMENT_GCASH') {
+      validatedAmount = Math.round(Number(booking.totalAmount) * 0.3);
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        bookingId,
+        amount: validatedAmount,
+        paymentType,
+        status: 'SUBMITTED',
+        proofs: {
+          create: {
+            proofUrl: req.file ? req.file.path.replace(/\\/g, '/') : '',
+            referenceNumber: referenceNumber || null
+          }
+        }
+      }
+    });
+
+    // Update booking status
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: paymentType === 'FULL_GCASH' ? 'FULL_PAYMENT_SUBMITTED' : 'DOWNPAYMENT_SUBMITTED' }
+    });
+
+    // Notify Admin
+    await createAdminNotification(
+      'Payment Submitted',
+      `${booking.customer.fullName} submitted a ${paymentType.replace('_', ' ').toLowerCase()} for booking #${bookingId.slice(0, 8)}`
+    );
+
+    res.status(201).json(payment);
+  } catch (error) {
+    console.error('Payment submission error:', error);
+    res.status(500).json({ error: 'Payment submission failed' });
+  }
+});
+
+// Admin: Get Payments by Status
+router.get('/list', authenticate, authorizeAdmin, async (req, res) => {
+  const { status } = req.query;
+  try {
+    const payments = await prisma.payment.findMany({
+      where: status ? { status: status as string } : {},
+      include: { 
+        booking: { 
+          include: { 
+            customer: { select: { fullName: true, email: true } }, 
+            vehicle: true 
+          } 
+        },
+        proofs: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch payments' });
+  }
+});
+
+// Admin: Get Payment Summary (KPIs)
+router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const [
+      pendingCount,
+      verifiedCount,
+      rejectedCount,
+      reservedBookings,
+      revenueQuery,
+      todayRevenueQuery
+    ] = await Promise.all([
+      prisma.payment.count({ where: { status: 'SUBMITTED' } }),
+      prisma.payment.count({ where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } } }),
+      prisma.payment.count({ where: { status: 'REJECTED' } }),
+      prisma.booking.count({ where: { status: 'RESERVED' } }), // Cash collections
+      prisma.payment.aggregate({
+        where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } },
+        _sum: { amount: true }
+      }),
+      prisma.payment.aggregate({
+        where: { 
+          status: { in: ['VERIFIED', 'PAID_IN_PERSON'] },
+          verifiedAt: { gte: new Date(new Date().setHours(0,0,0,0)) }
+        },
+        _sum: { amount: true }
+      })
+    ]);
+
+    res.json({
+      pendingVerification: pendingCount,
+      verifiedHistory: verifiedCount,
+      rejected: rejectedCount,
+      cashCollections: reservedBookings,
+      totalRevenue: revenueQuery._sum.amount || 0,
+      todayRevenue: todayRevenueQuery._sum.amount || 0
+    });
+  } catch (error) {
+    console.error('Payment summary error:', error);
+    res.status(500).json({ error: 'Failed to fetch payment summary' });
+  }
+});
+
+// Admin: Get Cash at Pickup (RESERVED bookings waiting for balance)
+router.get('/cash-at-pickup', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: { status: 'RESERVED' },
+      include: { 
+        customer: { select: { fullName: true, email: true, phoneNumber: true } },
+        vehicle: true,
+        payments: true
+      },
+      orderBy: { startDate: 'asc' }
+    });
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch reserved bookings' });
+  }
+});
+
+// Admin: Confirm Cash Payment (transition RESERVED -> READY_FOR_PICKUP)
+router.post('/booking/:id/confirm-cash', authenticate, authorizeAdmin, async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { amount } = req.body;
+
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id } });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    // Create payment record
+    await prisma.payment.create({
+      data: {
+        bookingId: id,
+        amount: Number(amount),
+        paymentType: 'REMAINING_CASH',
+        status: 'PAID_IN_PERSON',
+        verifiedById: req.user!.id,
+        verifiedAt: new Date()
+      }
+    });
+
+    // Update booking status
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: { 
+        status: 'READY_FOR_PICKUP',
+        remainingBalancePaidAt: new Date()
+      }
+    });
+
+    // Notify Customer
+    await createNotification(
+      booking.customerId,
+      'Payment Verified',
+      'Your remaining cash balance has been verified. Your vehicle is now ready for pickup!'
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Confirm cash error:', error);
+    res.status(500).json({ error: 'Failed to confirm cash payment' });
+  }
+});
+
+// Admin: Verify Payment
+router.post('/:id/verify', authenticate, authorizeAdmin, async (req: AuthRequest, res) => {
+  try {
+    const payment = await prisma.payment.update({
+      where: { id: req.params.id },
+      data: { 
+        status: 'VERIFIED', 
+        verifiedById: req.user!.id,
+        verifiedAt: new Date()
+      },
+      include: { booking: true }
+    });
+
+    // Final Booking Status Logic
+    // Full Payment -> READY_FOR_PICKUP
+    // Downpayment -> RESERVED (Remaining balance due at pickup)
+    const isFull = payment.paymentType === 'FULL_GCASH';
+    const finalBookingStatus = isFull ? 'READY_FOR_PICKUP' : 'RESERVED';
+    
+    const updateData: any = { status: finalBookingStatus };
+    if (!isFull) {
+      // Calculate remaining balance (approx 70%)
+      updateData.remainingBalancePaidAt = null; // Ensure it's null until cash is paid
+    } else {
+      updateData.remainingBalancePaidAt = new Date(); // Full payment covers everything
+    }
+
+    await prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: updateData
+    });
+
+    // Vehicle status becomes RESERVED
+    await prisma.vehicle.update({
+      where: { id: payment.booking.vehicleId },
+      data: { status: 'RESERVED' }
+    });
+
+    // Notify Customer
+    const amountStr = Number(payment.amount).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' });
+    const message = isFull 
+      ? `Your payment of ${amountStr} has been verified. Your vehicle is now READY FOR PICKUP!`
+      : `Your downpayment of ${amountStr} has been verified. Your booking is RESERVED. Please pay the remaining balance in cash at the rental shop during pickup.`;
+
+    await createNotification(
+      payment.booking.customerId,
+      'Payment Verified',
+      message
+    );
+
+    res.json(payment);
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+// Admin: Reject Payment
+router.post('/:id/reject', authenticate, authorizeAdmin, async (req, res) => {
+  const { reason } = req.body;
+  try {
+    const payment = await prisma.payment.update({
+      where: { id: req.params.id },
+      data: { status: 'REJECTED' },
+      include: { booking: true }
+    });
+
+    // Notify Customer
+    await createNotification(
+      payment.booking.customerId,
+      'Payment Rejected',
+      `Your payment was rejected. Reason: ${reason || 'Proof of payment invalid.'}`
+    );
+
+    res.json(payment);
+  } catch (error) {
+    res.status(500).json({ error: 'Rejection failed' });
+  }
+});
+
+// Customer: Get Booking for Payment
+router.get('/booking/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { vehicle: true }
+    });
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    // Ownership check
+    if (booking.customerId !== req.user!.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch booking details' });
+  }
+});
+
+export default router;
