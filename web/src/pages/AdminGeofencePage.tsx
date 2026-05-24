@@ -5,6 +5,9 @@ import {
   Car, Info, Loader2,
   X
 } from 'lucide-react';
+import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
+import { getApiErrorMessage } from '../services/api';
 
 interface Geofence {
   id: string;
@@ -27,6 +30,12 @@ const AdminGeofencePage: React.FC = () => {
   const [coordsJson, setCoordsJson] = useState('[\n  {"lat": 14.5995, "lng": 120.9842},\n  {"lat": 14.6760, "lng": 121.0437},\n  {"lat": 14.5547, "lng": 121.0244}\n]');
   const [saving, setSaving] = useState(false);
 
+  const toast = useToast();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -43,6 +52,7 @@ const AdminGeofencePage: React.FC = () => {
       setVehicles(vRes.data || []);
     } catch (error) {
       console.error('Error fetching geofences:', error);
+      toast.error('Failed to load data', getApiErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -54,7 +64,7 @@ const AdminGeofencePage: React.FC = () => {
       const coords = JSON.parse(coordsJson);
       
       if (!Array.isArray(coords) || coords.length < 3) {
-        alert('Polygon must have at least 3 coordinates.');
+        toast.warning('Invalid Zone', 'Polygon must have at least 3 coordinates.');
         return;
       }
 
@@ -65,12 +75,13 @@ const AdminGeofencePage: React.FC = () => {
         isActive: true
       });
 
+      toast.success('Geofence Created', `Zone "${name}" has been saved.`);
       setIsModalOpen(false);
       setName('');
       setSelectedVehicle('');
       fetchData();
     } catch (error: any) {
-      alert('Invalid JSON or error saving: ' + (error.response?.data?.error || error.message));
+      toast.error('Error Saving Geofence', 'Invalid JSON or ' + getApiErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -79,19 +90,41 @@ const AdminGeofencePage: React.FC = () => {
   const toggleStatus = async (id: string, current: boolean) => {
     try {
       await adminApi.toggleGeofence(id, !current);
+      toast.success('Geofence Updated', `Zone is now ${!current ? 'active' : 'inactive'}.`);
       fetchData();
     } catch (error) {
-      console.error('Error toggling status:', error);
+      toast.error('Failed to update status', getApiErrorMessage(error));
     }
   };
 
-  const deleteGeofence = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this geofence?')) return;
+  const openDeleteModal = (id: string) => {
+    setDeleteId(id);
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteLoading) return;
+    setDeleteModalOpen(false);
+    setDeleteId(null);
+    setDeleteError(null);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteId) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+
     try {
-      await adminApi.deleteGeofence(id);
+      await adminApi.deleteGeofence(deleteId);
+      toast.success('Geofence Deleted', 'The operational zone has been removed.');
       fetchData();
-    } catch (error) {
-      console.error('Error deleting geofence:', error);
+      closeDeleteModal();
+    } catch (error: any) {
+      setDeleteError(getApiErrorMessage(error));
+      toast.error('Deletion failed', getApiErrorMessage(error));
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -133,7 +166,7 @@ const AdminGeofencePage: React.FC = () => {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button onClick={() => deleteGeofence(gf.id)} style={{ padding: '0.5rem', border: 'none', background: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
+                  <button onClick={() => openDeleteModal(gf.id)} style={{ padding: '0.5rem', border: 'none', background: 'none', cursor: 'pointer', color: '#9CA3AF' }}>
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -234,6 +267,18 @@ const AdminGeofencePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmActionModal
+        isOpen={deleteModalOpen}
+        title="Delete Geofence Zone?"
+        message="Are you sure you want to delete this operational boundary? Vehicles currently assigned to this zone will lose tracking restrictions."
+        variant="danger"
+        confirmLabel="Delete Zone"
+        loading={deleteLoading}
+        error={deleteError}
+        onConfirm={executeDelete}
+        onCancel={closeDeleteModal}
+      />
     </div>
   );
 };

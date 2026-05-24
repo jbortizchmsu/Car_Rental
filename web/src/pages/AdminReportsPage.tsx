@@ -21,8 +21,10 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
+import { useToast } from '../components/ToastProvider';
 
 const AdminReportsPage: React.FC = () => {
+  const toast = useToast();
   const [reportType, setReportType] = useState('revenue');
   const [dateRange, setDateRange] = useState('month'); // today, week, month, custom
   const [startDate, setStartDate] = useState('');
@@ -137,7 +139,7 @@ const AdminReportsPage: React.FC = () => {
         ]);
         break;
       default:
-        alert('Export for this report type is coming soon.');
+        toast.info('Export Unavailable', 'Export for this report type is coming soon.');
         return;
     }
 

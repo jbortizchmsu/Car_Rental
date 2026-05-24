@@ -5,20 +5,21 @@ import {
   Phone, MapPin, ExternalLink,
   Smartphone, CreditCard, Clock, Search,
   ArrowUpDown, CheckCircle2,
-  AlertTriangle, History, ShieldCheck, Mail, Navigation, Banknote
+  AlertTriangle, History, ShieldCheck, Mail, Navigation
 } from 'lucide-react';
 import FilePreviewModal from '../components/FilePreviewModal';
 import StatusBadge from '../components/StatusBadge';
+import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
+import { getApiErrorMessage } from '../services/api';
 
-type BookingTab = 'PENDING_REVIEW' | 'WAITING_FOR_PAYMENT' | 'PAYMENT_SUBMITTED' | 'READY_FOR_PICKUP' | 'ACTIVE_RENTALS' | 'RETURNED' | 'COMPLETED' | 'REJECTED';
+type WorkflowFilter = 'ALL_ACTIVE' | 'NEEDS_ACTION' | 'WAITING_CUSTOMER' | 'ACTIVE_RENTALS' | 'REJECTED' | 'COMPLETED';
 
 interface StatusCounts {
-  PENDING_REVIEW: number;
-  WAITING_FOR_PAYMENT: number;
-  PAYMENT_SUBMITTED: number;
-  READY_FOR_PICKUP: number;
+  NEEDS_ACTION: number;
+  WAITING_CUSTOMER: number;
   ACTIVE_RENTALS: number;
-  RETURNED: number;
+  READY_FOR_PICKUP: number;
   COMPLETED: number;
   REJECTED: number;
 }
@@ -27,21 +28,19 @@ const BookingRequestsPage: React.FC = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<BookingTab>('PENDING_REVIEW');
+  const [activeFilter, setActiveFilter] = useState<WorkflowFilter>('ALL_ACTIVE');
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ id: string; title: string } | null>(null);
   
   // New States
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState('priority');
   const [counts, setCounts] = useState<StatusCounts>({
-    PENDING_REVIEW: 0,
-    WAITING_FOR_PAYMENT: 0,
-    PAYMENT_SUBMITTED: 0,
-    READY_FOR_PICKUP: 0,
+    NEEDS_ACTION: 0,
+    WAITING_CUSTOMER: 0,
     ACTIVE_RENTALS: 0,
-    RETURNED: 0,
+    READY_FOR_PICKUP: 0,
     COMPLETED: 0,
     REJECTED: 0
   });
@@ -57,53 +56,45 @@ const BookingRequestsPage: React.FC = () => {
   const [damageFound, setDamageFound] = useState(false);
   const [damageDetails, setDamageDetails] = useState({ type: 'GENERAL', severity: 'LOW', cost: '', desc: '' });
 
-  // Modal State
-  const [showCashConfirmModal, setShowCashConfirmModal] = useState(false);
-  const [cashConfirmError, setCashConfirmError] = useState<string | null>(null);
+  // Notification and Modal State
+  const toast = useToast();
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    type: 'APPROVE_BOOKING' | 'REJECT_BOOKING' | 'VERIFY_PAYMENT' | 'REJECT_PAYMENT' | 'CONFIRM_CASH' | 'RELEASE_VEHICLE' | 'RETURN_VEHICLE' | 'COMPLETE_RENTAL' | null;
+    paymentId?: string;
+  }>({ isOpen: false, type: null });
+  const [modalError, setModalError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBookings();
     fetchSummaryCounts();
-  }, [activeTab]);
+  }, [activeFilter]);
 
   const fetchSummaryCounts = async () => {
     try {
-      // Fetching all relevant statuses to calculate counts
       const statuses = [
-        'PENDING_REVIEW', 
-        'APPROVED_FOR_PAYMENT', 
-        'FULL_PAYMENT_SUBMITTED', 
-        'DOWNPAYMENT_SUBMITTED', 
-        'RESERVED', 
-        'READY_FOR_PICKUP', 
-        'REJECTED', 
-        'COMPLETED', 
-        'CANCELLED', 
-        'RETURNED', 
-        'ACTIVE'
+        'PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 
+        'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'REJECTED', 
+        'COMPLETED', 'CANCELLED', 'RETURNED', 'ACTIVE'
       ];
       const { data } = await bookingsApi.getActiveList(statuses);
       
       const newCounts: StatusCounts = {
-        PENDING_REVIEW: 0,
-        WAITING_FOR_PAYMENT: 0,
-        PAYMENT_SUBMITTED: 0,
-        READY_FOR_PICKUP: 0,
+        NEEDS_ACTION: 0,
+        WAITING_CUSTOMER: 0,
         ACTIVE_RENTALS: 0,
-        RETURNED: 0,
+        READY_FOR_PICKUP: 0,
         COMPLETED: 0,
         REJECTED: 0
       };
 
       data.forEach((b: any) => {
-        if (b.status === 'PENDING_REVIEW') newCounts.PENDING_REVIEW++;
-        else if (b.status === 'APPROVED_FOR_PAYMENT') newCounts.WAITING_FOR_PAYMENT++;
-        else if (['FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED'].includes(b.status)) newCounts.PAYMENT_SUBMITTED++;
-        else if (['RESERVED', 'READY_FOR_PICKUP'].includes(b.status)) newCounts.READY_FOR_PICKUP++;
-        else if (b.status === 'ACTIVE') newCounts.ACTIVE_RENTALS++;
-        else if (b.status === 'RETURNED') newCounts.RETURNED++;
-        else if (b.status === 'COMPLETED') newCounts.COMPLETED++;
-        else if (b.status === 'REJECTED') newCounts.REJECTED++;
+        if (['PENDING_REVIEW', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'].includes(b.status)) newCounts.NEEDS_ACTION++;
+        if (b.status === 'APPROVED_FOR_PAYMENT') newCounts.WAITING_CUSTOMER++;
+        if (b.status === 'ACTIVE') newCounts.ACTIVE_RENTALS++;
+        if (['RESERVED', 'READY_FOR_PICKUP'].includes(b.status)) newCounts.READY_FOR_PICKUP++;
+        if (b.status === 'COMPLETED') newCounts.COMPLETED++;
+        if (b.status === 'REJECTED') newCounts.REJECTED++;
       });
 
       setCounts(newCounts);
@@ -112,24 +103,29 @@ const BookingRequestsPage: React.FC = () => {
     }
   };
 
-  const getStatusQuery = (tab: BookingTab): string | string[] => {
-    switch (tab) {
-      case 'PENDING_REVIEW': return 'PENDING_REVIEW';
-      case 'WAITING_FOR_PAYMENT': return 'APPROVED_FOR_PAYMENT';
-      case 'PAYMENT_SUBMITTED': return ['FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED'];
-      case 'READY_FOR_PICKUP': return ['RESERVED', 'READY_FOR_PICKUP'];
-      case 'ACTIVE_RENTALS': return 'ACTIVE';
-      case 'RETURNED': return 'RETURNED';
-      case 'COMPLETED': return 'COMPLETED';
-      case 'REJECTED': return 'REJECTED';
-      default: return 'PENDING_REVIEW';
+  const getStatusQuery = (filter: WorkflowFilter): string | string[] => {
+    switch (filter) {
+      case 'ALL_ACTIVE': 
+        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
+      case 'NEEDS_ACTION': 
+        return ['PENDING_REVIEW', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
+      case 'WAITING_CUSTOMER': 
+        return 'APPROVED_FOR_PAYMENT';
+      case 'ACTIVE_RENTALS': 
+        return 'ACTIVE';
+      case 'REJECTED': 
+        return 'REJECTED';
+      case 'COMPLETED': 
+        return 'COMPLETED';
+      default: 
+        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
     }
   };
 
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const { data } = await bookingsApi.getActiveList(getStatusQuery(activeTab));
+      const { data } = await bookingsApi.getActiveList(getStatusQuery(activeFilter));
       setBookings(data || []);
       
       // If selected booking is in the list, refresh its data
@@ -144,138 +140,153 @@ const BookingRequestsPage: React.FC = () => {
     }
   };
 
-  const handleBookingAction = async (status: 'APPROVED_FOR_PAYMENT' | 'REJECTED') => {
-    if (!selectedBooking) return;
+  const openModal = (type: typeof modalConfig.type, paymentId?: string) => {
+    setModalError(null);
+    setModalConfig({ isOpen: true, type, paymentId });
+  };
+
+  const closeModal = () => {
+    if (actionLoading) return;
+    setModalConfig({ isOpen: false, type: null });
+    setModalError(null);
+  };
+
+  const executeModalAction = async () => {
+    setModalError(null);
+    setActionLoading(true);
+
+    try {
+      switch (modalConfig.type) {
+        case 'APPROVE_BOOKING':
+          await bookingsApi.approve(selectedBooking.id);
+          toast.success('Booking approved', 'The customer can now proceed to payment.');
+          if (activeFilter === 'NEEDS_ACTION' || activeFilter === 'ALL_ACTIVE') setSelectedBooking(null);
+          break;
+          
+        case 'REJECT_BOOKING':
+          await bookingsApi.reject(selectedBooking.id, remarks);
+          toast.success('Booking rejected', 'The customer has been notified.');
+          setRemarks('');
+          if (activeFilter === 'NEEDS_ACTION' || activeFilter === 'ALL_ACTIVE') setSelectedBooking(null);
+          break;
+          
+        case 'VERIFY_PAYMENT':
+          await paymentsApi.verify(modalConfig.paymentId!);
+          toast.success('Payment verified', 'The booking status has been updated.');
+          break;
+          
+        case 'REJECT_PAYMENT':
+          await paymentsApi.reject(modalConfig.paymentId!, remarks);
+          toast.success('Payment rejected', 'The customer has been notified.');
+          setRemarks('');
+          break;
+          
+        case 'CONFIRM_CASH':
+          const paidAmount = selectedBooking.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0;
+          const remaining = Number(selectedBooking.totalAmount) - paidAmount;
+          await paymentsApi.confirmCash(selectedBooking.id, remaining);
+          toast.success('Cash payment confirmed', 'The booking is now ready for pickup.');
+          break;
+          
+        case 'RELEASE_VEHICLE':
+          if (!selectedBooking.agreementSignedAt && agreementSigned) {
+            await bookingsApi.signAgreement(selectedBooking.id, selectedBooking.customer?.fullName || 'Customer');
+          }
+          await bookingsApi.releaseVehicle(selectedBooking.id, {
+            odometer: releaseOdometer,
+            notes: 'Released via centralized dashboard',
+            checklistConfirmed: true
+          });
+          toast.success('Vehicle released', 'Rental is now active and GPS tracking can start.');
+          setReleaseOdometer('');
+          setChecklistConfirmed(false);
+          setAgreementSigned(false);
+          break;
+          
+        case 'RETURN_VEHICLE':
+          await bookingsApi.markReturned(selectedBooking.id, {
+            odometer: returnOdometer,
+            notes: returnNotes,
+            damageFound,
+            damageDetails: damageFound ? damageDetails : null
+          });
+          toast.success('Vehicle returned', 'GPS tracking has stopped and return inspection was saved.');
+          setReturnOdometer('');
+          setReturnNotes('');
+          setDamageFound(false);
+          setDamageDetails({ type: 'GENERAL', severity: 'LOW', cost: '', desc: '' });
+          break;
+          
+        case 'COMPLETE_RENTAL':
+          await bookingsApi.completeRental(selectedBooking.id, { maintenance: false });
+          toast.success('Rental completed', 'The vehicle status has been updated.');
+          break;
+      }
+      
+      closeModal();
+      fetchBookings();
+    } catch (error: any) {
+      setModalError(getApiErrorMessage(error));
+      toast.error('Action failed', getApiErrorMessage(error));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBookingAction = (status: 'APPROVED_FOR_PAYMENT' | 'REJECTED') => {
     if (status === 'REJECTED' && !remarks) {
-      alert('Please provide a reason for rejection.');
-      return;
+      return toast.warning('Remarks required', 'Please provide a reason for rejection.');
     }
-
-    setActionLoading(true);
-    try {
-      if (status === 'APPROVED_FOR_PAYMENT') {
-        await bookingsApi.approve(selectedBooking.id);
-      } else {
-        await bookingsApi.reject(selectedBooking.id, remarks);
-      }
-
-      setRemarks('');
-      // If it moved out of the current tab, deselect it
-      if (activeTab === 'PENDING_REVIEW') setSelectedBooking(null);
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to update booking status.');
-    } finally {
-      setActionLoading(false);
-    }
+    openModal(status === 'APPROVED_FOR_PAYMENT' ? 'APPROVE_BOOKING' : 'REJECT_BOOKING');
   };
 
-  const handlePaymentAction = async (paymentId: string, action: 'VERIFY' | 'REJECT') => {
+  const handlePaymentAction = (paymentId: string, action: 'VERIFY' | 'REJECT') => {
     if (action === 'REJECT' && !remarks) {
-      alert('Please provide a reason for payment rejection.');
-      return;
+      return toast.warning('Remarks required', 'Please provide a reason for payment rejection.');
     }
-
-    setActionLoading(true);
-    try {
-      if (action === 'VERIFY') {
-        await paymentsApi.verify(paymentId);
-      } else {
-        await paymentsApi.reject(paymentId, remarks);
-      }
-      setRemarks('');
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to process payment.');
-    } finally {
-      setActionLoading(false);
-    }
+    openModal(action === 'VERIFY' ? 'VERIFY_PAYMENT' : 'REJECT_PAYMENT', paymentId);
   };
 
-  const handleConfirmCashClick = () => {
-    setCashConfirmError(null);
-    setShowCashConfirmModal(true);
+  const handleConfirmCashClick = () => openModal('CONFIRM_CASH');
+
+  const handleReleaseVehicle = () => {
+    if (!agreementSigned && !selectedBooking.agreementSignedAt) return toast.warning('Agreement required', 'Rental agreement must be signed before release.');
+    if (!checklistConfirmed) return toast.warning('Checklist required', 'Release checklist must be confirmed.');
+    if (!releaseOdometer) return toast.warning('Odometer required', 'Release odometer is required.');
+    openModal('RELEASE_VEHICLE');
   };
 
-  const submitCashConfirm = async () => {
-    if (!selectedBooking) return;
-    const paidAmount = selectedBooking.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0;
-    const remaining = Number(selectedBooking.totalAmount) - paidAmount;
-
-    setActionLoading(true);
-    setCashConfirmError(null);
-    try {
-      await paymentsApi.confirmCash(selectedBooking.id, remaining);
-      setShowCashConfirmModal(false);
-      fetchBookings();
-    } catch (error: any) {
-      setCashConfirmError(error.response?.data?.error || 'Failed to confirm cash payment.');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleReturnVehicle = () => {
+    if (!returnOdometer) return toast.warning('Odometer required', 'Return odometer is required.');
+    openModal('RETURN_VEHICLE');
   };
 
-  const handleReleaseVehicle = async () => {
-    if (!selectedBooking) return;
-    if (!agreementSigned && !selectedBooking.agreementSignedAt) return alert('Rental agreement must be signed before release.');
-    if (!checklistConfirmed) return alert('Release checklist must be confirmed.');
-    if (!releaseOdometer) return alert('Release odometer is required.');
+  const handleCompleteRental = () => openModal('COMPLETE_RENTAL');
 
-    setActionLoading(true);
-    try {
-      if (!selectedBooking.agreementSignedAt && agreementSigned) {
-        await bookingsApi.signAgreement(selectedBooking.id, selectedBooking.customer?.fullName || 'Customer');
-      }
-      await bookingsApi.releaseVehicle(selectedBooking.id, {
-        odometer: releaseOdometer,
-        notes: 'Released via centralized dashboard',
-        checklistConfirmed: true
-      });
-      setReleaseOdometer('');
-      setChecklistConfirmed(false);
-      setAgreementSigned(false);
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to release vehicle.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReturnVehicle = async () => {
-    if (!selectedBooking) return;
-    if (!returnOdometer) return alert('Return odometer is required.');
-
-    setActionLoading(true);
-    try {
-      await bookingsApi.markReturned(selectedBooking.id, {
-        odometer: returnOdometer,
-        notes: returnNotes,
-        damageFound,
-        damageDetails: damageFound ? damageDetails : null
-      });
-      setReturnOdometer('');
-      setReturnNotes('');
-      setDamageFound(false);
-      setDamageDetails({ type: 'GENERAL', severity: 'LOW', cost: '', desc: '' });
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to return vehicle.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleCompleteRental = async () => {
-    if (!selectedBooking) return;
-    setActionLoading(true);
-    try {
-      await bookingsApi.completeRental(selectedBooking.id, { maintenance: false });
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to complete rental.');
-    } finally {
-      setActionLoading(false);
+  const getWorkflowState = (booking: any) => {
+    switch (booking.status) {
+      case 'PENDING_REVIEW':
+        return { label: 'Pending Review', actionLabel: 'Review Request', actionPriority: 'ACTION_REQUIRED', actionType: 'APPROVE_BOOKING' };
+      case 'APPROVED_FOR_PAYMENT':
+        return { label: 'Waiting for Customer Payment', actionLabel: 'View Details', actionPriority: 'WAITING', actionType: 'VIEW', helperText: 'Customer has not submitted payment yet.' };
+      case 'FULL_PAYMENT_SUBMITTED':
+        return { label: 'Full Payment Submitted', actionLabel: 'Verify Payment', actionPriority: 'ACTION_REQUIRED', actionType: 'VERIFY_PAYMENT' };
+      case 'DOWNPAYMENT_SUBMITTED':
+        return { label: 'Downpayment Submitted', actionLabel: 'Verify Payment', actionPriority: 'ACTION_REQUIRED', actionType: 'VERIFY_PAYMENT' };
+      case 'RESERVED':
+        return { label: 'Balance Due at Pickup', actionLabel: 'Confirm Cash Payment', actionPriority: 'ACTION_REQUIRED', actionType: 'CONFIRM_CASH' };
+      case 'READY_FOR_PICKUP':
+        return { label: 'Ready for Pickup', actionLabel: 'Release Vehicle', actionPriority: 'ACTION_REQUIRED', actionType: 'RELEASE_VEHICLE' };
+      case 'ACTIVE':
+        return { label: 'Active Rental', actionLabel: 'Return Vehicle', actionPriority: 'ACTION_REQUIRED', actionType: 'RETURN_VEHICLE' };
+      case 'RETURNED':
+        return { label: 'Returned', actionLabel: 'Complete Rental', actionPriority: 'ACTION_REQUIRED', actionType: 'COMPLETE_RENTAL' };
+      case 'REJECTED':
+        return { label: 'Rejected', actionLabel: 'View Details', actionPriority: 'MUTED', actionType: 'VIEW' };
+      case 'COMPLETED':
+        return { label: 'Completed', actionLabel: 'View History', actionPriority: 'MUTED', actionType: 'VIEW' };
+      default:
+        return { label: booking.status, actionLabel: 'View Details', actionPriority: 'MUTED', actionType: 'VIEW' };
     }
   };
 
@@ -317,6 +328,13 @@ const BookingRequestsPage: React.FC = () => {
       b.id.toLowerCase().includes(searchLower)
     );
   }).sort((a, b) => {
+    if (sortBy === 'priority') {
+      const pA = getWorkflowState(a).actionPriority;
+      const pB = getWorkflowState(b).actionPriority;
+      const priorityOrder: any = { 'ACTION_REQUIRED': 1, 'WAITING': 2, 'MUTED': 3 };
+      if (priorityOrder[pA] !== priorityOrder[pB]) return priorityOrder[pA] - priorityOrder[pB];
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
     if (sortBy === 'newest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     if (sortBy === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     if (sortBy === 'price_high') return Number(b.totalAmount) - Number(a.totalAmount);
@@ -325,41 +343,31 @@ const BookingRequestsPage: React.FC = () => {
   });
 
   const renderEmptyState = () => {
-    const configs: Record<BookingTab, { title: string, subtitle: string, icon: any }> = {
-      PENDING_REVIEW: { 
-        title: 'No pending requests', 
-        subtitle: 'New customer requests will appear here for document review.',
+    const configs: Record<WorkflowFilter, { title: string, subtitle: string, icon: any }> = {
+      ALL_ACTIVE: { 
+        title: 'No active booking workflow items', 
+        subtitle: 'New booking requests and ongoing rentals will appear here.',
         icon: <Clock size={40} />
       },
-      WAITING_FOR_PAYMENT: { 
-        title: 'No bookings waiting for payment', 
-        subtitle: 'Approved bookings will appear here until the customer submits payment.',
-        icon: <CreditCard size={40} />
-      },
-      PAYMENT_SUBMITTED: { 
-        title: 'No payments pending verification', 
-        subtitle: 'Submitted GCash receipts will appear here for review.',
-        icon: <Smartphone size={40} />
-      },
-      READY_FOR_PICKUP: { 
-        title: 'No vehicles ready for pickup', 
-        subtitle: 'Verified payments and completed balances will appear here.',
+      NEEDS_ACTION: { 
+        title: 'No actions required right now', 
+        subtitle: 'You are all caught up with customer requests and approvals.',
         icon: <CheckCircle2 size={40} />
       },
-      REJECTED: { 
-        title: 'No rejected bookings', 
-        subtitle: 'Bookings that were not approved or had payment issues will be listed here.',
-        icon: <AlertTriangle size={40} />
+      WAITING_CUSTOMER: { 
+        title: 'No bookings waiting for customer payment', 
+        subtitle: 'All approved bookings have either been paid or rejected.',
+        icon: <CreditCard size={40} />
       },
       ACTIVE_RENTALS: { 
         title: 'No active rentals', 
         subtitle: 'Vehicles currently on the road will appear here for GPS tracking.',
         icon: <Navigation size={40} />
       },
-      RETURNED: { 
-        title: 'No returned vehicles pending completion', 
-        subtitle: 'Vehicles returned by customers waiting for final admin sign-off.',
-        icon: <ArrowUpDown size={40} />
+      REJECTED: { 
+        title: 'No rejected bookings', 
+        subtitle: 'Bookings that were not approved or had payment issues will be listed here.',
+        icon: <AlertTriangle size={40} />
       },
       COMPLETED: { 
         title: 'No completed rentals', 
@@ -368,7 +376,7 @@ const BookingRequestsPage: React.FC = () => {
       }
     };
 
-    const config = configs[activeTab];
+    const config = configs[activeFilter] || configs['ALL_ACTIVE'];
 
     return (
       <div className="booking-empty-state-new">
@@ -535,16 +543,16 @@ const BookingRequestsPage: React.FC = () => {
           <h3><Clock size={20} color="var(--warm-taupe)" /> Workflow Status Summary</h3>
           <div className="booking-stat-grid">
             <div className="booking-stat-item">
-              <span className="booking-stat-label">Pending</span>
-              <span className="booking-stat-value" style={{ color: '#EA580C' }}>{counts.PENDING_REVIEW}</span>
+              <span className="booking-stat-label">Needs Action</span>
+              <span className="booking-stat-value" style={{ color: '#EA580C' }}>{counts.NEEDS_ACTION}</span>
             </div>
             <div className="booking-stat-item">
               <span className="booking-stat-label">Wait Pay</span>
-              <span className="booking-stat-value" style={{ color: '#0284C7' }}>{counts.WAITING_FOR_PAYMENT}</span>
+              <span className="booking-stat-value" style={{ color: '#0284C7' }}>{counts.WAITING_CUSTOMER}</span>
             </div>
             <div className="booking-stat-item">
-              <span className="booking-stat-label">Submitted</span>
-              <span className="booking-stat-value" style={{ color: '#7C3AED' }}>{counts.PAYMENT_SUBMITTED}</span>
+              <span className="booking-stat-label">Active Rentals</span>
+              <span className="booking-stat-value" style={{ color: '#7C3AED' }}>{counts.ACTIVE_RENTALS}</span>
             </div>
             <div className="booking-stat-item">
               <span className="booking-stat-label">Ready</span>
@@ -568,25 +576,32 @@ const BookingRequestsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Workflow Tabs */}
-      <div className="bookings-tabs-compact">
+      {/* Workflow Filter Chips */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
         {[
-          { id: 'PENDING_REVIEW', label: 'Pending Review', count: counts.PENDING_REVIEW },
-          { id: 'WAITING_FOR_PAYMENT', label: 'Waiting for Payment', count: counts.WAITING_FOR_PAYMENT },
-          { id: 'PAYMENT_SUBMITTED', label: 'Payment Submitted', count: counts.PAYMENT_SUBMITTED },
-          { id: 'READY_FOR_PICKUP', label: 'Ready for Pickup', count: counts.READY_FOR_PICKUP },
-          { id: 'ACTIVE_RENTALS', label: 'Active Rentals', count: counts.ACTIVE_RENTALS },
-          { id: 'RETURNED', label: 'Returned', count: counts.RETURNED },
-          { id: 'COMPLETED', label: 'Completed', count: counts.COMPLETED },
-          { id: 'REJECTED', label: 'Rejected', count: counts.REJECTED }
-        ].map(tab => (
+          { id: 'ALL_ACTIVE', label: 'All Active Workflow' },
+          { id: 'NEEDS_ACTION', label: 'Needs Admin Action' },
+          { id: 'WAITING_CUSTOMER', label: 'Waiting for Customer' },
+          { id: 'ACTIVE_RENTALS', label: 'Active Rentals' },
+          { id: 'REJECTED', label: 'Rejected / Issues' },
+          { id: 'COMPLETED', label: 'Completed' }
+        ].map(filter => (
           <button 
-            key={tab.id}
-            onClick={() => { setActiveTab(tab.id as any); setSelectedBooking(null); }}
-            className={`booking-tab-compact ${activeTab === tab.id ? 'active' : ''}`}
+            key={filter.id}
+            onClick={() => { setActiveFilter(filter.id as WorkflowFilter); setSelectedBooking(null); }}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '20px',
+              border: activeFilter === filter.id ? 'none' : '1px solid var(--gray-200)',
+              backgroundColor: activeFilter === filter.id ? 'var(--warm-taupe)' : 'white',
+              color: activeFilter === filter.id ? 'white' : 'var(--gray-500)',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
           >
-            {tab.label}
-            <span className="booking-tab-count">{tab.count}</span>
+            {filter.label}
           </button>
         ))}
       </div>
@@ -611,6 +626,7 @@ const BookingRequestsPage: React.FC = () => {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
+            <option value="priority">Priority Order</option>
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
             <option value="price_high">Price: High to Low</option>
@@ -630,61 +646,78 @@ const BookingRequestsPage: React.FC = () => {
           ) : filteredBookings.length === 0 ? (
             renderEmptyState()
           ) : (
-            filteredBookings.map((booking) => (
-              <div 
-                key={booking.id} 
-                className={`booking-list-item ${selectedBooking?.id === booking.id ? 'selected' : ''}`}
-                onClick={() => setSelectedBooking(booking)}
-                style={{ cursor: 'pointer' }}
-              >
-                {/* Left: Customer & ID */}
-                <div className="booking-list-main">
-                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
-                    {booking.vehicle.imageUrl ? (
-                      <img src={booking.vehicle.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <User size={20} color="var(--gray-400)" />
-                    )}
-                  </div>
-                  <div className="booking-list-meta">
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Customer</span>
-                    <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--black)' }}>{booking.customer?.fullName}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontFamily: 'monospace' }}>#{booking.id.slice(0, 8).toUpperCase()}</span>
-                  </div>
-                </div>
-
-                {/* Middle: Vehicle & Dates */}
-                <div style={{ display: 'flex', gap: '2rem' }}>
-                  <div className="booking-list-meta">
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Vehicle</span>
-                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--black)' }}>{booking.vehicle.brand} {booking.vehicle.model}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{booking.vehicle.licensePlate}</span>
-                  </div>
-                  <div className="booking-list-meta">
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Schedule</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)' }}>{new Date(booking.startDate).toLocaleDateString()}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>to {new Date(booking.endDate).toLocaleDateString()}</span>
-                  </div>
-                </div>
-
-                {/* Right: Amount & Status */}
-                <div className="booking-list-status">
-                  {booking.status === 'REJECTED' && booking.rejectionReason && (
-                    <div style={{ marginRight: 'auto', fontSize: '0.8rem', color: '#DC2626', backgroundColor: '#FEF2F2', padding: '0.25rem 0.5rem', borderRadius: '6px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {booking.rejectionReason}
+            filteredBookings.map((booking) => {
+              const wf = getWorkflowState(booking);
+              return (
+                <div 
+                  key={booking.id} 
+                  className={`booking-list-item ${selectedBooking?.id === booking.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedBooking(booking)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {/* Left: Customer & ID */}
+                  <div className="booking-list-main" style={{ minWidth: '220px' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
+                      {booking.vehicle.imageUrl ? (
+                        <img src={booking.vehicle.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <User size={20} color="var(--gray-400)" />
+                      )}
                     </div>
-                  )}
-                  <div className="booking-list-meta" style={{ alignItems: 'flex-end', marginRight: '1rem' }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Amount</span>
-                    <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--black)' }}>₱{Number(booking.totalAmount).toLocaleString()}</span>
+                    <div className="booking-list-meta">
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Customer</span>
+                      <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--black)' }}>{booking.customer?.fullName}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontFamily: 'monospace' }}>#{booking.id.slice(0, 8).toUpperCase()}</span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                    <StatusBadge status={booking.status} />
-                    <button className="booking-list-action">View Details</button>
+
+                  {/* Middle: Vehicle & Dates */}
+                  <div style={{ display: 'flex', gap: '2rem', flex: 1 }}>
+                    <div className="booking-list-meta">
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Vehicle</span>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--black)' }}>{booking.vehicle.brand} {booking.vehicle.model}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{booking.vehicle.licensePlate}</span>
+                    </div>
+                    <div className="booking-list-meta">
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Schedule</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)' }}>{new Date(booking.startDate).toLocaleDateString()} → {new Date(booking.endDate).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+
+                  {/* Right: Amount & Status */}
+                  <div className="booking-list-status" style={{ minWidth: '300px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--black)' }}>₱{Number(booking.totalAmount).toLocaleString()}</span>
+                      
+                      {wf.actionPriority === 'ACTION_REQUIRED' && (
+                        <span style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#FEF2F2', color: '#DC2626', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>
+                          Action Required
+                        </span>
+                      )}
+                      {wf.actionPriority === 'WAITING' && (
+                        <span style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#F0F9FF', color: '#0284C7', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>
+                          Waiting for Customer
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginTop: '0.25rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)' }}>{wf.label}</span>
+                      <button 
+                        className={`booking-list-action ${wf.actionPriority === 'ACTION_REQUIRED' ? 'priority' : ''}`}
+                        style={{ 
+                          backgroundColor: wf.actionPriority === 'ACTION_REQUIRED' ? 'var(--warm-taupe)' : 'var(--gray-100)',
+                          color: wf.actionPriority === 'ACTION_REQUIRED' ? 'white' : 'var(--gray-600)',
+                          border: 'none'
+                        }}
+                      >
+                        {wf.actionLabel}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -982,74 +1015,109 @@ const BookingRequestsPage: React.FC = () => {
         />
       )}
 
-      {showCashConfirmModal && selectedBooking && (
-        <div className="cash-confirm-backdrop">
-          <div className="cash-confirm-modal">
-            <div className="cash-confirm-header">
-              <Banknote size={24} color="#16A34A" />
-              <h3 className="cash-confirm-title">Confirm Cash Payment</h3>
-            </div>
-            
-            <div className="cash-confirm-message">
-              Please confirm that the customer has paid the remaining balance in person.
-              This action will record the cash payment and move the booking to <strong>Ready for Pickup</strong>.
-            </div>
+      {(() => {
+        if (!modalConfig.isOpen || !selectedBooking) return null;
 
-            <div className="cash-confirm-summary">
-              <div className="cash-confirm-row">
-                <span>Customer</span>
-                <span>{selectedBooking.customer?.fullName}</span>
-              </div>
-              <div className="cash-confirm-row">
-                <span>Vehicle</span>
-                <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span>
-              </div>
-              <div className="cash-confirm-row">
-                <span>Booking ID</span>
-                <span style={{ fontFamily: 'monospace' }}>#{selectedBooking.id.slice(0, 8).toUpperCase()}</span>
-              </div>
-              <div className="cash-confirm-row">
-                <span>Method</span>
-                <span>Cash at Pickup</span>
-              </div>
-              
-              <div className="cash-confirm-amount">
-                <span>Remaining Balance</span>
-                <span>
-                  ₱{(
-                    Number(selectedBooking.totalAmount) - 
-                    (selectedBooking.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0)
-                  ).toLocaleString()}
-                </span>
-              </div>
-            </div>
+        let title = '';
+        let message: React.ReactNode = '';
+        let variant: 'default' | 'danger' | 'warning' | 'success' = 'default';
+        let confirmLabel = 'Confirm';
+        let details: React.ReactNode = null;
 
-            {cashConfirmError && (
-              <div className="cash-confirm-error">
-                <AlertTriangle size={18} />
-                <span>{cashConfirmError}</span>
-              </div>
-            )}
+        switch (modalConfig.type) {
+          case 'APPROVE_BOOKING':
+            title = 'Approve Booking Request?';
+            message = 'This will approve the booking and notify the customer to proceed with payment.';
+            confirmLabel = 'Approve Booking';
+            variant = 'success';
+            break;
+          case 'REJECT_BOOKING':
+            title = 'Reject Booking Request?';
+            message = 'Are you sure you want to reject this booking request? The customer will be notified.';
+            confirmLabel = 'Reject Booking';
+            variant = 'danger';
+            break;
+          case 'VERIFY_PAYMENT':
+            title = 'Verify GCash Payment?';
+            message = 'This will mark the payment as verified and update the booking status.';
+            confirmLabel = 'Verify Payment';
+            variant = 'success';
+            break;
+          case 'REJECT_PAYMENT':
+            title = 'Reject Payment?';
+            message = 'Are you sure you want to reject this payment? The customer will be asked to re-submit.';
+            confirmLabel = 'Reject Payment';
+            variant = 'danger';
+            break;
+          case 'CONFIRM_CASH':
+            const paidAmount = selectedBooking.payments?.reduce((sum: number, p: any) => sum + Number(p.amount), 0) || 0;
+            const remaining = Number(selectedBooking.totalAmount) - paidAmount;
+            title = 'Confirm Cash Payment?';
+            message = 'Please confirm that the customer has paid the remaining balance in person. This action will record the cash payment and move the booking to Ready for Pickup.';
+            confirmLabel = 'Confirm Cash Received';
+            variant = 'success';
+            details = (
+              <ul>
+                <li><strong>Customer:</strong> <span>{selectedBooking.customer?.fullName}</span></li>
+                <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
+                <li><strong>Booking ID:</strong> <span style={{ fontFamily: 'monospace' }}>#{selectedBooking.id.slice(0, 8).toUpperCase()}</span></li>
+                <li><strong>Remaining Balance:</strong> <span>₱{remaining.toLocaleString()}</span></li>
+              </ul>
+            );
+            break;
+          case 'RELEASE_VEHICLE':
+            title = 'Release Vehicle?';
+            message = 'You are about to release the vehicle to the customer. GPS tracking will begin immediately.';
+            confirmLabel = 'Release Vehicle';
+            variant = 'success';
+            details = (
+              <ul>
+                <li><strong>Customer:</strong> <span>{selectedBooking.customer?.fullName}</span></li>
+                <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
+                <li><strong>Plate Number:</strong> <span>{selectedBooking.vehicle.plateNumber}</span></li>
+                <li><strong>Release Odometer:</strong> <span>{releaseOdometer} km</span></li>
+              </ul>
+            );
+            break;
+          case 'RETURN_VEHICLE':
+            title = 'Return Vehicle?';
+            message = 'You are processing the return of this vehicle. GPS tracking will stop.';
+            confirmLabel = 'Return Vehicle';
+            variant = 'warning';
+            const distance = Math.max(0, Number(returnOdometer) - Number(selectedBooking.releaseOdometerKm || 0));
+            details = (
+              <ul>
+                <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
+                <li><strong>Release Odometer:</strong> <span>{selectedBooking.releaseOdometerKm} km</span></li>
+                <li><strong>Return Odometer:</strong> <span>{returnOdometer} km</span></li>
+                <li><strong>Trip Distance:</strong> <span>{distance} km</span></li>
+                <li><strong>Damage Found:</strong> <span style={{ color: damageFound ? '#DC2626' : '#16A34A' }}>{damageFound ? 'Yes' : 'No'}</span></li>
+              </ul>
+            );
+            break;
+          case 'COMPLETE_RENTAL':
+            title = 'Complete Rental?';
+            message = 'Are you sure you want to finalize this rental? The vehicle will become available for new bookings.';
+            confirmLabel = 'Complete Rental';
+            variant = 'success';
+            break;
+        }
 
-            <div className="cash-confirm-footer">
-              <button 
-                onClick={() => setShowCashConfirmModal(false)} 
-                disabled={actionLoading}
-                className="cash-confirm-cancel"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={submitCashConfirm} 
-                disabled={actionLoading}
-                className="cash-confirm-submit"
-              >
-                {actionLoading ? 'Confirming...' : 'Confirm Cash Received'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        return (
+          <ConfirmActionModal
+            isOpen={modalConfig.isOpen}
+            title={title}
+            message={message}
+            details={details}
+            variant={variant}
+            confirmLabel={confirmLabel}
+            loading={actionLoading}
+            error={modalError}
+            onConfirm={executeModalAction}
+            onCancel={closeModal}
+          />
+        );
+      })()}
     </div>
   );
 };

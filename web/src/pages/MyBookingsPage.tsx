@@ -3,9 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import { Loader2, Calendar, MapPin, ChevronRight, CreditCard, CheckCircle2, Navigation, RotateCcw, Info, X, ExternalLink, FileText, User, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { bookingsApi } from '../services/api';
+import { bookingsApi, getApiErrorMessage } from '../services/api';
+import { useToast } from '../components/ToastProvider';
 
 const MyBookingsPage: React.FC = () => {
+  const toast = useToast();
   const { user } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ const MyBookingsPage: React.FC = () => {
       setDetails(data);
     } catch (error) {
       console.error('Error fetching details:', error);
-      alert('Failed to load booking details.');
+      toast.error('Failed to load details', getApiErrorMessage(error));
     } finally {
       setDetailsLoading(false);
     }

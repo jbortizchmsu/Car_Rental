@@ -5,7 +5,9 @@ import {
   Search, Calculator, Tag, X,
   ShieldCheck, Clock, FileText
 } from 'lucide-react';
-import { pricingApi, vehiclesApi } from '../services/api';
+import { pricingApi, vehiclesApi, getApiErrorMessage } from '../services/api';
+import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
 
 interface PricingRule {
   id: string;
@@ -51,6 +53,12 @@ const AdminDynamicPricingPage: React.FC = () => {
   const [previewResult, setPreviewResult] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  const toast = useToast();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   useEffect(() => {
     fetchRules();
     fetchVehicles();
@@ -63,6 +71,7 @@ const AdminDynamicPricingPage: React.FC = () => {
       setRules(data);
     } catch (error) {
       console.error('Error fetching rules:', error);
+      toast.error('Failed to load pricing rules', getApiErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -114,34 +123,58 @@ const AdminDynamicPricingPage: React.FC = () => {
       setIsSubmitting(true);
       if (editingRule) {
         await pricingApi.updateRule(editingRule.id, formData);
+        toast.success('Rule Updated', 'The pricing rule has been saved successfully.');
       } else {
         await pricingApi.createRule(formData);
+        toast.success('Rule Created', 'The new pricing rule has been applied.');
       }
       setShowModal(false);
       fetchRules();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error saving rule');
+      toast.error('Failed to save rule', getApiErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this pricing rule?')) return;
+  const openDeleteModal = (id: string) => {
+    setDeleteId(id);
+    setDeleteError(null);
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteLoading) return;
+    setDeleteModalOpen(false);
+    setDeleteId(null);
+    setDeleteError(null);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteId) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+
     try {
-      await pricingApi.deleteRule(id);
+      await pricingApi.deleteRule(deleteId);
+      toast.success('Rule Deleted', 'The pricing rule has been permanently removed.');
       fetchRules();
-    } catch (error) {
-      alert('Error deleting rule');
+      closeDeleteModal();
+    } catch (error: any) {
+      setDeleteError(getApiErrorMessage(error));
+      toast.error('Deletion failed', getApiErrorMessage(error));
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
   const handleToggle = async (id: string) => {
     try {
       await pricingApi.toggleRule(id);
+      toast.success('Rule Status Changed', 'The pricing rule has been toggled.');
       fetchRules();
     } catch (error) {
-      alert('Error toggling rule');
+      toast.error('Failed to toggle rule', getApiErrorMessage(error));
     }
   };
 
@@ -303,7 +336,7 @@ const AdminDynamicPricingPage: React.FC = () => {
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button onClick={() => handleOpenModal(rule)} className="btn-outline" style={{ padding: '0.5rem', borderRadius: '10px' }} title="Edit"><Edit2 size={16} /></button>
                           <button onClick={() => handleToggle(rule.id)} className="btn-outline" style={{ padding: '0.5rem', borderRadius: '10px', color: rule.isActive ? 'var(--status-error)' : 'var(--status-available)' }} title={rule.isActive ? 'Disable' : 'Enable'}><Power size={16} /></button>
-                          <button onClick={() => handleDelete(rule.id)} className="btn-outline" style={{ padding: '0.5rem', borderRadius: '10px', color: 'var(--status-error)' }} title="Delete"><Trash2 size={16} /></button>
+                          <button onClick={() => openDeleteModal(rule.id)} className="btn-outline" style={{ padding: '0.5rem', borderRadius: '10px', color: 'var(--status-error)' }} title="Delete"><Trash2 size={16} /></button>
                         </div>
                       </td>
                     </tr>
@@ -614,6 +647,18 @@ const AdminDynamicPricingPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmActionModal
+        isOpen={deleteModalOpen}
+        title="Delete Pricing Rule?"
+        message="Are you sure you want to permanently delete this dynamic pricing rule? Active quotes using this rule will not be affected, but future quotes will revert to base rates."
+        variant="danger"
+        confirmLabel="Delete Rule"
+        loading={deleteLoading}
+        error={deleteError}
+        onConfirm={executeDelete}
+        onCancel={closeDeleteModal}
+      />
     </div>
   );
 };

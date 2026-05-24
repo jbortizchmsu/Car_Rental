@@ -83,7 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
       setProfile(formattedProfile);
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Login failed';
+      let msg = err.response?.data?.error || 'Login failed';
+      if (err.response?.status === 401) {
+        msg = 'Invalid email or password.';
+      }
       setError(msg);
       throw new Error(msg);
     } finally {

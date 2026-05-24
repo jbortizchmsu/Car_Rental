@@ -5,7 +5,9 @@ import {
   Car, CheckCircle, Clock, Wrench, ChevronRight, Info
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
-import { vehiclesApi } from '../services/api';
+import { vehiclesApi, getApiErrorMessage } from '../services/api';
+import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
 
 interface Vehicle {
   id: string;
@@ -66,6 +68,12 @@ const VehicleManagement: React.FC = () => {
     fetchVehicles();
   }, []);
 
+  const toast = useToast();
+  const [retireModalOpen, setRetireModalOpen] = useState(false);
+  const [retireVehicleId, setRetireVehicleId] = useState<string | null>(null);
+  const [retireLoading, setRetireLoading] = useState(false);
+  const [retireError, setRetireError] = useState<string | null>(null);
+
   const fetchVehicles = async () => {
     try {
       setLoading(true);
@@ -73,6 +81,7 @@ const VehicleManagement: React.FC = () => {
       setVehicles(data);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
+      toast.error('Failed to load fleet data', getApiErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -159,7 +168,7 @@ const VehicleManagement: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File is too large. Max 5MB allowed.');
+        toast.warning('File too large', 'Maximum image size allowed is 5MB.');
         return;
       }
       setSelectedFile(file);
@@ -187,27 +196,49 @@ const VehicleManagement: React.FC = () => {
 
       if (editingVehicle) {
         await vehiclesApi.update(editingVehicle.id, data);
+        toast.success('Vehicle updated', 'The vehicle details have been saved successfully.');
       } else {
         await vehiclesApi.create(data);
+        toast.success('Vehicle created', 'The new vehicle has been added to your fleet.');
       }
 
       setShowModal(false);
       fetchVehicles();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error saving vehicle');
+      toast.error('Failed to save vehicle', getApiErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleRetire = async (id: string) => {
-    if (!confirm('Are you sure you want to RETIRE this vehicle? \n\nRetired vehicles will not be bookable but will remain in historical records and reports.')) return;
+  const openRetireModal = (id: string) => {
+    setRetireVehicleId(id);
+    setRetireError(null);
+    setRetireModalOpen(true);
+  };
+
+  const closeRetireModal = () => {
+    if (retireLoading) return;
+    setRetireModalOpen(false);
+    setRetireVehicleId(null);
+    setRetireError(null);
+  };
+
+  const executeRetire = async () => {
+    if (!retireVehicleId) return;
+    setRetireLoading(true);
+    setRetireError(null);
 
     try {
-      await vehiclesApi.retire(id);
+      await vehiclesApi.retire(retireVehicleId);
+      toast.success('Vehicle retired', 'The vehicle has been removed from active fleet.');
       fetchVehicles();
+      closeRetireModal();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Error retiring vehicle');
+      setRetireError(getApiErrorMessage(error));
+      toast.error('Retirement failed', getApiErrorMessage(error));
+    } finally {
+      setRetireLoading(false);
     }
   };
 
@@ -426,7 +457,7 @@ const VehicleManagement: React.FC = () => {
                           </button>
                           {vehicle.status !== 'RETIRED' && (
                             <button 
-                              onClick={(e) => { e.stopPropagation(); handleRetire(vehicle.id); }}
+                              onClick={(e) => { e.stopPropagation(); openRetireModal(vehicle.id); }}
                               className="p-2 rounded-lg transition-all hover:bg-status-error-bg"
                               style={{ color: 'var(--status-error)' }}
                               title="Retire Vehicle"
@@ -703,6 +734,18 @@ const VehicleManagement: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmActionModal
+        isOpen={retireModalOpen}
+        title="Retire Vehicle?"
+        message="Are you sure you want to RETIRE this vehicle? Retired vehicles will not be bookable but will remain in historical records and reports."
+        variant="danger"
+        confirmLabel="Retire Vehicle"
+        loading={retireLoading}
+        error={retireError}
+        onConfirm={executeRetire}
+        onCancel={closeRetireModal}
+      />
     </div>
   );
 };

@@ -23,71 +23,75 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 
+import { ToastProvider } from './components/ToastProvider';
+
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Public Routes with Navbar/Footer */}
-        <Route element={<PublicLayout><Outlet /></PublicLayout>}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/vehicles" element={<VehiclesPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+    <ToastProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes with Navbar/Footer */}
+          <Route element={<PublicLayout><Outlet /></PublicLayout>}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/vehicles" element={<VehiclesPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            
+            {/* Customer Routes (also use PublicLayout) */}
+            <Route 
+              path="/customer/*" 
+              element={
+                <ProtectedRoute allowedRole="customer">
+                  <Routes>
+                    <Route path="dashboard" element={<div>Customer Dashboard Placeholder</div>} />
+                    <Route path="request-rental" element={<RequestRentalPage />} />
+                    <Route path="my-bookings" element={<MyBookingsPage />} />
+                    <Route path="notifications" element={<CustomerNotificationsPage />} />
+                    <Route path="profile" element={<CustomerProfilePage />} />
+                    <Route path="payment/:bookingId" element={<PaymentSubmissionPage />} />
+                    <Route path="*" element={<MyBookingsPage />} />
+                  </Routes>
+                </ProtectedRoute>
+              } 
+            />
+          </Route>
           
-          {/* Customer Routes (also use PublicLayout) */}
+          {/* Admin Routes with Sidebar only */}
           <Route 
-            path="/customer/*" 
+            path="/admin" 
             element={
-              <ProtectedRoute allowedRole="customer">
-                <Routes>
-                  <Route path="dashboard" element={<div>Customer Dashboard Placeholder</div>} />
-                  <Route path="request-rental" element={<RequestRentalPage />} />
-                  <Route path="my-bookings" element={<MyBookingsPage />} />
-                  <Route path="notifications" element={<CustomerNotificationsPage />} />
-                  <Route path="profile" element={<CustomerProfilePage />} />
-                  <Route path="payment/:bookingId" element={<PaymentSubmissionPage />} />
-                  <Route path="*" element={<MyBookingsPage />} />
-                </Routes>
+              <ProtectedRoute allowedRole="admin">
+                <AdminLayout />
               </ProtectedRoute>
             } 
-          />
-        </Route>
-        
-        {/* Admin Routes with Sidebar only */}
-        <Route 
-          path="/admin" 
-          element={
-            <ProtectedRoute allowedRole="admin">
-              <AdminLayout />
-            </ProtectedRoute>
-          } 
-        >
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="fleet" element={<VehicleManagement />} />
-          <Route path="bookings" element={<BookingRequestsPage />} />
-          <Route path="maintenance" element={<AdminMaintenancePage />} />
-          <Route path="dynamic-pricing" element={<AdminDynamicPricingPage />} />
-          <Route path="gps-tracking" element={<AdminGpsTrackingPage />} />
-          <Route path="map-dashboard" element={<AdminLiveMapPage />} />
-          <Route path="payments" element={<AdminPaymentVerificationPage />} />
-          <Route path="reports" element={<AdminReportsPage />} />
-          <Route path="user-roles" element={<AdminUserRolesPage />} />
-          <Route path="settings" element={<AdminSettingsPage />} />
+          >
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="fleet" element={<VehicleManagement />} />
+            <Route path="bookings" element={<BookingRequestsPage />} />
+            <Route path="maintenance" element={<AdminMaintenancePage />} />
+            <Route path="dynamic-pricing" element={<AdminDynamicPricingPage />} />
+            <Route path="gps-tracking" element={<AdminGpsTrackingPage />} />
+            <Route path="map-dashboard" element={<AdminLiveMapPage />} />
+            <Route path="payments" element={<AdminPaymentVerificationPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="user-roles" element={<AdminUserRolesPage />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
 
-          {/* Redirects for backward compatibility */}
-          <Route path="vehicles" element={<Navigate to="/admin/fleet" replace />} />
-          <Route path="booking-requests" element={<Navigate to="/admin/bookings" replace />} />
-          <Route path="payment-verification" element={<Navigate to="/admin/payments" replace />} />
-          <Route path="live-map" element={<Navigate to="/admin/map-dashboard" replace />} />
-          <Route path="pickup" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="active-rentals" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="geofences" element={<Navigate to="/admin/map-dashboard" replace />} />
-          
-          <Route index element={<AdminDashboard />} />
-          <Route path="*" element={<AdminDashboard />} />
-        </Route>
-      </Routes>
-    </Router>
+            {/* Redirects for backward compatibility */}
+            <Route path="vehicles" element={<Navigate to="/admin/fleet" replace />} />
+            <Route path="booking-requests" element={<Navigate to="/admin/bookings" replace />} />
+            <Route path="payment-verification" element={<Navigate to="/admin/payments" replace />} />
+            <Route path="live-map" element={<Navigate to="/admin/map-dashboard" replace />} />
+            <Route path="pickup" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="active-rentals" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="geofences" element={<Navigate to="/admin/map-dashboard" replace />} />
+            
+            <Route index element={<AdminDashboard />} />
+            <Route path="*" element={<AdminDashboard />} />
+          </Route>
+        </Routes>
+      </Router>
+    </ToastProvider>
   );
 }
 

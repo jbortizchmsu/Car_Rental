@@ -9,7 +9,11 @@ const router = Router();
 router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const criticalAttentionCount = await prisma.damageReport.count({
-      where: { severity: 'CRITICAL', status: { not: 'RESOLVED' } }
+      where: { 
+        severity: 'CRITICAL', 
+        status: { not: 'RESOLVED' },
+        booking: { vehicle: { status: { not: 'RETIRED' } } }
+      }
     });
 
     const now = new Date();
@@ -22,7 +26,8 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
           gte: now, 
           lte: nextWeek 
         },
-        status: { not: 'COMPLETED' }
+        status: { not: 'COMPLETED' },
+        vehicle: { status: { not: 'RETIRED' } }
       }
     });
 
@@ -37,16 +42,25 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
     });
 
     const recentDamageReportsCount = await prisma.damageReport.count({
-      where: { status: 'PENDING' }
+      where: { 
+        status: 'PENDING',
+        booking: { vehicle: { status: { not: 'RETIRED' } } }
+      }
     });
 
     const damageEstimates = await prisma.damageReport.aggregate({
-      where: { status: { not: 'RESOLVED' } },
+      where: { 
+        status: { not: 'RESOLVED' },
+        booking: { vehicle: { status: { not: 'RETIRED' } } }
+      },
       _sum: { estimatedCost: true }
     });
 
     const maintenanceEstimates = await prisma.maintenanceLog.aggregate({
-      where: { status: { not: 'COMPLETED' } },
+      where: { 
+        status: { not: 'COMPLETED' },
+        vehicle: { status: { not: 'RETIRED' } }
+      },
       _sum: { cost: true }
     });
 
@@ -87,6 +101,7 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
 router.get('/vehicles', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const vehicles = await prisma.vehicle.findMany({
+      where: { status: { not: 'RETIRED' } },
       orderBy: { brand: 'asc' },
       include: {
         maintenanceLogs: {

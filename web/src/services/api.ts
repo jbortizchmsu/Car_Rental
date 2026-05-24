@@ -22,7 +22,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       // Auto logout on unauthorized
       localStorage.removeItem('jd_token');
       localStorage.removeItem('jd_user');
@@ -161,4 +161,18 @@ export const pricingApi = {
   updateRule: (id: string, data: any) => api.put(`/admin/pricing/admin/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/admin/pricing/admin/rules/${id}`),
   toggleRule: (id: string) => api.patch(`/admin/pricing/admin/rules/${id}/toggle`),
+};
+
+
+export const getApiErrorMessage = (error: any, defaultMessage = 'An unexpected error occurred.'): string => {
+  if (error?.response?.data?.error) {
+    return error.response.data.error;
+  }
+  if (error?.response?.data?.message) {
+    return error.response.data.message;
+  }
+  if (error?.message) {
+    return error.message;
+  }
+  return defaultMessage;
 };

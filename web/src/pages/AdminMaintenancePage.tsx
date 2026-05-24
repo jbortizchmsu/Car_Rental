@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Wrench, AlertTriangle, CheckCircle2, ClipboardList, Plus, Check, Search, Filter, DollarSign } from 'lucide-react';
-import { maintenanceApi } from '../services/api';
+import { Wrench, AlertTriangle, ClipboardList, Plus, Check, Search, Filter, DollarSign } from 'lucide-react';
+import { maintenanceApi, getApiErrorMessage } from '../services/api';
+import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
 
 const AdminMaintenancePage: React.FC = () => {
+  const toast = useToast();
   const [summary, setSummary] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [damageReports, setDamageReports] = useState<any[]>([]);
@@ -21,7 +24,7 @@ const AdminMaintenancePage: React.FC = () => {
     vehicleStatus: string;
   }>({ isOpen: false, action: 'SHOP', vehicleId: '', vehicleName: '', vehiclePlate: '', vehicleStatus: '' });
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [confirmError, setConfirmError] = useState('');
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [newLog, setNewLog] = useState({
     serviceType: 'ROUTINE',
     description: '',
@@ -47,6 +50,7 @@ const AdminMaintenancePage: React.FC = () => {
       setLogs(logsRes.data);
     } catch (error) {
       console.error('Error fetching maintenance data:', error);
+      toast.error('Failed to load data', getApiErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -63,10 +67,11 @@ const AdminMaintenancePage: React.FC = () => {
         ...newLog,
         vehicleId: selectedVehicleId
       });
+      toast.success('Maintenance Log Created', 'Service entry has been successfully recorded.');
       setShowLogModal(false);
       fetchData();
     } catch (error) {
-      alert('Failed to create maintenance log');
+      toast.error('Failed to create log', getApiErrorMessage(error));
     }
   };
 
@@ -79,22 +84,31 @@ const AdminMaintenancePage: React.FC = () => {
       vehiclePlate: vehicle.plateNumber,
       vehicleStatus: vehicle.status === 'UNDER_MAINTENANCE' ? 'In Shop' : 'Available',
     });
-    setConfirmError('');
+    setConfirmError(null);
+  };
+
+  const closeConfirmModal = () => {
+    if (confirmLoading) return;
+    setConfirmModal({ ...confirmModal, isOpen: false });
+    setConfirmError(null);
   };
 
   const executeConfirmAction = async () => {
     setConfirmLoading(true);
-    setConfirmError('');
+    setConfirmError(null);
     try {
       if (confirmModal.action === 'SHOP') {
         await maintenanceApi.markUnderMaintenance(confirmModal.vehicleId);
+        toast.success('Status Updated', `${confirmModal.vehicleName} has been sent to the shop.`);
       } else {
         await maintenanceApi.markAvailable(confirmModal.vehicleId);
+        toast.success('Status Updated', `${confirmModal.vehicleName} is now available for rent.`);
       }
-      setConfirmModal({ ...confirmModal, isOpen: false });
+      closeConfirmModal();
       fetchData();
     } catch (error: any) {
-      setConfirmError(error.response?.data?.error || 'Failed to update vehicle status. Please try again.');
+      setConfirmError(getApiErrorMessage(error));
+      toast.error('Update Failed', getApiErrorMessage(error));
     } finally {
       setConfirmLoading(false);
     }
@@ -107,6 +121,10 @@ const AdminMaintenancePage: React.FC = () => {
   const underMaintenanceCount = vehicles.filter(v => v.status === 'UNDER_MAINTENANCE').length;
 
   const filteredVehicles = vehicles.filter(v => {
+    if (v.status === 'RETIRED' || v.status === 'ARCHIVED' || v.status === 'DELETED' || v.deletedAt) {
+      return false;
+    }
+
     const matchesSearch = v.plateNumber.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           v.brand.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           v.model.toLowerCase().includes(searchQuery.toLowerCase());
@@ -522,7 +540,7 @@ const AdminMaintenancePage: React.FC = () => {
                           style={{ width: '100%', height: '48px', borderRadius: '10px', backgroundColor: selectedVehicleId ? '#f8fafc' : '#fff' }}
                         >
                           <option value="">Select a vehicle from fleet...</option>
-                          {vehicles.map(v => (
+                          {vehicles.filter(v => !['RETIRED', 'ARCHIVED', 'DELETED'].includes(v.status) && !v.deletedAt).map(v => (
                             <option key={v.id} value={v.id}>
                               {v.brand} {v.model} — {v.plateNumber}
                             </option>
@@ -686,72 +704,21 @@ const AdminMaintenancePage: React.FC = () => {
         </div>
       )}
 
-      {/* Confirmation Modal */}
-      {confirmModal.isOpen && (
-        <div 
-          className="confirm-modal-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !confirmLoading) setConfirmModal({ ...confirmModal, isOpen: false });
-          }}
-        >
-          <div className="confirm-modal">
-            <div className="confirm-modal-header">
-              <div style={{ flex: 1 }}>
-                <div className="confirm-modal-icon" style={{ backgroundColor: confirmModal.action === 'SHOP' ? '#FEF2F2' : '#F0FDF4' }}>
-                  {confirmModal.action === 'SHOP' ? <AlertTriangle color="#EF4444" size={24} /> : <CheckCircle2 color="#10B981" size={24} />}
-                </div>
-                <h3 className="confirm-modal-title">
-                  {confirmModal.action === 'SHOP' ? 'Send Vehicle to Maintenance?' : 'Mark Vehicle Available?'}
-                </h3>
-                <p className="confirm-modal-message">
-                  {confirmModal.action === 'SHOP' 
-                    ? 'This will mark the selected vehicle as Under Maintenance and remove it from available rentals until it is marked available again.'
-                    : 'This will mark the selected vehicle as Available and allow it to be booked by customers again. Please ensure all repairs are completed.'}
-                </p>
-                {confirmModal.action === 'SHOP' && (
-                  <p style={{ fontSize: '0.8rem', color: '#DC2626', fontWeight: 600, marginTop: '0.5rem', marginBottom: '1rem' }}>
-                    Vehicles under maintenance cannot be booked by customers.
-                  </p>
-                )}
-                
-                <div className="confirm-modal-vehicle-box">
-                  <div style={{ fontWeight: 800, color: 'var(--black)', fontSize: '1.1rem' }}>{confirmModal.vehicleName}</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)', fontFamily: 'monospace', marginTop: '0.2rem' }}>Plate: {confirmModal.vehiclePlate}</div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', marginTop: '0.5rem', textTransform: 'uppercase' }}>Current Status: {confirmModal.vehicleStatus}</div>
-                </div>
-
-                {confirmError && (
-                  <div style={{ padding: '0.75rem', backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', color: '#DC2626', fontSize: '0.85rem', fontWeight: 600, marginBottom: '1rem' }}>
-                    {confirmError}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="confirm-modal-footer">
-              <button 
-                type="button" 
-                className="confirm-modal-cancel" 
-                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-                disabled={confirmLoading}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="confirm-modal-confirm" 
-                style={{ 
-                  backgroundColor: confirmModal.action === 'SHOP' ? '#DC2626' : '#16A34A',
-                  color: 'white'
-                }}
-                onClick={executeConfirmAction}
-                disabled={confirmLoading}
-              >
-                {confirmLoading ? 'Processing...' : (confirmModal.action === 'SHOP' ? 'Confirm Send to Shop' : 'Confirm Mark Available')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmActionModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.action === 'SHOP' ? 'Send Vehicle to Maintenance?' : 'Mark Vehicle Available?'}
+        message={
+          confirmModal.action === 'SHOP' 
+            ? 'This will mark the selected vehicle as Under Maintenance and remove it from available rentals until it is marked available again. Vehicles under maintenance cannot be booked by customers.'
+            : 'This will mark the selected vehicle as Available and allow it to be booked by customers again. Please ensure all repairs are completed.'
+        }
+        variant={confirmModal.action === 'SHOP' ? 'danger' : 'success'}
+        confirmLabel={confirmModal.action === 'SHOP' ? 'Confirm Send to Shop' : 'Confirm Mark Available'}
+        loading={confirmLoading}
+        error={confirmError}
+        onConfirm={executeConfirmAction}
+        onCancel={closeConfirmModal}
+      />
     </div>
   );
 };

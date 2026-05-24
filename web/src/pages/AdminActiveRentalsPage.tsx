@@ -7,6 +7,9 @@ import {
   Car, ClipboardCheck,
   ShieldAlert, X
 } from 'lucide-react';
+import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
+import { getApiErrorMessage } from '../services/api';
 
 const AdminActiveRentalsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'PICKUP' | 'ACTIVE' | 'RETURNED'>('PICKUP');
@@ -23,6 +26,13 @@ const AdminActiveRentalsPage: React.FC = () => {
   const [signerName, setSignerName] = useState('');
   const [damageFound, setDamageFound] = useState(false);
   const [damageDetails, setDamageDetails] = useState({ type: 'Scratch', severity: 'LOW', desc: '', cost: '' });
+
+  const toast = useToast();
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    type: 'CONFIRM_CASH' | 'RELEASE' | 'RETURN' | 'COMPLETE' | null;
+  }>({ isOpen: false, type: null });
+  const [modalError, setModalError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -45,89 +55,97 @@ const AdminActiveRentalsPage: React.FC = () => {
     }
   };
 
+  const openModal = (type: typeof modalConfig.type) => {
+    setModalError(null);
+    setModalConfig({ isOpen: true, type });
+  };
+
+  const closeModal = () => {
+    if (actionLoading) return;
+    setModalConfig({ isOpen: false, type: null });
+    setModalError(null);
+  };
+
+  const executeModalAction = async () => {
+    if (!selectedBooking || !modalConfig.type) return;
+    
+    setModalError(null);
+    setActionLoading(true);
+
+    try {
+      if (modalConfig.type === 'CONFIRM_CASH') {
+        const amount = calculateRemainingBalance(selectedBooking);
+        await bookingsApi.confirmCashPayment(selectedBooking.id, amount);
+        toast.success('Cash payment confirmed', 'The balance has been recorded.');
+        const { data } = await bookingsApi.getDetails(selectedBooking.id);
+        setSelectedBooking(data);
+        fetchBookings();
+      } else if (modalConfig.type === 'RELEASE') {
+        await bookingsApi.releaseVehicle(selectedBooking.id, {
+          odometer: parseFloat(odometer),
+          notes,
+          checklistConfirmed: true
+        });
+        toast.success('Vehicle released', 'Rental is now active.');
+        resetForm();
+        fetchBookings();
+      } else if (modalConfig.type === 'RETURN') {
+        await bookingsApi.markReturned(selectedBooking.id, {
+          odometer: parseFloat(odometer),
+          notes,
+          damageFound,
+          damageDetails: damageFound ? damageDetails : null
+        });
+        toast.success('Vehicle returned', 'The return has been recorded.');
+        resetForm();
+        fetchBookings();
+      } else if (modalConfig.type === 'COMPLETE') {
+        await bookingsApi.completeRental(selectedBooking.id, { maintenance: false });
+        toast.success('Rental completed', 'The vehicle is available again.');
+        resetForm();
+        fetchBookings();
+      }
+      
+      closeModal();
+    } catch (error: any) {
+      setModalError(getApiErrorMessage(error));
+      toast.error('Action failed', getApiErrorMessage(error));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSignAgreement = async () => {
     if (!selectedBooking || !signerName) return;
     setActionLoading(true);
     try {
       await bookingsApi.signAgreement(selectedBooking.id, signerName);
       setAgreementSigned(true);
+      toast.success('Agreement Signed', 'Digital signature recorded.');
       const { data } = await bookingsApi.getDetails(selectedBooking.id);
       setSelectedBooking(data);
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to sign agreement');
+      toast.error('Failed to sign agreement', getApiErrorMessage(error));
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleConfirmCash = async () => {
-    if (!selectedBooking) return;
-    const amount = calculateRemainingBalance(selectedBooking);
-    if (!confirm(`Confirm cash payment of ₱${amount.toLocaleString()}?`)) return;
-    
-    setActionLoading(true);
-    try {
-      await bookingsApi.confirmCashPayment(selectedBooking.id, amount);
-      fetchBookings();
-      const { data } = await bookingsApi.getDetails(selectedBooking.id);
-      setSelectedBooking(data);
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to confirm cash');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleConfirmCash = () => openModal('CONFIRM_CASH');
+
+  const handleRelease = () => {
+    if (!odometer) return toast.warning('Odometer Required', 'Please enter the release odometer reading.');
+    if (!checklistConfirmed) return toast.warning('Checklist Required', 'Please confirm the pre-release checklist.');
+    if (!agreementSigned) return toast.warning('Agreement Required', 'The rental agreement must be signed.');
+    openModal('RELEASE');
   };
 
-  const handleRelease = async () => {
-    if (!selectedBooking || !odometer || !checklistConfirmed || !agreementSigned) return;
-    setActionLoading(true);
-    try {
-      await bookingsApi.releaseVehicle(selectedBooking.id, {
-        odometer: parseFloat(odometer),
-        notes,
-        checklistConfirmed: true
-      });
-      resetForm();
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || error.message);
-    } finally {
-      setActionLoading(false);
-    }
+  const handleReturn = () => {
+    if (!odometer) return toast.warning('Odometer Required', 'Please enter the return odometer reading.');
+    openModal('RETURN');
   };
 
-  const handleReturn = async () => {
-    if (!selectedBooking || !odometer) return;
-    setActionLoading(true);
-    try {
-      await bookingsApi.markReturned(selectedBooking.id, {
-        odometer: parseFloat(odometer),
-        notes,
-        damageFound,
-        damageDetails: damageFound ? damageDetails : null
-      });
-      resetForm();
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || error.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleComplete = async (maintenance: boolean) => {
-    if (!selectedBooking) return;
-    setActionLoading(true);
-    try {
-      await bookingsApi.completeRental(selectedBooking.id, { maintenance });
-      resetForm();
-      fetchBookings();
-    } catch (error: any) {
-      alert(error.response?.data?.error || error.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  const handleComplete = () => openModal('COMPLETE');
 
   const resetForm = () => {
     setSelectedBooking(null);
@@ -572,14 +590,14 @@ const AdminActiveRentalsPage: React.FC = () => {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <button 
-                      onClick={() => handleComplete(false)}
+                      onClick={() => handleComplete()}
                       disabled={actionLoading}
                       style={{ width: '100%', padding: '1.25rem', borderRadius: '12px', backgroundColor: '#2E7D32', color: 'white', border: 'none', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                     >
                       {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <><CheckCircle2 size={20} /> Mark as Completed & Available</>}
                     </button>
                     <button 
-                      onClick={() => handleComplete(true)}
+                      onClick={() => handleComplete()}
                       disabled={actionLoading}
                       style={{ width: '100%', padding: '1.25rem', borderRadius: '12px', backgroundColor: '#D97706', color: 'white', border: 'none', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                     >
@@ -592,6 +610,74 @@ const AdminActiveRentalsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {(() => {
+        if (!modalConfig.isOpen || !selectedBooking) return null;
+
+        let title = '';
+        let message = '';
+        let variant: 'default' | 'danger' | 'warning' | 'success' = 'default';
+        let confirmLabel = 'Confirm';
+        let details: React.ReactNode = null;
+
+        if (modalConfig.type === 'CONFIRM_CASH') {
+          const amount = calculateRemainingBalance(selectedBooking);
+          title = 'Confirm Cash Payment?';
+          message = 'Please confirm that the customer has paid the remaining balance in person.';
+          confirmLabel = 'Confirm Cash Received';
+          variant = 'success';
+          details = (
+            <ul>
+              <li><strong>Customer:</strong> <span>{selectedBooking.customer?.fullName}</span></li>
+              <li><strong>Booking ID:</strong> <span style={{ fontFamily: 'monospace' }}>#{selectedBooking.id.slice(0, 8).toUpperCase()}</span></li>
+              <li><strong>Amount Due:</strong> <span>₱{amount.toLocaleString()}</span></li>
+            </ul>
+          );
+        } else if (modalConfig.type === 'RELEASE') {
+          title = 'Release Vehicle?';
+          message = 'You are about to release the vehicle. GPS tracking will begin immediately.';
+          confirmLabel = 'Release Vehicle';
+          variant = 'success';
+          details = (
+            <ul>
+              <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
+              <li><strong>Release Odometer:</strong> <span>{odometer} km</span></li>
+            </ul>
+          );
+        } else if (modalConfig.type === 'RETURN') {
+          title = 'Return Vehicle?';
+          message = 'You are processing the return of this vehicle. GPS tracking will stop.';
+          confirmLabel = 'Return Vehicle';
+          variant = 'warning';
+          details = (
+            <ul>
+              <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
+              <li><strong>Return Odometer:</strong> <span>{odometer} km</span></li>
+              <li><strong>Damage Found:</strong> <span style={{ color: damageFound ? '#DC2626' : '#16A34A' }}>{damageFound ? 'Yes' : 'No'}</span></li>
+            </ul>
+          );
+        } else if (modalConfig.type === 'COMPLETE') {
+          title = 'Complete Rental?';
+          message = 'Are you sure you want to finalize this rental? The vehicle will become available for new bookings.';
+          confirmLabel = 'Complete Rental';
+          variant = 'success';
+        }
+
+        return (
+          <ConfirmActionModal
+            isOpen={modalConfig.isOpen}
+            title={title}
+            message={message}
+            details={details}
+            variant={variant}
+            confirmLabel={confirmLabel}
+            loading={actionLoading}
+            error={modalError}
+            onConfirm={executeModalAction}
+            onCancel={closeModal}
+          />
+        );
+      })()}
     </div>
   );
 };

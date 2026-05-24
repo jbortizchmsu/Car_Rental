@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { paymentsApi, filesApi } from '../services/api';
+import { paymentsApi, filesApi, getApiErrorMessage } from '../services/api';
 import { Loader2, Check, X, Smartphone, AlertCircle, Receipt, Download, Clock, CheckCircle2, DollarSign, Wallet, FileText, Ban } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import FilePreviewModal from '../components/FilePreviewModal';
+import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
 
 const AdminPaymentVerificationPage: React.FC = () => {
   const [payments, setPayments] = useState<any[]>([]);
@@ -82,32 +84,56 @@ const AdminPaymentVerificationPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleAction = async (action: 'VERIFY' | 'REJECT' | 'CONFIRM_CASH') => {
-    if (!selectedPayment) return;
-    
-    if (action === 'REJECT' && !remarks) {
-      alert('Please provide a reason for rejection.');
-      return;
-    }
+  const toast = useToast();
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    type: 'VERIFY' | 'REJECT' | 'CONFIRM_CASH' | null;
+  }>({ isOpen: false, type: null });
+  const [modalError, setModalError] = useState<string | null>(null);
 
+  const handleAction = (action: 'VERIFY' | 'REJECT' | 'CONFIRM_CASH') => {
+    if (!selectedPayment) return;
+    if (action === 'REJECT' && !remarks) {
+      return toast.warning('Remarks required', 'Please provide a reason for rejection.');
+    }
+    setModalError(null);
+    setModalConfig({ isOpen: true, type: action });
+  };
+
+  const closeModal = () => {
+    if (actionLoading) return;
+    setModalConfig({ isOpen: false, type: null });
+    setModalError(null);
+  };
+
+  const executeModalAction = async () => {
+    if (!selectedPayment || !modalConfig.type) return;
+
+    setModalError(null);
     setActionLoading(true);
+
     try {
-      if (action === 'VERIFY') {
+      if (modalConfig.type === 'VERIFY') {
         await paymentsApi.verify(selectedPayment.id);
-      } else if (action === 'REJECT') {
+        toast.success('Payment verified', 'The payment record has been updated successfully.');
+      } else if (modalConfig.type === 'REJECT') {
         await paymentsApi.reject(selectedPayment.id, remarks);
-      } else if (action === 'CONFIRM_CASH') {
+        toast.success('Payment rejected', 'The customer has been notified to re-submit.');
+      } else if (modalConfig.type === 'CONFIRM_CASH') {
         const safePayments = Array.isArray(selectedPayment.payments) ? selectedPayment.payments : [];
         const paidAmount = safePayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
         const remaining = Number(selectedPayment.totalAmount) - paidAmount;
         await paymentsApi.confirmCash(selectedPayment.id, remaining);
+        toast.success('Cash payment confirmed', 'The remaining balance has been recorded.');
       }
 
       setSelectedPayment(null);
       setRemarks('');
+      closeModal();
       fetchPayments();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to update status.');
+      setModalError(getApiErrorMessage(error));
+      toast.error('Action failed', getApiErrorMessage(error));
     } finally {
       setActionLoading(false);
     }
@@ -479,6 +505,58 @@ const AdminPaymentVerificationPage: React.FC = () => {
           fetchFileBlob={filesApi.getProtectedFileBlob}
         />
       )}
+
+      {(() => {
+        if (!modalConfig.isOpen || !selectedPayment) return null;
+
+        let title = '';
+        let message = '';
+        let variant: 'default' | 'danger' | 'warning' | 'success' = 'default';
+        let confirmLabel = 'Confirm';
+        let details: React.ReactNode = null;
+
+        if (modalConfig.type === 'VERIFY') {
+          title = 'Verify GCash Payment?';
+          message = 'This will mark the payment as verified and update the booking status.';
+          confirmLabel = 'Verify Payment';
+          variant = 'success';
+        } else if (modalConfig.type === 'REJECT') {
+          title = 'Reject Payment?';
+          message = 'Are you sure you want to reject this payment? The customer will be asked to re-submit.';
+          confirmLabel = 'Reject Payment';
+          variant = 'danger';
+        } else if (modalConfig.type === 'CONFIRM_CASH') {
+          const safePayments = Array.isArray(selectedPayment.payments) ? selectedPayment.payments : [];
+          const paidAmount = safePayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+          const remaining = Number(selectedPayment.totalAmount) - paidAmount;
+          title = 'Confirm Cash Payment?';
+          message = 'Please confirm that the customer has paid the remaining balance in person.';
+          confirmLabel = 'Confirm Cash Received';
+          variant = 'success';
+          details = (
+            <ul>
+              <li><strong>Customer:</strong> <span>{selectedPayment.customer?.fullName}</span></li>
+              <li><strong>Booking ID:</strong> <span style={{ fontFamily: 'monospace' }}>#{selectedPayment.id.slice(0, 8).toUpperCase()}</span></li>
+              <li><strong>Amount Due:</strong> <span>₱{remaining.toLocaleString()}</span></li>
+            </ul>
+          );
+        }
+
+        return (
+          <ConfirmActionModal
+            isOpen={modalConfig.isOpen}
+            title={title}
+            message={message}
+            details={details}
+            variant={variant}
+            confirmLabel={confirmLabel}
+            loading={actionLoading}
+            error={modalError}
+            onConfirm={executeModalAction}
+            onCancel={closeModal}
+          />
+        );
+      })()}
     </div>
   );
 };
