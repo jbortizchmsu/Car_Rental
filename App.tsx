@@ -1,20 +1,640 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import 'react-native-gesture-handler';
+import React, { useEffect, useState, useCallback } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, TextInput, ActivityIndicator, Alert, ScrollView, RefreshControl, Image, Modal } from 'react-native';
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
+import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, Clock, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X } from 'lucide-react-native';
+import api, { authApi, bookingsApi, gpsApi, notificationsApi } from './src/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// --- Login Screen ---
+const LoginScreen = ({ onLogin }: any) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function signInWithEmail() {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter email and password');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authApi.login({ email, password });
+      const { token, user } = response.data;
+      
+      await AsyncStorage.setItem('jd_token', token);
+      await AsyncStorage.setItem('jd_user', JSON.stringify(user));
+      
+      onLogin(user);
+    } catch (error: any) {
+      Alert.alert('Login Failed', error.response?.data?.error || 'Could not connect to server');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <Car size={64} stroke="#AD9B8D" />
+        <Text style={styles.title}>JD CAR RENTAL</Text>
+        <Text style={styles.subtitle}>Premium Self-Drive Experience</Text>
+        
+        <View style={styles.form}>
+          <TextInput
+            onChangeText={(text) => setEmail(text)}
+            value={email}
+            placeholder="email@address.com"
+            autoCapitalize={'none'}
+            style={styles.input}
+          />
+          <TextInput
+            onChangeText={(text) => setPassword(text)}
+            value={password}
+            secureTextEntry={true}
+            placeholder="Password"
+            autoCapitalize={'none'}
+            style={styles.input}
+          />
+        </View>
+
+        <TouchableOpacity 
+          style={styles.button}
+          disabled={loading}
+          onPress={() => signInWithEmail()}
+        >
+          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Login</Text>}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+// --- Home (Active Rental) Screen ---
+const HomeScreen = () => {
+  const [activeBooking, setActiveBooking] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+  const [trackingActive, setTrackingActive] = useState(false);
+  const [lastLocation, setLastLocation] = useState<any>(null);
+  const [trackingSession, setTrackingSession] = useState<any>(null);
+
+  const fetchActiveBooking = async () => {
+    try {
+      const response = await bookingsApi.getMyBookings();
+      const active = response.data.find((b: any) => b.status === 'ACTIVE');
+      setActiveBooking(active || null);
+
+      if (active) {
+        setTrackingSession(active.trackingSession || null);
+      } else {
+        setTrackingSession(null);
+      }
+    } catch (error) {
+      console.error('Fetch Booking Error:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    let locationSubscription: any = null;
+
+    const startTracking = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        setLocationPermission(status === 'granted');
+
+        if (status === 'granted' && activeBooking && trackingSession) {
+          setTrackingActive(true);
+          locationSubscription = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 15000,
+              distanceInterval: 30,
+            },
+            async (location) => {
+              setLastLocation(location);
+              try {
+                await gpsApi.sendLocation({
+                  trackingSessionId: trackingSession.id,
+                  bookingId: activeBooking.id,
+                  vehicleId: activeBooking.vehicleId,
+                  latitude: location.coords.latitude,
+                  longitude: location.coords.longitude,
+                  speed: location.coords.speed,
+                  heading: location.coords.heading,
+                  accuracy: location.coords.accuracy,
+                  recordedAt: new Date(location.timestamp).toISOString()
+                });
+              } catch (err) {
+                console.error('GPS Upload Error:', err);
+              }
+            }
+          );
+        } else {
+          setTrackingActive(false);
+        }
+      } catch (err) {
+        console.error('Location Setup Error:', err);
+      }
+    };
+
+    startTracking();
+    return () => locationSubscription?.remove();
+  }, [activeBooking, trackingSession]);
+
+  useEffect(() => {
+    fetchActiveBooking();
+    const interval = setInterval(fetchActiveBooking, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#AD9B8D" />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>JD Active Drive</Text>
+      </View>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchActiveBooking(); }} />}
+      >
+        {activeBooking ? (
+          <View style={{ width: '100%' }}>
+            <View style={styles.card}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                <View>
+                  <Text style={styles.cardTitle}>{activeBooking.vehicle.brand} {activeBooking.vehicle.model}</Text>
+                  <Text style={styles.cardSubtitle}>{activeBooking.vehicle.licensePlate}</Text>
+                </View>
+                <NavIcon size={24} stroke="#7B1FA2" />
+              </View>
+              <View style={styles.detailRow}>
+                <Calendar size={16} stroke="#958786" />
+                <Text style={styles.detailText}>Ends: {new Date(activeBooking.endDate).toLocaleDateString()}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <MapPin size={18} stroke="#AD9B8D" />
+                <Text style={styles.detailText}>Pickup: {activeBooking.pickupLocation}</Text>
+              </View>
+            </View>
+
+            <View style={[styles.trackingContainer, { backgroundColor: trackingActive ? '#F3E5F5' : '#F9FAFB' }]}>
+              {trackingActive ? (
+                <>
+                  <NavIcon size={32} stroke="#7B1FA2" />
+                  <Text style={[styles.trackingText, { color: '#7B1FA2' }]}>GPS Tracking Active</Text>
+                  {lastLocation && (
+                    <View style={{ marginTop: 10, alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <RefreshCw size={12} stroke="#7B1FA2" />
+                        <Text style={{ color: '#7B1FA2', fontSize: 12, fontWeight: '600' }}>
+                          Updated {new Date(lastLocation.timestamp).toLocaleTimeString()}
+                        </Text>
+                      </View>
+                      <Text style={{ color: '#958786', fontSize: 11, marginTop: 4 }}>
+                        {lastLocation.coords.latitude.toFixed(6)}, {lastLocation.coords.longitude.toFixed(6)}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={32} stroke="#958786" />
+                  <Text style={styles.trackingText}>
+                    {locationPermission === false ? 'Permission Denied' : 'Waiting for Signal'}
+                  </Text>
+                  <Text style={styles.trackingSubtext}>
+                    {locationPermission === false 
+                      ? 'Please enable location permissions in settings.' 
+                      : 'Establishing secure link...'}
+                  </Text>
+                </>
+              )}
+            </View>
+          </View>
+        ) : (
+          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+            <Car size={64} stroke="#DDD" />
+            <Text style={[styles.title, { fontSize: 24 }]}>No Active Rental</Text>
+            <Text style={styles.subtitle}>Your active rentals will appear here.</Text>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// --- Bookings & Document Upload Screen ---
+const BookingsScreen = () => {
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const fetchBookings = async () => {
+    try {
+      const response = await bookingsApi.getMyBookings();
+      setBookings(response.data);
+    } catch (error) {
+      console.error('Fetch Bookings Error:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const pickAndUpload = async (bookingId: string, docType: string) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append('documentType', docType);
+      // @ts-ignore
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName || `upload_${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      });
+
+      try {
+        await bookingsApi.uploadDocument(bookingId, formData);
+        Alert.alert('Success', `${docType.replace('_', ' ')} uploaded successfully.`);
+        fetchBookings();
+      } catch (error) {
+        Alert.alert('Upload Failed', 'Could not upload document.');
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING_REVIEW': return '#F59E0B';
+      case 'APPROVED_FOR_PAYMENT': return '#3B82F6';
+      case 'RESERVED': return '#10B981';
+      case 'ACTIVE': return '#7B1FA2';
+      case 'COMPLETED': return '#6B7280';
+      case 'REJECTED': return '#EF4444';
+      default: return '#9CA3AF';
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Bookings</Text>
+      </View>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchBookings(); }} />}
+      >
+        {bookings.length === 0 && !loading ? (
+          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
+            <FileText size={64} stroke="#DDD" />
+            <Text style={styles.subtitle}>No bookings found.</Text>
+          </View>
+        ) : (
+          bookings.map(booking => (
+            <TouchableOpacity 
+              key={booking.id} 
+              style={styles.card}
+              onPress={() => setSelectedBooking(booking)}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{booking.vehicle.brand} {booking.vehicle.model}</Text>
+                  <Text style={styles.detailText}>{new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}</Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: getStatusColor(booking.status) }]}>
+                  <Text style={styles.badgeText}>{booking.status.replace(/_/g, ' ')}</Text>
+                </View>
+              </View>
+              
+              <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: '700' }}>₱{Number(booking.totalAmount).toLocaleString()}</Text>
+                <View style={{ flexDirection: 'row', gap: 5 }}>
+                  <FileText size={16} stroke={booking.documents?.length > 0 ? '#10B981' : '#EF4444'} />
+                  <Text style={{ fontSize: 12, color: booking.documents?.length > 0 ? '#10B981' : '#EF4444' }}>
+                    {booking.documents?.length || 0} Docs
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
+
+      {/* Upload Modal */}
+      <Modal visible={!!selectedBooking} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Documents & Details</Text>
+              <TouchableOpacity onPress={() => setSelectedBooking(null)}>
+                <X size={24} stroke="#000" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedBooking && (
+              <ScrollView style={{ padding: 20 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 5 }}>
+                  {selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}
+                </Text>
+                <Text style={{ color: '#6B7280', marginBottom: 20 }}>Booking ID: {selectedBooking.id.slice(0, 8)}</Text>
+
+                <Text style={styles.sectionTitle}>Required Documents</Text>
+                <View style={styles.uploadRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '600' }}>Valid ID</Text>
+                    <Text style={{ fontSize: 12, color: '#958786' }}>Government issued ID (Passport, etc)</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={[styles.uploadBtn, { backgroundColor: selectedBooking.documents?.some((d:any) => d.documentType === 'valid_id') ? '#E8F5E9' : '#F3F4F6' }]}
+                    onPress={() => pickAndUpload(selectedBooking.id, 'valid_id')}
+                  >
+                    {selectedBooking.documents?.some((d:any) => d.documentType === 'valid_id') ? (
+                      <CheckCircle2 size={20} stroke="#2E7D32" />
+                    ) : (
+                      <Upload size={20} stroke="#AD9B8D" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.uploadRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '600' }}>Driver's License</Text>
+                    <Text style={{ fontSize: 12, color: '#958786' }}>Must be valid and not expired</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={[styles.uploadBtn, { backgroundColor: selectedBooking.documents?.some((d:any) => d.documentType === 'drivers_license') ? '#E8F5E9' : '#F3F4F6' }]}
+                    onPress={() => pickAndUpload(selectedBooking.id, 'drivers_license')}
+                  >
+                    {selectedBooking.documents?.some((d:any) => d.documentType === 'drivers_license') ? (
+                      <CheckCircle2 size={20} stroke="#2E7D32" />
+                    ) : (
+                      <Upload size={20} stroke="#AD9B8D" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {uploading && (
+                  <View style={{ marginTop: 20, alignItems: 'center' }}>
+                    <ActivityIndicator color="#AD9B8D" />
+                    <Text style={{ marginTop: 10, color: '#AD9B8D' }}>Uploading document...</Text>
+                  </View>
+                )}
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+// --- Notifications Screen ---
+const NotificationsScreen = () => {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await notificationsApi.getNotifications();
+      setNotifications(response.data);
+    } catch (error) {
+      console.error('Fetch Notifications Error:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Poll every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await notificationsApi.markAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (error) {
+      console.error('Read Error:', error);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Notifications</Text>
+        <TouchableOpacity onPress={async () => { await notificationsApi.markAllAsRead(); fetchNotifications(); }}>
+          <Text style={{ color: '#FFF', fontSize: 12 }}>Mark all read</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView 
+        contentContainerStyle={{ padding: 0 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(); }} />}
+      >
+        {notifications.length === 0 && !loading ? (
+          <View style={{ alignItems: 'center', paddingVertical: 100 }}>
+            <Bell size={64} stroke="#DDD" />
+            <Text style={styles.subtitle}>No notifications yet.</Text>
+          </View>
+        ) : (
+          notifications.map(n => (
+            <TouchableOpacity 
+              key={n.id} 
+              style={[styles.notificationItem, { backgroundColor: n.isRead ? '#FFF' : '#F3E5F5' }]}
+              onPress={() => !n.isRead && markAsRead(n.id)}
+            >
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={[styles.notifIcon, { backgroundColor: n.isRead ? '#F3F4F6' : '#7B1FA2' }]}>
+                  <Bell size={18} stroke={n.isRead ? '#9CA3AF' : '#FFF'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.notifTitle, { fontWeight: n.isRead ? '600' : '800' }]}>{n.title}</Text>
+                  <Text style={styles.notifMessage}>{n.message}</Text>
+                  <Text style={styles.notifTime}>{new Date(n.createdAt).toLocaleString()}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// --- Profile / Settings Screen ---
+const ProfileScreen = ({ onLogout }: any) => {
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('jd_user').then(val => {
+      if (val) setUser(JSON.parse(val));
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('jd_token');
+    await AsyncStorage.removeItem('jd_user');
+    onLogout();
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
+      </View>
+      <View style={{ padding: 20, alignItems: 'center' }}>
+        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#AD9B8D', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
+          <User size={40} stroke="#FFF" />
+        </View>
+        <Text style={{ fontSize: 22, fontWeight: '800' }}>{user?.fullName || 'JD Customer'}</Text>
+        <Text style={{ color: '#958786', marginBottom: 30 }}>{user?.email}</Text>
+
+        <TouchableOpacity style={[styles.button, { backgroundColor: '#EF4444' }]} onPress={handleLogout}>
+          <Text style={styles.buttonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+// --- Navigation ---
+const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
 export default function App() {
+  const [user, setUser] = useState<any>(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem('jd_user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (e) {
+      console.error('Session check error', e);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  if (checking) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#AD9B8D" />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      {user ? (
+        <Tab.Navigator
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            tabBarIcon: ({ focused, color, size }) => {
+              if (route.name === 'Home') return <Car size={size} stroke={color} />;
+              if (route.name === 'Bookings') return <FileText size={size} stroke={color} />;
+              if (route.name === 'Alerts') return <Bell size={size} stroke={color} />;
+              if (route.name === 'Profile') return <User size={size} stroke={color} />;
+              return null;
+            },
+            tabBarActiveTintColor: '#AD9B8D',
+            tabBarInactiveTintColor: '#958786',
+            tabBarStyle: { height: 60, paddingBottom: 10 },
+          })}
+        >
+          <Tab.Screen name="Home" component={HomeScreen} />
+          <Tab.Screen name="Bookings" component={BookingsScreen} />
+          <Tab.Screen name="Alerts" component={NotificationsScreen} />
+          <Tab.Screen name="Profile">
+            {(props) => <ProfileScreen {...props} onLogout={() => setUser(null)} />}
+          </Tab.Screen>
+        </Tab.Navigator>
+      ) : (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Login">
+            {(props) => <LoginScreen {...props} onLogin={(u: any) => setUser(u)} />}
+          </Stack.Screen>
+        </Stack.Navigator>
+      )}
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#FDFDFD' },
+  scrollContent: { padding: 20, alignItems: 'center' },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  header: { paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
+  title: { fontSize: 32, fontWeight: '800', marginTop: 20, color: '#000', textAlign: 'center' },
+  subtitle: { fontSize: 16, color: '#958786', marginBottom: 40, textAlign: 'center' },
+  form: { width: '100%', marginBottom: 20 },
+  input: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', marginBottom: 15, fontSize: 16 },
+  button: { backgroundColor: '#AD9B8D', paddingVertical: 15, paddingHorizontal: 60, borderRadius: 12, width: '100%', alignItems: 'center', height: 55, justifyContent: 'center' },
+  buttonText: { color: '#FFF', fontSize: 18, fontWeight: '600' },
+  card: { backgroundColor: '#FFF', padding: 20, borderRadius: 16, width: '100%', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 15, elevation: 3, marginBottom: 20, borderWidth: 1, borderColor: '#F3F4F6' },
+  cardTitle: { fontSize: 20, fontWeight: '800', color: '#000' },
+  cardSubtitle: { color: '#958786', fontWeight: '600' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  detailText: { fontSize: 14, color: '#6B7280' },
+  trackingContainer: { alignItems: 'center', marginTop: 20, padding: 25, backgroundColor: '#F9FAFB', borderRadius: 24, width: '100%' },
+  trackingText: { fontSize: 18, fontWeight: '700', marginTop: 12, color: '#374151' },
+  trackingSubtext: { textAlign: 'center', color: '#958786', marginTop: 8, lineHeight: 20, fontSize: 14 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  badgeText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
+  notificationItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  notifIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  notifTitle: { fontSize: 15, color: '#000', marginBottom: 2 },
+  notifMessage: { fontSize: 13, color: '#6B7280', marginBottom: 4 },
+  notifTime: { fontSize: 11, color: '#9CA3AF' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '80%' },
+  modalHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: '800' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 10, marginBottom: 15 },
+  uploadRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 15, borderRadius: 12, marginBottom: 12 },
+  uploadBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' }
 });
