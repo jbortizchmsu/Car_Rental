@@ -125,20 +125,20 @@ const VehicleManagement: React.FC = () => {
     if (vehicle) {
       setEditingVehicle(vehicle);
       setFormData({
-        brand: vehicle.brand,
-        model: vehicle.model,
-        year: vehicle.year,
-        licensePlate: vehicle.licensePlate,
-        category: vehicle.category,
-        status: vehicle.status,
-        dailyRate: vehicle.dailyRate,
-        seats: vehicle.seats,
-        transmission: vehicle.transmission,
-        fuelType: vehicle.fuelType,
+        brand: vehicle.brand || '',
+        model: vehicle.model || '',
+        year: vehicle.year || new Date().getFullYear(),
+        licensePlate: vehicle.licensePlate || '',
+        category: vehicle.category || 'Sedan',
+        status: vehicle.status || 'AVAILABLE',
+        dailyRate: vehicle.dailyRate || 0,
+        seats: vehicle.seats || 4,
+        transmission: vehicle.transmission || 'Automatic',
+        fuelType: vehicle.fuelType || 'Gasoline',
         imageUrl: vehicle.imageUrl || '',
-        currentOdometerKm: vehicle.currentOdometerKm || 0,
-        lastOilChangeOdometerKm: vehicle.lastOilChangeOdometerKm || 0,
-        oilChangeIntervalKm: vehicle.oilChangeIntervalKm || 5000
+        currentOdometerKm: vehicle.currentOdometerKm ?? 0,
+        lastOilChangeOdometerKm: vehicle.lastOilChangeOdometerKm ?? 0,
+        oilChangeIntervalKm: vehicle.oilChangeIntervalKm ?? 5000
       });
       setPreviewUrl(vehicle.imageUrl ? (vehicle.imageUrl.startsWith('http') ? vehicle.imageUrl : vehiclesApi.getImageUrl(vehicle.id)) : null);
     } else {
@@ -182,30 +182,54 @@ const VehicleManagement: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Defensive frontend validation
+    if (!formData.brand?.trim() || !formData.model?.trim() || !formData.licensePlate?.trim()) {
+      return toast.warning('Missing required fields', 'Brand, Model, and License Plate are required.');
+    }
+    
+    if ((formData.dailyRate ?? 0) <= 0) {
+      return toast.warning('Invalid pricing', 'Daily rate must be greater than zero.');
+    }
+
+    if (!formData.year || isNaN(Number(formData.year)) || Number(formData.year) < 1900 || Number(formData.year) > new Date().getFullYear() + 1) {
+      return toast.warning('Invalid year', 'Please enter a valid vehicle year.');
+    }
+
+    if (formData.currentOdometerKm == null || isNaN(Number(formData.currentOdometerKm)) || Number(formData.currentOdometerKm) < 0) {
+      return toast.warning('Invalid odometer', 'Odometer must be a valid non-negative number.');
+    }
+
     setSubmitting(true);
 
     try {
       const data = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        data.append(key, value.toString());
+        data.append(key, value != null ? value.toString() : '');
       });
       
       if (selectedFile) {
         data.append('vehicleImage', selectedFile);
       }
 
+      console.log('Updating Vehicle Payload:', Object.fromEntries(data.entries()));
+
       if (editingVehicle) {
-        await vehiclesApi.update(editingVehicle.id, data);
+        const response = await vehiclesApi.update(editingVehicle.id, data);
+        console.log('Update Response:', response);
         toast.success('Vehicle updated', 'The vehicle details have been saved successfully.');
       } else {
-        await vehiclesApi.create(data);
+        const response = await vehiclesApi.create(data);
+        console.log('Create Response:', response);
         toast.success('Vehicle created', 'The new vehicle has been added to your fleet.');
       }
 
       setShowModal(false);
       fetchVehicles();
     } catch (error: any) {
-      toast.error('Failed to save vehicle', getApiErrorMessage(error));
+      console.error('Vehicle Update Error:', error);
+      const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to update vehicle';
+      toast.error('Update Failed', message);
     } finally {
       setSubmitting(false);
     }
@@ -522,7 +546,7 @@ const VehicleManagement: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-2xl">
                       <div className="text-xs text-gray-400 font-bold mb-1">Base Rate</div>
-                      <div className="text-lg font-black">₱{selectedVehicle.dailyRate.toLocaleString()}</div>
+                      <div className="text-lg font-black">₱{(selectedVehicle.dailyRate ?? 0).toLocaleString()}</div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-2xl">
                       <div className="text-xs text-gray-400 font-bold mb-1">Capacity</div>
@@ -544,15 +568,15 @@ const VehicleManagement: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center p-3 border-b border-gray-100">
                       <span className="text-sm text-gray-500 font-semibold">Current Mileage</span>
-                      <span className="font-bold">{selectedVehicle.currentOdometerKm.toLocaleString()} km</span>
+                      <span className="font-bold">{(selectedVehicle.currentOdometerKm ?? 0).toLocaleString()} km</span>
                     </div>
                     <div className="flex justify-between items-center p-3 border-b border-gray-100">
                       <span className="text-sm text-gray-500 font-semibold">Last Oil Change</span>
-                      <span className="font-bold">{selectedVehicle.lastOilChangeOdometerKm.toLocaleString()} km</span>
+                      <span className="font-bold">{(selectedVehicle.lastOilChangeOdometerKm ?? 0).toLocaleString()} km</span>
                     </div>
                     <div className="flex justify-between items-center p-3 border-b border-gray-100">
                       <span className="text-sm text-gray-500 font-semibold">Service Interval</span>
-                      <span className="font-bold">{selectedVehicle.oilChangeIntervalKm.toLocaleString()} km</span>
+                      <span className="font-bold">{(selectedVehicle.oilChangeIntervalKm ?? 5000).toLocaleString()} km</span>
                     </div>
                     <div className="flex justify-between items-center p-3">
                       <span className="text-sm text-gray-500 font-semibold">Status Health</span>

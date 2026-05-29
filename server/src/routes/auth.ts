@@ -63,10 +63,20 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Your account has been disabled. Please contact the administrator.' });
+    }
+
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Update last login timestamp
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    });
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },

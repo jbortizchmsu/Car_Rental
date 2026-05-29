@@ -55,41 +55,54 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
     });
 
     // 4. Geofence Check (Basic Placeholder)
-    const zones = await prisma.geofenceZone.findMany({
-      where: { 
-        OR: [
-          { bookingId: booking.id },
-          { vehicleId: booking.vehicleId },
-          { isActive: true, bookingId: null, vehicleId: null }
-        ]
-      }
-    });
-
-    // Mock breach check for demonstration purposes if coordinates are exactly 0,0 or something similar
-    // In production, this would use @turf/turf or similar
-    const isMockBreach = latitude === 0 && longitude === 0; 
-    
-    if (isMockBreach) {
-      const alert = await prisma.geofenceAlert.create({
-        data: {
-          bookingId,
-          vehicleId,
-          trackingSessionId,
-          message: `Vehicle ${booking.vehicle.brand} ${booking.vehicle.model} left the allowed zone!`,
-          latitude,
-          longitude,
-          alertType: 'OUT_OF_ZONE',
-          severity: 'CRITICAL'
+    if (booking.geofenceActivatedAt && !booking.geofenceEndedAt) {
+      const zones = await prisma.geofenceZone.findMany({
+        where: { 
+          OR: [
+            { bookingId: booking.id },
+            { vehicleId: booking.vehicleId },
+            { isActive: true, bookingId: null, vehicleId: null }
+          ]
         }
       });
 
-      // Notify Admin
-      await createAdminNotification(
-        'Geofence Breach',
-        `CRITICAL: ${booking.vehicle.brand} (${booking.vehicle.licensePlate}) is outside the allowed area!`
-      );
+      // Mock breach check for demonstration purposes if coordinates are exactly 0,0 or something similar
+      // In production, this would use @turf/turf or similar
+      const isMockBreach = latitude === 0 && longitude === 0; 
+      
+      if (isMockBreach) {
+        // Prevent duplicate spam: check if there's already an unresolved OUT_OF_ZONE alert for this booking
+        const existingAlert = await prisma.geofenceAlert.findFirst({
+          where: {
+            bookingId,
+            alertType: 'OUT_OF_ZONE',
+            resolved: false
+          }
+        });
 
-      io.emit('geofence-alert-created', alert);
+        if (!existingAlert) {
+          const alert = await prisma.geofenceAlert.create({
+            data: {
+              bookingId,
+              vehicleId,
+              trackingSessionId,
+              message: `Vehicle ${booking.vehicle.brand} ${booking.vehicle.model} left the allowed zone (Dest: ${booking.destinationName || 'Unknown'})!`,
+              latitude,
+              longitude,
+              alertType: 'OUT_OF_ZONE',
+              severity: 'CRITICAL'
+            }
+          });
+
+          // Notify Admin
+          await createAdminNotification(
+            'Geofence Breach',
+            `CRITICAL: ${booking.vehicle.brand} (${booking.vehicle.licensePlate}) is outside the allowed area!`
+          );
+
+          io.emit('geofence-alert-created', alert);
+        }
+      }
     }
 
     res.status(201).json(location);

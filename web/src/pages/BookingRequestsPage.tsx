@@ -635,7 +635,7 @@ const BookingRequestsPage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedBooking ? '1fr 500px' : '1fr', gap: '2rem', transition: 'all 0.3s' }}>
+      <div className={`booking-layout-grid ${selectedBooking ? 'has-selection' : ''}`}>
         {/* Requests List */}
         <div className="booking-list">
           {loading ? (
@@ -723,7 +723,7 @@ const BookingRequestsPage: React.FC = () => {
 
         {/* Details/Lifecycle Panel */}
         {selectedBooking && (
-          <div className="card" style={{ 
+          <div className="card booking-review-panel" style={{ 
             padding: '2.5rem', 
             position: 'sticky',
             top: '20px',
@@ -809,6 +809,33 @@ const BookingRequestsPage: React.FC = () => {
                     <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)', fontSize: '0.85rem', fontWeight: 600 }}>
                       <MapPin size={14} /> {selectedBooking.pickupLocation || 'Main Rental Office'}
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="detail-section-header">
+                  <MapPin size={18} color="var(--warm-taupe)" />
+                  <h4>Destination & Travel Area</h4>
+                </div>
+                <div style={{ backgroundColor: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: '20px', padding: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.7rem', color: 'var(--gray-400)', fontWeight: 700, textTransform: 'uppercase' }}>Intended Travel Area</label>
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--black)' }}>{selectedBooking.destinationName || 'Not Specified'}</div>
+                    </div>
+                    {selectedBooking.destinationAddress && (
+                      <div>
+                        <label style={{ fontSize: '0.7rem', color: 'var(--gray-400)', fontWeight: 700, textTransform: 'uppercase' }}>Destination Address</label>
+                        <div style={{ fontWeight: 600 }}>{selectedBooking.destinationAddress}</div>
+                      </div>
+                    )}
+                    {selectedBooking.destinationNotes && (
+                      <div>
+                        <label style={{ fontSize: '0.7rem', color: 'var(--gray-400)', fontWeight: 700, textTransform: 'uppercase' }}>Travel Notes</label>
+                        <div style={{ fontWeight: 600, fontStyle: 'italic', color: 'var(--gray-600)' }}>"{selectedBooking.destinationNotes}"</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>

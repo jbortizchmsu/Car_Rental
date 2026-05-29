@@ -16,6 +16,7 @@ import customerRoutes from './routes/customer';
 import fileRoutes from './routes/files';
 import maintenanceRoutes from './routes/maintenance';
 import pricingRoutes from './routes/pricing';
+import usersRoutes from './routes/users';
 
 // Load environment variables
 dotenv.config();
@@ -33,7 +34,10 @@ const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors({
-  origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+  origin: (origin, callback) => {
+    // Allow all origins in development (including mobile LAN IPs)
+    callback(null, true);
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -72,6 +76,7 @@ app.use('/api/admin/reports', reportsRoutes);
 app.use('/api/admin/maintenance', maintenanceRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/admin/pricing', pricingRoutes);
+app.use('/api/admin/users', usersRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

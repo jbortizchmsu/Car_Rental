@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import VehicleCard from '../components/VehicleCard';
+import BookingRequestModal from '../components/BookingRequestModal';
 import { vehiclesApi } from '../services/api';
 import { Loader2, Search } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 interface Vehicle {
   id: string;
@@ -18,9 +20,14 @@ interface Vehicle {
 }
 
 const VehiclesPage: React.FC = () => {
+  const location = useLocation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     fetchVehicles();
@@ -31,6 +38,15 @@ const VehiclesPage: React.FC = () => {
       setLoading(true);
       const { data } = await vehiclesApi.getAvailable();
       setVehicles(data);
+      
+      // Auto-open modal if navigated from somewhere with a pre-selected vehicle
+      if (location.state?.vehicle) {
+        const preSelected = data.find((v: any) => v.id === location.state.vehicle.id);
+        if (preSelected) {
+          setSelectedVehicle(preSelected);
+          setIsModalOpen(true);
+        }
+      }
     } catch (error) {
       console.error('Error fetching vehicles:', error);
     } finally {
@@ -43,6 +59,13 @@ const VehiclesPage: React.FC = () => {
     v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
     v.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleOpenModal = (vehicle: Vehicle) => {
+    // If the vehicle doesn't have a category from the card, find it in our main list
+    const fullVehicleData = vehicles.find(v => v.id === vehicle.id) || vehicle;
+    setSelectedVehicle(fullVehicleData);
+    setIsModalOpen(true);
+  };
 
   return (
     <>
@@ -114,12 +137,19 @@ const VehiclesPage: React.FC = () => {
                   status={vehicle.status}
                   imageUrl={vehicle.imageUrl}
                   mileage={vehicle.currentOdometerKm}
+                  onBookNow={handleOpenModal}
                 />
               ))}
             </div>
           )}
         </div>
       </main>
+
+      <BookingRequestModal 
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setSelectedVehicle(null); }}
+        vehicle={selectedVehicle}
+      />
     </>
   );
 };

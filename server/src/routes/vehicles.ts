@@ -147,9 +147,20 @@ router.put('/:id', authenticate, authorizeAdmin, vehicleImageUpload.single('vehi
       data
     });
     res.json(vehicle);
-  } catch (error) {
-    console.error('Vehicle update error:', error);
-    res.status(500).json({ error: 'Failed to update vehicle' });
+  } catch (error: any) {
+    console.error('Vehicle Update Error (Backend):', error);
+    
+    if (error.code === 'P2002') {
+      return res.status(409).json({ 
+        success: false,
+        error: 'A vehicle with this license plate already exists.' 
+      });
+    }
+
+    res.status(400).json({ 
+      success: false,
+      error: error.message || 'Failed to update vehicle due to an internal error.' 
+    });
   }
 });
 

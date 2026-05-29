@@ -163,6 +163,13 @@ export const pricingApi = {
   toggleRule: (id: string) => api.patch(`/admin/pricing/admin/rules/${id}/toggle`),
 };
 
+// Users API
+export const usersApi = {
+  getAll: () => api.get('/admin/users'),
+  getById: (id: string) => api.get(`/admin/users/${id}`),
+  updateStatus: (id: string, isActive: boolean) => api.patch(`/admin/users/${id}/status`, { isActive }),
+  updateRole: (id: string, role: string) => api.patch(`/admin/users/${id}/role`, { role }),
+};
 
 export const getApiErrorMessage = (error: any, defaultMessage = 'An unexpected error occurred.'): string => {
   if (error?.response?.data?.error) {

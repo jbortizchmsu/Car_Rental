@@ -4,6 +4,39 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
+// Customer: Get Active Rental for GPS
+router.get('/active-rental', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const activeBooking = await prisma.booking.findFirst({
+      where: {
+        customerId: req.user!.id,
+        status: 'ACTIVE'
+      },
+      include: {
+        vehicle: true,
+        trackingSession: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!activeBooking) {
+      return res.json({ message: 'No active rental yet. GPS starts after vehicle release.', data: null });
+    }
+
+    res.json({
+      message: 'Active rental found',
+      data: activeBooking, // Return full booking including vehicle and trackingSession
+      meta: {
+        trackingSessionId: activeBooking.trackingSession?.id || null,
+        bookingStatus: activeBooking.status,
+        vehicleStatus: activeBooking.vehicle.status
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch active rental' });
+  }
+});
+
 // Profile Logic
 router.get('/profile', authenticate, async (req: AuthRequest, res) => {
   try {

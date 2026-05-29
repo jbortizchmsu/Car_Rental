@@ -122,7 +122,7 @@ const Navbar: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginLeft: '1rem' }}>
               {profile?.role === 'customer' ? (
                 <>
-                  <Link to="/customer/request-rental" className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Book Now</Link>
+                  <Link to="/vehicles" className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Book Now</Link>
                   
                   <div className="dropdown-container" ref={dropdownRef}>
                     <button 

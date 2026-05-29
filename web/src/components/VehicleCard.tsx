@@ -15,9 +15,10 @@ interface VehicleCardProps {
   status: string;
   imageUrl?: string;
   mileage?: number;
+  onBookNow?: (vehicle: any) => void;
 }
 
-const VehicleCard: React.FC<VehicleCardProps> = ({ id, model, brand, price, seats, fuel, status, imageUrl, mileage }) => {
+const VehicleCard: React.FC<VehicleCardProps> = ({ id, model, brand, price, seats, fuel, status, imageUrl, mileage, onBookNow }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -27,15 +28,16 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ id, model, brand, price, seat
 
   const handleBookNow = () => {
     if (!user) {
-      navigate('/login', { state: { from: '/vehicles' } });
+      navigate('/login', { state: { message: 'Please log in or create an account to book a vehicle.', from: '/vehicles' } });
       return;
     }
     
-    navigate('/customer/request-rental', { 
-      state: { 
-        vehicle: { id, model, brand, daily_rate: price, imageUrl: displayImageUrl } 
-      } 
-    });
+    if (onBookNow) {
+      onBookNow({ id, model, brand, dailyRate: price, seats, fuelType: fuel, status, imageUrl: displayImageUrl, category: '' });
+    } else {
+      // Fallback
+      navigate('/vehicles');
+    }
   };
 
   return (

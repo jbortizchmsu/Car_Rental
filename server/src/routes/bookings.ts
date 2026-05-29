@@ -17,6 +17,7 @@ import { upload } from '../middleware/upload';
 router.post('/', authenticate, async (req: AuthRequest, res) => {
   const { 
     vehicleId, startDate, endDate, pickupLocation,
+    destinationName, destinationAddress, destinationNotes,
     fullName, contactNumber, address,
     licenseNumber, licenseExpiry,
     emergencyContact, emergencyPhone 
@@ -26,6 +27,10 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     // Basic validation
     if (!vehicleId || !startDate || !endDate || !pickupLocation || !fullName || !contactNumber || !address || !licenseNumber || !licenseExpiry || !emergencyContact || !emergencyPhone) {
       return res.status(400).json({ error: 'All booking fields are required.' });
+    }
+
+    if (!destinationName) {
+      return res.status(400).json({ error: 'Please provide your intended travel area or destination.' });
     }
 
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
@@ -57,6 +62,9 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
         pricingRuleName: pricing.appliedRuleName,
         totalAmount,
         pickupLocation,
+        destinationName,
+        destinationAddress,
+        destinationNotes,
         status: 'PENDING_REVIEW',
         fullName,
         contactNumber,
@@ -72,7 +80,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     // Notify Admin
     await createAdminNotification(
       'New Rental Request',
-      `${req.user!.fullName} requested to rent ${vehicle.brand} ${vehicle.model}`
+      `${req.user!.fullName} requested to rent ${vehicle.brand} ${vehicle.model} for travel to ${destinationName}`
     );
 
     res.status(201).json(booking);
@@ -399,6 +407,7 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
         releaseOdometerKm: parseFloat(odometer),
         releaseChecklistConfirmed: true,
         pickupNotes: notes,
+        geofenceActivatedAt: new Date(),
         trackingSession: {
           create: {
             startTime: new Date(),
@@ -449,6 +458,7 @@ router.post('/:id/return', authenticate, authorizeAdmin, async (req: AuthRequest
         returnedAt: new Date(),
         returnOdometerKm: returnKm,
         tripDistanceKm: tripDistance,
+        geofenceEndedAt: new Date(),
         trackingSession: {
           update: {
             where: { bookingId: id },
@@ -498,7 +508,8 @@ router.post('/:id/complete', authenticate, authorizeAdmin, async (req: AuthReque
       where: { id },
       data: {
         status: 'COMPLETED',
-        completedAt: new Date()
+        completedAt: new Date(),
+        geofenceEndedAt: new Date()
       }
     });
 
