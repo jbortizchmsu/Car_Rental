@@ -1,11 +1,17 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Use your computer's local IP address for physical phone testing
-const API_BASE_URL = 'http://192.168.1.100:4000/api'; 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  console.error("Mobile API URL is missing. Set EXPO_PUBLIC_API_URL in mobile/.env.");
+} else {
+  console.log(`API Base URL: ${API_BASE_URL}`); // Safe log for debugging
+}
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL || 'http://localhost:4000/api', // Fallback
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -60,4 +66,8 @@ export const notificationsApi = {
 
 export const gpsApi = {
   sendLocation: (data: any) => api.post('/gps/location', data),
+};
+
+export const customerApi = {
+  getActiveRental: () => api.get('/customer/active-rental'),
 };

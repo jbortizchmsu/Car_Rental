@@ -3,11 +3,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, TextInput, ActivityIndicator, Alert, ScrollView, RefreshControl, Image, Modal } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, RefreshControl, Image, Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, Clock, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X } from 'lucide-react-native';
-import api, { authApi, bookingsApi, gpsApi, notificationsApi } from './src/services/api';
+import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, Clock, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X, Eye, EyeOff } from 'lucide-react-native';
+import api, { authApi, bookingsApi, gpsApi, notificationsApi, customerApi } from './src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- Login Screen ---
@@ -15,6 +16,7 @@ const LoginScreen = ({ onLogin }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function signInWithEmail() {
     if (!email || !password) {
@@ -32,7 +34,15 @@ const LoginScreen = ({ onLogin }: any) => {
       
       onLogin(user);
     } catch (error: any) {
-      Alert.alert('Login Failed', error.response?.data?.error || 'Could not connect to server');
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        Alert.alert('Login Failed', 'Server is taking too long to respond.');
+      } else if (!error.response) {
+        Alert.alert('Login Failed', 'Cannot connect to server. Check API URL and backend.');
+      } else if (error.response.status === 401) {
+        Alert.alert('Login Failed', 'Invalid email or password.');
+      } else {
+        Alert.alert('Login Failed', error.response?.data?.error || 'An unexpected error occurred.');
+      }
     } finally {
       setLoading(false);
     }
@@ -40,37 +50,63 @@ const LoginScreen = ({ onLogin }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Car size={64} stroke="#AD9B8D" />
-        <Text style={styles.title}>JD CAR RENTAL</Text>
-        <Text style={styles.subtitle}>Premium Self-Drive Experience</Text>
-        
-        <View style={styles.form}>
-          <TextInput
-            onChangeText={(text) => setEmail(text)}
-            value={email}
-            placeholder="email@address.com"
-            autoCapitalize={'none'}
-            style={styles.input}
-          />
-          <TextInput
-            onChangeText={(text) => setPassword(text)}
-            value={password}
-            secureTextEntry={true}
-            placeholder="Password"
-            autoCapitalize={'none'}
-            style={styles.input}
-          />
-        </View>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView 
+            contentContainerStyle={styles.loginScrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.content}>
+              <Car size={64} stroke="#AD9B8D" />
+              <Text style={styles.title}>JD CAR RENTAL</Text>
+              <Text style={styles.subtitle}>Premium Self-Drive Experience</Text>
+              
+              <View style={styles.form}>
+                <TextInput
+                  onChangeText={(text) => setEmail(text)}
+                  value={email}
+                  placeholder="email@address.com"
+                  autoCapitalize={'none'}
+                  style={styles.input}
+                  keyboardType="email-address"
+                />
+                
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    onChangeText={(text) => setPassword(text)}
+                    value={password}
+                    secureTextEntry={!showPassword}
+                    placeholder="Password"
+                    autoCapitalize={'none'}
+                    style={styles.passwordInput}
+                  />
+                  <TouchableOpacity 
+                    style={styles.showPasswordBtn} 
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} stroke="#958786" />
+                    ) : (
+                      <Eye size={20} stroke="#958786" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-        <TouchableOpacity 
-          style={styles.button}
-          disabled={loading}
-          onPress={() => signInWithEmail()}
-        >
-          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Login</Text>}
-        </TouchableOpacity>
-      </View>
+              <TouchableOpacity 
+                style={styles.button}
+                disabled={loading}
+                onPress={() => signInWithEmail()}
+              >
+                {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Login</Text>}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -87,17 +123,26 @@ const HomeScreen = () => {
 
   const fetchActiveBooking = async () => {
     try {
-      const response = await bookingsApi.getMyBookings();
-      const active = response.data.find((b: any) => b.status === 'ACTIVE');
-      setActiveBooking(active || null);
-
-      if (active) {
-        setTrackingSession(active.trackingSession || null);
+      const response = await customerApi.getActiveRental();
+      
+      if (response.data && response.data.data) {
+        setActiveBooking(response.data.data);
+        console.log('Active rental found:', response.data.data.id);
+        
+        const session = response.data.meta?.trackingSessionId 
+          ? { id: response.data.meta.trackingSessionId } 
+          : null;
+        setTrackingSession(session);
       } else {
+        setActiveBooking(null);
         setTrackingSession(null);
+        console.log('No active rental found.');
       }
-    } catch (error) {
-      console.error('Fetch Booking Error:', error);
+    } catch (error: any) {
+      console.error('Fetch Booking Error:', error.message || 'Unknown error');
+      Alert.alert('Connection Error', 'Unable to check active rental. Please check server connection.');
+      setActiveBooking(null);
+      setTrackingSession(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -198,8 +243,8 @@ const HomeScreen = () => {
               {trackingActive ? (
                 <>
                   <NavIcon size={32} stroke="#7B1FA2" />
-                  <Text style={[styles.trackingText, { color: '#7B1FA2' }]}>GPS Tracking Active</Text>
-                  {lastLocation && (
+                  <Text style={[styles.trackingText, { color: '#7B1FA2' }]}>GPS tracking active</Text>
+                  {lastLocation ? (
                     <View style={{ marginTop: 10, alignItems: 'center' }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                         <RefreshCw size={12} stroke="#7B1FA2" />
@@ -211,18 +256,20 @@ const HomeScreen = () => {
                         {lastLocation.coords.latitude.toFixed(6)}, {lastLocation.coords.longitude.toFixed(6)}
                       </Text>
                     </View>
+                  ) : (
+                    <Text style={{ color: '#958786', fontSize: 12, marginTop: 10 }}>Getting your GPS location...</Text>
                   )}
                 </>
               ) : (
                 <>
                   <AlertCircle size={32} stroke="#958786" />
                   <Text style={styles.trackingText}>
-                    {locationPermission === false ? 'Permission Denied' : 'Waiting for Signal'}
+                    {locationPermission === false ? 'Permission Denied' : 'Waiting for vehicle release'}
                   </Text>
                   <Text style={styles.trackingSubtext}>
                     {locationPermission === false 
-                      ? 'Please enable location permissions in settings.' 
-                      : 'Establishing secure link...'}
+                      ? 'Location permission is required for active rentals.' 
+                      : 'GPS tracking will start automatically once the admin releases the vehicle.'}
                   </Text>
                 </>
               )}
@@ -231,8 +278,8 @@ const HomeScreen = () => {
         ) : (
           <View style={{ alignItems: 'center', paddingVertical: 60 }}>
             <Car size={64} stroke="#DDD" />
-            <Text style={[styles.title, { fontSize: 24 }]}>No Active Rental</Text>
-            <Text style={styles.subtitle}>Your active rentals will appear here.</Text>
+            <Text style={[styles.title, { fontSize: 24 }]}>No active rental yet</Text>
+            <Text style={styles.subtitle}>GPS starts after vehicle release.</Text>
           </View>
         )}
       </ScrollView>
@@ -551,9 +598,12 @@ export default function App() {
       const storedUser = await AsyncStorage.getItem('jd_user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
+      } else {
+        setUser(null);
       }
     } catch (e) {
       console.error('Session check error', e);
+      setUser(null);
     } finally {
       setChecking(false);
     }
@@ -568,44 +618,47 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      {user ? (
-        <Tab.Navigator
-          screenOptions={({ route }) => ({
-            headerShown: false,
-            tabBarIcon: ({ focused, color, size }) => {
-              if (route.name === 'Home') return <Car size={size} stroke={color} />;
-              if (route.name === 'Bookings') return <FileText size={size} stroke={color} />;
-              if (route.name === 'Alerts') return <Bell size={size} stroke={color} />;
-              if (route.name === 'Profile') return <User size={size} stroke={color} />;
-              return null;
-            },
-            tabBarActiveTintColor: '#AD9B8D',
-            tabBarInactiveTintColor: '#958786',
-            tabBarStyle: { height: 60, paddingBottom: 10 },
-          })}
-        >
-          <Tab.Screen name="Home" component={HomeScreen} />
-          <Tab.Screen name="Bookings" component={BookingsScreen} />
-          <Tab.Screen name="Alerts" component={NotificationsScreen} />
-          <Tab.Screen name="Profile">
-            {(props) => <ProfileScreen {...props} onLogout={() => setUser(null)} />}
-          </Tab.Screen>
-        </Tab.Navigator>
-      ) : (
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Login">
-            {(props) => <LoginScreen {...props} onLogin={(u: any) => setUser(u)} />}
-          </Stack.Screen>
-        </Stack.Navigator>
-      )}
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        {user ? (
+          <Tab.Navigator
+            screenOptions={({ route }) => ({
+              headerShown: false,
+              tabBarIcon: ({ focused, color, size }) => {
+                if (route.name === 'Home') return <Car size={size} stroke={color} />;
+                if (route.name === 'Bookings') return <FileText size={size} stroke={color} />;
+                if (route.name === 'Alerts') return <Bell size={size} stroke={color} />;
+                if (route.name === 'Profile') return <User size={size} stroke={color} />;
+                return null;
+              },
+              tabBarActiveTintColor: '#AD9B8D',
+              tabBarInactiveTintColor: '#958786',
+              tabBarStyle: { height: 60, paddingBottom: 10 },
+            })}
+          >
+            <Tab.Screen name="Home" component={HomeScreen} />
+            <Tab.Screen name="Bookings" component={BookingsScreen} />
+            <Tab.Screen name="Alerts" component={NotificationsScreen} />
+            <Tab.Screen name="Profile">
+              {(props) => <ProfileScreen {...props} onLogout={() => setUser(null)} />}
+            </Tab.Screen>
+          </Tab.Navigator>
+        ) : (
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Login">
+              {(props) => <LoginScreen {...props} onLogin={(u: any) => setUser(u)} />}
+            </Stack.Screen>
+          </Stack.Navigator>
+        )}
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FDFDFD' },
   scrollContent: { padding: 20, alignItems: 'center' },
+  loginScrollContent: { flexGrow: 1, justifyContent: 'center' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   header: { paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#000', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
@@ -613,6 +666,9 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, color: '#958786', marginBottom: 40, textAlign: 'center' },
   form: { width: '100%', marginBottom: 20 },
   input: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', marginBottom: 15, fontSize: 16 },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#DDD', marginBottom: 15 },
+  passwordInput: { flex: 1, padding: 15, fontSize: 16 },
+  showPasswordBtn: { padding: 15, justifyContent: 'center', alignItems: 'center' },
   button: { backgroundColor: '#AD9B8D', paddingVertical: 15, paddingHorizontal: 60, borderRadius: 12, width: '100%', alignItems: 'center', height: 55, justifyContent: 'center' },
   buttonText: { color: '#FFF', fontSize: 18, fontWeight: '600' },
   card: { backgroundColor: '#FFF', padding: 20, borderRadius: 16, width: '100%', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 15, elevation: 3, marginBottom: 20, borderWidth: 1, borderColor: '#F3F4F6' },
