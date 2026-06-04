@@ -316,4 +316,143 @@ router.get('/booking/:id', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+// Admin: Get Payments with Aggregates per Status
+router.get('/admin/aggregates', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const [
+      pendingCount,
+      verifiedCount,
+      rejectedCount,
+      pendingAmount,
+      verifiedAmount,
+      rejectedAmount,
+      thisMonthAmount,
+      lastMonthAmount,
+      outstandingBookings
+    ] = await Promise.all([
+      prisma.payment.count({ where: { status: 'SUBMITTED' } }),
+      prisma.payment.count({ where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } } }),
+      prisma.payment.count({ where: { status: 'REJECTED' } }),
+      prisma.payment.aggregate({
+        where: { status: 'SUBMITTED' },
+        _sum: { amount: true }
+      }),
+      prisma.payment.aggregate({
+        where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } },
+        _sum: { amount: true }
+      }),
+      prisma.payment.aggregate({
+        where: { status: 'REJECTED' },
+        _sum: { amount: true }
+      }),
+      prisma.payment.aggregate({
+        where: {
+          status: { in: ['VERIFIED', 'PAID_IN_PERSON'] },
+          createdAt: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+          }
+        },
+        _sum: { amount: true }
+      }),
+      prisma.payment.aggregate({
+        where: {
+          status: { in: ['VERIFIED', 'PAID_IN_PERSON'] },
+          createdAt: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
+            lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+          }
+        },
+        _sum: { amount: true }
+      }),
+      prisma.booking.count({
+        where: {
+          status: 'COMPLETED',
+          payments: {
+            none: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } }
+          }
+        }
+      })
+    ]);
+
+    const thisMonthValue = Number(thisMonthAmount._sum.amount) || 0;
+    const lastMonthValue = Number(lastMonthAmount._sum.amount) || 0;
+    const monthChange = lastMonthValue > 0
+      ? ((thisMonthValue - lastMonthValue) / lastMonthValue) * 100
+      : 0;
+
+    res.json({
+      counts: {
+        pending: pendingCount,
+        verified: verifiedCount,
+        rejected: rejectedCount
+      },
+      amounts: {
+        pending: Number(pendingAmount._sum.amount) || 0,
+        verified: Number(verifiedAmount._sum.amount) || 0,
+        rejected: Number(rejectedAmount._sum.amount) || 0
+      },
+      revenue: {
+        thisMonth: thisMonthValue,
+        lastMonth: lastMonthValue,
+        monthChange: parseFloat(monthChange.toFixed(2)),
+        outstanding: outstandingBookings
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching aggregates:', error);
+    res.status(500).json({ error: 'Failed to fetch payment aggregates' });
+  }
+});
+
+// Admin: Export Payments as CSV
+router.get('/export', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    const payments = await prisma.payment.findMany({
+      where: status ? { status: status as string } : {},
+      include: {
+        booking: {
+          include: {
+            customer: { select: { fullName: true } },
+            vehicle: { select: { brand: true, model: true, licensePlate: true } }
+          }
+        },
+        proofs: true,
+        verifiedBy: { select: { fullName: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Build CSV
+    const headers = ['Date', 'Customer', 'Vehicle', 'Plate', 'Booking ID', 'Payment Type', 'Amount', 'Reference', 'Status', 'Verified By'];
+    const rows = payments.map(p => [
+      new Date(p.createdAt).toLocaleDateString('en-PH'),
+      p.booking?.customer?.fullName || 'N/A',
+      `${p.booking?.vehicle?.brand} ${p.booking?.vehicle?.model}` || 'N/A',
+      p.booking?.vehicle?.licensePlate || 'N/A',
+      `#${p.bookingId.slice(0, 8).toUpperCase()}`,
+      p.paymentType.replace(/_/g, ' '),
+      Number(p.amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      p.proofs[0]?.referenceNumber || 'N/A',
+      p.status,
+      p.verifiedBy?.fullName || 'Pending'
+    ]);
+
+    const csvContent = [
+      headers.map(h => `"${h}"`).join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="payments-${status || 'all'}-${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
 export default router;
+

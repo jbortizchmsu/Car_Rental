@@ -1,20 +1,20 @@
-import React from 'react';
-import { Map, History, Clock, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { History, Clock, FileText } from 'lucide-react';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 
 const AdminGpsTrackingPage: React.FC = () => {
+  const { setPageHeader } = usePageHeader();
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'GPS Tracking',
+      subtitle: 'Historical GPS location logs and vehicle movement data'
+    });
+    return () => setPageHeader({});
+  }, [setPageHeader]);
+
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--black)', marginBottom: '0.5rem' }}>GPS Tracking Logs</h1>
-          <p style={{ color: 'var(--gray-600)' }}>Access historical telemetry, session movement replays, and detailed position logs.</p>
-        </div>
-        <Link to="/admin/map-dashboard" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-          <Map size={18} /> Back to Live Map
-        </Link>
-      </header>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
         <div className="card" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>

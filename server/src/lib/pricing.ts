@@ -6,6 +6,7 @@ export interface PricingBreakdown {
   rentalDays: number;
   subtotal: number;
   appliedRuleName: string | null;
+  pricingRuleId: string | null;
   multiplier: number;
   totalPrice: number;
 }
@@ -56,6 +57,7 @@ export async function calculateBookingPrice(
 
   let bestMultiplier = 1.0;
   let bestRuleName: string | null = null;
+  let bestRuleId: string | null = null;
 
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -112,6 +114,7 @@ export async function calculateBookingPrice(
       if (rule.multiplier > bestMultiplier) {
         bestMultiplier = rule.multiplier;
         bestRuleName = rule.name;
+        bestRuleId = rule.id;
       }
     }
   }
@@ -123,6 +126,7 @@ export async function calculateBookingPrice(
     rentalDays: days,
     subtotal: subtotal,
     appliedRuleName: bestRuleName,
+    pricingRuleId: bestRuleId,
     multiplier: bestMultiplier,
     totalPrice: Math.round(totalPrice * 100) / 100 // Round to 2 decimal places
   };

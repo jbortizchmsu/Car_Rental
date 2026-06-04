@@ -82,9 +82,10 @@ router.get('/available', async (req, res) => {
 });
 
 router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicleImage'), async (req, res) => {
-  const { 
+  const {
     model, brand, category, year, licensePlate, dailyRate, description, imageUrl,
-    currentOdometerKm, lastOilChangeOdometerKm, oilChangeIntervalKm, status
+    currentOdometerKm, lastOilChangeOdometerKm, oilChangeIntervalKm, status,
+    seats, transmission, fuelType
   } = req.body;
 
   // Validation
@@ -92,12 +93,31 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
   const finalStatus = status || 'AVAILABLE';
 
   if (!allowedInitialStatuses.includes(finalStatus)) {
-    return res.status(400).json({ 
-      error: 'New vehicles can only be added as Available or Under Maintenance.' 
+    return res.status(400).json({
+      error: 'New vehicles can only be added as Available or Under Maintenance.'
     });
   }
 
   try {
+    // Parse numeric fields with safe conversion
+    const yearParsed = year ? parseInt(year, 10) : null;
+    const dailyRateParsed = parseFloat(dailyRate);
+    const seatsParsed = seats ? parseInt(seats, 10) : null;
+    const currentOdometerKmParsed = currentOdometerKm ? parseFloat(currentOdometerKm) : 0;
+    const lastOilChangeOdometerKmParsed = lastOilChangeOdometerKm ? parseFloat(lastOilChangeOdometerKm) : 0;
+    const oilChangeIntervalKmParsed = oilChangeIntervalKm ? parseFloat(oilChangeIntervalKm) : 5000;
+
+    // Validate required numeric fields
+    if (isNaN(dailyRateParsed)) {
+      return res.status(400).json({ error: 'Daily Rate must be a valid number.' });
+    }
+    if (yearParsed !== null && isNaN(yearParsed)) {
+      return res.status(400).json({ error: 'Year must be a valid number.' });
+    }
+    if (seatsParsed !== null && isNaN(seatsParsed)) {
+      return res.status(400).json({ error: 'Seats must be a valid number.' });
+    }
+
     // If a file was uploaded, use its path as imageUrl
     let finalImageUrl = imageUrl;
     if (req.file) {
@@ -105,12 +125,15 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
     }
 
     const vehicle = await prisma.vehicle.create({
-      data: { 
-        model, brand, category, year: Number(year), licensePlate, dailyRate: Number(dailyRate), description, imageUrl: finalImageUrl, 
+      data: {
+        model, brand, category, year: yearParsed, licensePlate, dailyRate: dailyRateParsed, description, imageUrl: finalImageUrl,
         status: finalStatus,
-        currentOdometerKm: Number(currentOdometerKm) || 0,
-        lastOilChangeOdometerKm: Number(lastOilChangeOdometerKm) || 0,
-        oilChangeIntervalKm: Number(oilChangeIntervalKm) || 5000
+        seats: seatsParsed,
+        transmission,
+        fuelType,
+        currentOdometerKm: currentOdometerKmParsed,
+        lastOilChangeOdometerKm: lastOilChangeOdometerKmParsed,
+        oilChangeIntervalKm: oilChangeIntervalKmParsed
       }
     });
     res.status(201).json(vehicle);
@@ -124,16 +147,72 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
 router.put('/:id', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicleImage'), async (req, res) => {
   try {
     const data = { ...req.body };
-    if (data.year) data.year = Number(data.year);
-    if (data.dailyRate) data.dailyRate = Number(data.dailyRate);
-    if (data.currentOdometerKm) data.currentOdometerKm = Number(data.currentOdometerKm);
-    if (data.lastOilChangeOdometerKm) data.lastOilChangeOdometerKm = Number(data.lastOilChangeOdometerKm);
-    if (data.oilChangeIntervalKm) data.oilChangeIntervalKm = Number(data.oilChangeIntervalKm);
+
+    // Parse numeric fields - only if provided and not empty strings
+    if (data.year !== undefined && data.year !== '') {
+      const yearParsed = parseInt(data.year, 10);
+      if (isNaN(yearParsed)) {
+        return res.status(400).json({ error: 'Year must be a valid number.' });
+      }
+      data.year = yearParsed;
+    } else {
+      delete data.year;
+    }
+
+    if (data.dailyRate !== undefined && data.dailyRate !== '') {
+      const dailyRateParsed = parseFloat(data.dailyRate);
+      if (isNaN(dailyRateParsed)) {
+        return res.status(400).json({ error: 'Daily Rate must be a valid number.' });
+      }
+      data.dailyRate = dailyRateParsed;
+    } else {
+      delete data.dailyRate;
+    }
+
+    if (data.seats !== undefined && data.seats !== '') {
+      const seatsParsed = parseInt(data.seats, 10);
+      if (isNaN(seatsParsed)) {
+        return res.status(400).json({ error: 'Seats must be a valid number.' });
+      }
+      data.seats = seatsParsed;
+    } else if (data.seats === '') {
+      data.seats = null;
+    }
+
+    if (data.currentOdometerKm !== undefined && data.currentOdometerKm !== '') {
+      const odometerParsed = parseFloat(data.currentOdometerKm);
+      if (isNaN(odometerParsed)) {
+        return res.status(400).json({ error: 'Current Odometer must be a valid number.' });
+      }
+      data.currentOdometerKm = odometerParsed;
+    } else {
+      delete data.currentOdometerKm;
+    }
+
+    if (data.lastOilChangeOdometerKm !== undefined && data.lastOilChangeOdometerKm !== '') {
+      const oilOdometerParsed = parseFloat(data.lastOilChangeOdometerKm);
+      if (isNaN(oilOdometerParsed)) {
+        return res.status(400).json({ error: 'Last Oil Change Odometer must be a valid number.' });
+      }
+      data.lastOilChangeOdometerKm = oilOdometerParsed;
+    } else {
+      delete data.lastOilChangeOdometerKm;
+    }
+
+    if (data.oilChangeIntervalKm !== undefined && data.oilChangeIntervalKm !== '') {
+      const intervalParsed = parseFloat(data.oilChangeIntervalKm);
+      if (isNaN(intervalParsed)) {
+        return res.status(400).json({ error: 'Oil Change Interval must be a valid number.' });
+      }
+      data.oilChangeIntervalKm = intervalParsed;
+    } else {
+      delete data.oilChangeIntervalKm;
+    }
 
     // Prevent manual setting of RESERVED, RENTED or RETIRED
     if (data.status && ['RESERVED', 'RENTED', 'RETIRED'].includes(data.status)) {
-      return res.status(400).json({ 
-        error: 'Reserved, Rented, and Retired statuses are managed by system actions.' 
+      return res.status(400).json({
+        error: 'Reserved, Rented, and Retired statuses are managed by system actions.'
       });
     }
 
@@ -149,17 +228,17 @@ router.put('/:id', authenticate, authorizeAdmin, vehicleImageUpload.single('vehi
     res.json(vehicle);
   } catch (error: any) {
     console.error('Vehicle Update Error (Backend):', error);
-    
+
     if (error.code === 'P2002') {
-      return res.status(409).json({ 
+      return res.status(409).json({
         success: false,
-        error: 'A vehicle with this license plate already exists.' 
+        error: 'A vehicle with this license plate already exists.'
       });
     }
 
-    res.status(400).json({ 
+    res.status(400).json({
       success: false,
-      error: error.message || 'Failed to update vehicle due to an internal error.' 
+      error: error.message || 'Failed to update vehicle due to an internal error.'
     });
   }
 });

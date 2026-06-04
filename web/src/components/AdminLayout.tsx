@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import AdminHeader from './AdminHeader';
 import NotificationPanel from './NotificationPanel';
 
 const AdminLayout: React.FC = () => {
@@ -9,7 +10,10 @@ const AdminLayout: React.FC = () => {
       <Sidebar />
       <div className="admin-container">
         <header className="admin-header">
-          <NotificationPanel />
+          <AdminHeader />
+          <div className="ml-auto">
+            <NotificationPanel />
+          </div>
         </header>
         <main className="admin-main">
           <Outlet />

@@ -84,11 +84,12 @@ h5 {
 }
 
 .admin-header {
-  height: 70px;
+  height: 64px;
   padding: 0 2rem;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
   border-bottom: 1px solid var(--gray-100);
   background-color: var(--white);
   position: sticky;

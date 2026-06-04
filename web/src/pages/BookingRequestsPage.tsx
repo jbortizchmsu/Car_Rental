@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { bookingsApi, filesApi, paymentsApi } from '../services/api';
-import { 
-  Loader2, X, FileText, User, 
+import {
+  Loader2, X, FileText, User,
   Phone, MapPin, ExternalLink,
   Smartphone, CreditCard, Clock, Search,
   ArrowUpDown, CheckCircle2,
@@ -10,6 +10,7 @@ import {
 import FilePreviewModal from '../components/FilePreviewModal';
 import StatusBadge from '../components/StatusBadge';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
 
@@ -58,12 +59,21 @@ const BookingRequestsPage: React.FC = () => {
 
   // Notification and Modal State
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     type: 'APPROVE_BOOKING' | 'REJECT_BOOKING' | 'VERIFY_PAYMENT' | 'REJECT_PAYMENT' | 'CONFIRM_CASH' | 'RELEASE_VEHICLE' | 'RETURN_VEHICLE' | 'COMPLETE_RENTAL' | null;
     paymentId?: string;
   }>({ isOpen: false, type: null });
   const [modalError, setModalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Bookings',
+      subtitle: 'Manage the complete rental lifecycle and customer journeys.',
+    });
+    return () => setPageHeader({});
+  }, []);
 
   useEffect(() => {
     fetchBookings();
@@ -530,13 +540,6 @@ const BookingRequestsPage: React.FC = () => {
 
   return (
     <div className="bookings-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '0.5rem', color: 'var(--black)' }}>Bookings</h1>
-          <p style={{ color: 'var(--gray-500)', fontWeight: 600 }}>Manage the complete rental lifecycle and customer journeys.</p>
-        </div>
-      </div>
-
       {/* Grouped Summary KPI Section */}
       <div className="bookings-summary-group">
         <div className="bookings-summary-compact">
@@ -890,7 +893,7 @@ const BookingRequestsPage: React.FC = () => {
                     </div>
                     {selectedBooking.pricingMultiplier > 1 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                        <span>Demand Multiplier:</span>
+                        <span>Rule Applied: {selectedBooking.pricingRule?.name || selectedBooking.pricingRuleName || 'Dynamic Pricing'}</span>
                         <span style={{ color: '#FCD34D' }}>{selectedBooking.pricingMultiplier}x</span>
                       </div>
                     )}

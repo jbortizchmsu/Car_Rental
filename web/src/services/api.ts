@@ -103,6 +103,11 @@ export const paymentsApi = {
   reject: (id: string, reason: string) => api.post(`/payments/${id}/reject`, { reason }),
   getBookingForPayment: (id: string) => api.get(`/payments/booking/${id}`),
   getPaymentSummary: () => api.get('/payments/summary'),
+  getAggregates: () => api.get('/payments/admin/aggregates'),
+  exportCSV: (status?: string) => {
+    const url = status ? `/payments/export?status=${status}` : '/payments/export';
+    return api.get(url, { responseType: 'blob' });
+  }
 };
 
 // Admin Reports API
@@ -169,6 +174,14 @@ export const usersApi = {
   getById: (id: string) => api.get(`/admin/users/${id}`),
   updateStatus: (id: string, isActive: boolean) => api.patch(`/admin/users/${id}/status`, { isActive }),
   updateRole: (id: string, role: string) => api.patch(`/admin/users/${id}/role`, { role }),
+};
+
+// Settings API
+export const settingsApi = {
+  getAll: () => api.get('/admin/settings'),
+  getSetting: (key: string) => api.get(`/admin/settings/${key}`),
+  updateSettings: (settings: Array<{ key: string; value: any }>) =>
+    api.put('/admin/settings', { settings }),
 };
 
 export const getApiErrorMessage = (error: any, defaultMessage = 'An unexpected error occurred.'): string => {

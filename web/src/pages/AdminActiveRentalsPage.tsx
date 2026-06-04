@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import StatusBadge from '../components/StatusBadge';
 import { bookingsApi } from '../services/api';
-import { 
-  Loader2, Key, 
+import {
+  Loader2, Key,
   RotateCcw, CheckCircle2, AlertTriangle,
   Car, ClipboardCheck,
   ShieldAlert, X
 } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
 
@@ -28,11 +29,20 @@ const AdminActiveRentalsPage: React.FC = () => {
   const [damageDetails, setDamageDetails] = useState({ type: 'Scratch', severity: 'LOW', desc: '', cost: '' });
 
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     type: 'CONFIRM_CASH' | 'RELEASE' | 'RETURN' | 'COMPLETE' | null;
   }>({ isOpen: false, type: null });
   const [modalError, setModalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Fleet Operations',
+      subtitle: 'Monitor and manage active vehicle rentals'
+    });
+    return () => setPageHeader({});
+  }, [setPageHeader]);
 
   useEffect(() => {
     fetchBookings();
@@ -173,11 +183,6 @@ const AdminActiveRentalsPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 700 }}>Fleet Operations</h1>
-        <p style={{ color: '#6b7280' }}>Manage the lifecycle of active rentals and vehicle returns.</p>
-      </div>
-
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid #e5e7eb' }}>
         <button 

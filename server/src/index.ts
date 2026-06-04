@@ -17,6 +17,8 @@ import fileRoutes from './routes/files';
 import maintenanceRoutes from './routes/maintenance';
 import pricingRoutes from './routes/pricing';
 import usersRoutes from './routes/users';
+import settingsRoutes from './routes/settings';
+import { initializeBackgroundJobs } from './lib/background-jobs';
 
 // Load environment variables
 dotenv.config();
@@ -77,11 +79,15 @@ app.use('/api/admin/maintenance', maintenanceRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/admin/pricing', pricingRoutes);
 app.use('/api/admin/users', usersRoutes);
+app.use('/api/admin/settings', settingsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Initialize background alert jobs
+initializeBackgroundJobs();
 
 // Start server
 httpServer.listen(PORT, () => {

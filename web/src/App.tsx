@@ -24,11 +24,13 @@ import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 
 import { ToastProvider } from './components/ToastProvider';
+import { PageHeaderProvider } from './contexts/PageHeaderContext';
 
 function App() {
   return (
-    <ToastProvider>
-      <Router>
+    <PageHeaderProvider>
+      <ToastProvider>
+        <Router>
         <Routes>
           {/* Public Routes with Navbar/Footer */}
           <Route element={<PublicLayout><Outlet /></PublicLayout>}>
@@ -92,6 +94,7 @@ function App() {
         </Routes>
       </Router>
     </ToastProvider>
+    </PageHeaderProvider>
   );
 }
 

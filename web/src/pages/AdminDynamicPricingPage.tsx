@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  TrendingUp, Calendar, Zap, Info, Plus, 
-  Edit2, Trash2, Power, Loader2, 
+import {
+  TrendingUp, Calendar, Zap, Info,
+  Edit2, Trash2, Power, Loader2,
   Search, Calculator, Tag, X,
-  ShieldCheck, Clock, FileText
+  ShieldCheck, Clock, FileText, Plus
 } from 'lucide-react';
 import { pricingApi, vehiclesApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 
 interface PricingRule {
@@ -54,10 +55,19 @@ const AdminDynamicPricingPage: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Dynamic Pricing',
+      subtitle: 'Create and manage dynamic pricing strategies'
+    });
+    return () => setPageHeader({});
+  }, [setPageHeader]);
 
   useEffect(() => {
     fetchRules();
@@ -209,20 +219,6 @@ const AdminDynamicPricingPage: React.FC = () => {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--black)', marginBottom: '0.5rem' }}>Dynamic Pricing</h1>
-          <p style={{ color: 'var(--gray-500)', fontWeight: 500 }}>Configure smart pricing rules based on demand, seasonality, and holidays.</p>
-        </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="btn-brand" 
-          style={{ padding: '0.8rem 2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-        >
-          <Plus size={20} /> Create Pricing Rule
-        </button>
-      </header>
-
       {/* Summary Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
         <div className="card" style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -259,6 +255,24 @@ const AdminDynamicPricingPage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '2.5rem' }}>
         {/* Rules Table */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Page Header with Action Button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+            <button
+              onClick={() => handleOpenModal()}
+              className="btn btn-brand"
+              style={{
+                padding: '0.75rem 1.5rem',
+                borderRadius: '14px',
+                boxShadow: '0 4px 12px rgba(173, 155, 141, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <Plus size={20} /> Add New Rule
+            </button>
+          </div>
+
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Pricing Strategy List</h3>

@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { 
-  Plus, Edit2, Trash2, Loader2, X, AlertCircle, Upload, 
-  Image as ImageIcon, Search, Filter, ArrowUpDown, 
+import {
+  Plus, Edit2, Trash2, Loader2, X, AlertCircle, Upload,
+  Image as ImageIcon, Search, Filter, ArrowUpDown,
   Car, CheckCircle, Clock, Wrench, ChevronRight, Info
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import { vehiclesApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 
 interface Vehicle {
@@ -28,6 +29,7 @@ interface Vehicle {
 }
 
 const VehicleManagement: React.FC = () => {
+  const { setPageHeader } = usePageHeader();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -63,6 +65,14 @@ const VehicleManagement: React.FC = () => {
     lastOilChangeOdometerKm: 0,
     oilChangeIntervalKm: 5000
   });
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Fleet Management',
+      subtitle: 'Manage vehicles, pricing, availability, odometer, and maintenance readiness.',
+    });
+    return () => setPageHeader({});
+  }, []);
 
   useEffect(() => {
     fetchVehicles();
@@ -277,15 +287,16 @@ const VehicleManagement: React.FC = () => {
 
   return (
     <div className="space-y-8" style={{ paddingBottom: '4rem' }}>
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black text-black mb-1">Fleet Management</h1>
-          <p className="text-gray-500 font-medium">Manage vehicles, pricing, availability, odometer, and maintenance readiness.</p>
-        </div>
-        <button 
+      {/* Page Header with Action Button */}
+      <div className="flex items-center justify-between">
+        <button
           onClick={() => handleOpenModal()}
-          className="btn btn-brand"
-          style={{ padding: '0.75rem 1.5rem', borderRadius: '14px', boxShadow: '0 4px 12px rgba(173, 155, 141, 0.3)' }}
+          className="btn btn-brand ml-auto"
+          style={{
+            padding: '0.75rem 1.5rem',
+            borderRadius: '14px',
+            boxShadow: '0 4px 12px rgba(173, 155, 141, 0.3)',
+          }}
         >
           <Plus size={20} /> Add New Vehicle
         </button>

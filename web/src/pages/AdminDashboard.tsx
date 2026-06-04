@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { adminApi } from '../services/api';
 import { 
   CheckCircle2, 
@@ -13,7 +12,6 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
-  const { profile } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -37,26 +35,6 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Overview</h1>
-          <p style={{ color: 'var(--gray-500)', fontWeight: 500 }}>Here's what's happening with JD Car Rental today.</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontWeight: 700 }}>{profile?.full_name}</p>
-            <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>System Administrator</p>
-          </div>
-          <div style={{ 
-            width: '48px', height: '48px', borderRadius: '50%', 
-            backgroundColor: 'var(--soft-beige)', display: 'flex', 
-            alignItems: 'center', justifyContent: 'center', fontWeight: 900 
-          }}>
-            {profile?.full_name?.charAt(0)}
-          </div>
-        </div>
-      </header>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-4 gap-6">
         <div className="card flex flex-col justify-between">

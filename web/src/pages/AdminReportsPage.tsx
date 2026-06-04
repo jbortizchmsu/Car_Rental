@@ -22,15 +22,25 @@ import {
 import { adminApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 
 const AdminReportsPage: React.FC = () => {
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
   const [reportType, setReportType] = useState('revenue');
   const [dateRange, setDateRange] = useState('month'); // today, week, month, custom
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Reports & Analytics',
+      subtitle: 'Analyze revenue, bookings, fleet usage, payments, maintenance, and safety alerts.',
+    });
+    return () => setPageHeader({});
+  }, [setPageHeader]);
 
   useEffect(() => {
     handleQuickFilter(dateRange);
@@ -665,14 +675,6 @@ const AdminReportsPage: React.FC = () => {
 
   return (
     <div className="reports-dashboard">
-      {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--black)', marginBottom: '0.5rem' }}>Reports & Analytics</h1>
-          <p style={{ color: 'var(--gray-500)', fontWeight: 600 }}>Analyze revenue, bookings, fleet usage, payments, maintenance, and safety alerts.</p>
-        </div>
-      </header>
-
       {/* Modern Filter Bar */}
       <div className="reports-filter-bar">
         <div className="filter-group">

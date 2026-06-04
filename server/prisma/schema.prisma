@@ -86,6 +86,8 @@ model Booking {
   baseDailyRate      Decimal?
   pricingMultiplier  Float?    @default(1.0)
   pricingRuleName    String?
+  pricingRuleId      String?
+  pricingRule        PricingRule? @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
 
   // Odometer tracking
   releaseOdometerKm Float?
@@ -286,14 +288,18 @@ model DamageReport {
 
 // 13. Notifications
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  title     String
-  message   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id            String   @id @default(uuid())
+  userId        String
+  type          String   @default("GENERAL") // BOOKING_PICKUP_DUE, PAYMENT_SUBMITTED, GEOFENCE_BREACH, etc
+  title         String
+  message       String
+  isRead        Boolean  @default(false)
+  targetRole    String   @default("admin") // "admin", "customer", or "all"
+  referenceId   String?  // ID of related booking, vehicle, payment, etc
+  referenceType String?  // "booking", "vehicle", "payment", "rental", etc
+  createdAt     DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // 14. Dynamic Pricing Rules
@@ -310,4 +316,13 @@ model PricingRule {
   description        String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  bookings           Booking[]
+}
+
+// 15. System Settings
+model SystemSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
 }

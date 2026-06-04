@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Wrench, AlertTriangle, ClipboardList, Plus, Check, Search, Filter, DollarSign } from 'lucide-react';
 import { maintenanceApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 
 const AdminMaintenancePage: React.FC = () => {
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
   const [summary, setSummary] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [damageReports, setDamageReports] = useState<any[]>([]);
@@ -55,6 +57,14 @@ const AdminMaintenancePage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Maintenance & Fleet Health',
+      subtitle: 'Monitor vehicle condition, service schedules, repair costs, and maintenance readiness.',
+    });
+    return () => setPageHeader({});
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -140,13 +150,6 @@ const AdminMaintenancePage: React.FC = () => {
 
   return (
     <div className="maintenance-page" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      <header className="maintenance-header">
-        <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--black)', marginBottom: '0.5rem' }}>Maintenance & Fleet Health</h1>
-          <p style={{ color: 'var(--gray-600)', fontWeight: 600 }}>Monitor vehicle condition, service schedules, repair costs, and maintenance readiness.</p>
-        </div>
-      </header>
-
       {/* Grouped Summary KPI Section */}
       <div className="bookings-summary-group">
         <div className="bookings-summary-compact" style={{ flex: 2 }}>

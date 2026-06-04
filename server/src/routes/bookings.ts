@@ -60,6 +60,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
         baseDailyRate: pricing.baseDailyRate,
         pricingMultiplier: pricing.multiplier,
         pricingRuleName: pricing.appliedRuleName,
+        pricingRuleId: pricing.pricingRuleId,
         totalAmount,
         pickupLocation,
         destinationName,
@@ -159,7 +160,8 @@ router.get('/my', authenticate, async (req: AuthRequest, res) => {
         vehicle: true,
         payments: true,
         documents: true,
-        damageReports: true
+        damageReports: true,
+        pricingRule: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -178,7 +180,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         vehicle: true,
         payments: true,
         documents: true,
-        damageReports: true
+        damageReports: true,
+        pricingRule: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -196,7 +199,8 @@ router.get('/pending', authenticate, authorizeAdmin, async (req, res) => {
       include: { 
         vehicle: true, 
         customer: { select: { id: true, fullName: true, email: true, phoneNumber: true } },
-        documents: true
+        documents: true,
+        pricingRule: true
       },
       orderBy: { createdAt: 'asc' }
     });
@@ -225,7 +229,8 @@ router.get('/active-list', authenticate, authorizeAdmin, async (req, res) => {
         payments: {
           include: { proofs: true }
         },
-        documents: true
+        documents: true,
+        pricingRule: true
       },
       orderBy: { startDate: 'asc' }
     });
@@ -249,6 +254,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
           include: { proofs: true }
         },
         damageReports: true,
+        pricingRule: true,
         customer: {
           select: { id: true, fullName: true, email: true, phoneNumber: true, address: true }
         }
