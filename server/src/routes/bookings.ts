@@ -530,4 +530,53 @@ router.post('/:id/complete', authenticate, authorizeAdmin, async (req: AuthReque
   }
 });
 
+// Customer: Cancel Booking
+router.patch('/:id/cancel', authenticate, async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id } });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    // Ownership check — customer can only cancel their own booking
+    if (req.user!.role !== 'admin' && booking.customerId !== req.user!.id) {
+      return res.status(403).json({ error: 'Unauthorized to cancel this booking' });
+    }
+
+    if (booking.status === 'CANCELLED') {
+      return res.status(400).json({ error: 'Booking is already cancelled' });
+    }
+
+    const cancellableStatuses = ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT'];
+    if (!cancellableStatuses.includes(booking.status)) {
+      const statusMessages: Record<string, string> = {
+        'ACTIVE': 'Cannot cancel an active rental',
+        'RETURNED': 'Cannot cancel a returned rental',
+        'COMPLETED': 'Cannot cancel a completed rental',
+        'READY_FOR_PICKUP': 'Cannot cancel a booking that is ready for pickup — please contact us directly',
+        'FULL_PAYMENT_SUBMITTED': 'Cannot cancel after payment has been submitted — please contact us directly',
+        'DOWNPAYMENT_SUBMITTED': 'Cannot cancel after payment has been submitted — please contact us directly',
+        'RESERVED': 'Cannot cancel a reserved booking — please contact us directly',
+        'REJECTED': 'This booking has already been rejected',
+      };
+      const message = statusMessages[booking.status] || `Cannot cancel a booking with status: ${booking.status}`;
+      return res.status(400).json({ error: message });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
+    });
+
+    await createAdminNotification(
+      'Booking Cancelled',
+      `Customer ${req.user!.fullName} cancelled booking ${id.split('-')[0].toUpperCase()}.`
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Cancel booking error:', error);
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
 export default router;

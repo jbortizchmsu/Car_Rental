@@ -1252,6 +1252,18 @@ h5 {
   margin-top: 0.25rem;
 }
 
+.pricing-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 2.5rem;
+}
+
+@media (max-width: 1280px) {
+  .pricing-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pricing-preview-card {
   border: 1px solid var(--gray-200);
   background-color: var(--white);

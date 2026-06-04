@@ -36,6 +36,7 @@ const AdminMaintenancePage: React.FC = () => {
     status: 'COMPLETED',
     odometerKm: ''
   });
+  const [logStatusFilter, setLogStatusFilter] = useState('ALL');
 
   const fetchData = async () => {
     try {
@@ -189,148 +190,15 @@ const AdminMaintenancePage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
-        {/* Recent Damage Reports */}
-        <div className="maintenance-table-card">
-          <div className="table-header">
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--black)' }}>
-              <AlertTriangle size={22} color="#EF4444" /> Recent Damage Reports
-            </h3>
-          </div>
-          <div className="table-container" style={{ flex: 1, maxHeight: '400px', overflowY: 'auto' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Vehicle</th>
-                  <th>Damage Info</th>
-                  <th>Severity</th>
-                  <th>Estimate</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {damageReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={5}>
-                      <div className="maintenance-empty-state">
-                        <AlertTriangle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                        <h4>No damage reports found</h4>
-                        <p>Returned vehicle damage reports will appear here.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  damageReports.map(report => (
-                    <tr key={report.id}>
-                      <td>
-                        <div style={{ fontWeight: 700, color: 'var(--black)' }}>{report.booking.vehicle.brand} {report.booking.vehicle.model}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{report.booking.vehicle.licensePlate}</div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 700 }}>{report.damageType || 'General'}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{report.description}</div>
-                      </td>
-                      <td>
-                        <span className="maintenance-status-badge" style={{ 
-                          backgroundColor: report.severity === 'CRITICAL' ? '#FEF2F2' : report.severity === 'HIGH' ? '#FFFBEB' : '#F3F4F6',
-                          color: report.severity === 'CRITICAL' ? '#DC2626' : report.severity === 'HIGH' ? '#D97706' : '#374151'
-                        }}>
-                          {report.severity || 'LOW'}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: 800, color: 'var(--black)' }}>{report.estimatedCost ? `₱${report.estimatedCost.toLocaleString()}` : <span style={{ color: 'var(--gray-400)' }}>No estimate</span>}</td>
-                      <td>
-                        <button 
-                          className="btn-outline" 
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderRadius: '8px' }}
-                          onClick={() => {
-                            setSelectedVehicleId(report.booking.vehicleId);
-                            setNewLog({ ...newLog, serviceType: 'REPAIR', description: `Repair for: ${report.description}`, cost: report.estimatedCost || '' });
-                            setShowLogModal(true);
-                          }}
-                        >
-                          Create Log
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Service Logs Summary */}
-        <div className="maintenance-table-card">
-          <div className="table-header">
-            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--black)' }}>
-              <ClipboardList size={22} color="var(--warm-taupe)" /> Service History
-            </h3>
-          </div>
-          <div className="table-container" style={{ flex: 1, maxHeight: '400px', overflowY: 'auto' }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Vehicle</th>
-                  <th>Service Type</th>
-                  <th>Cost</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5}>
-                      <div className="maintenance-empty-state">
-                        <ClipboardList size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                        <h4>No service logs yet</h4>
-                        <p>Maintenance records will appear after you add a service log.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  logs.slice(0, 10).map(log => (
-                    <tr key={log.id}>
-                      <td>
-                        <div style={{ fontWeight: 700, color: 'var(--black)' }}>{log.vehicle.brand}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{log.vehicle.plateNumber}</div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{log.serviceType.replace('_', ' ')}</div>
-                      </td>
-                      <td style={{ fontWeight: 800, color: 'var(--black)' }}>
-                        ₱{log.cost?.toLocaleString() || 0}
-                      </td>
-                      <td style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>
-                        {new Date(log.serviceDate).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <span className="maintenance-status-badge" style={{ 
-                          backgroundColor: log.status === 'COMPLETED' ? '#F0FDF4' : '#FEF3C7',
-                          color: log.status === 'COMPLETED' ? '#16A34A' : '#D97706'
-                        }}>
-                          {log.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
       {/* Toolbar */}
       <div className="maintenance-toolbar">
         <div style={{ display: 'flex', gap: '1rem', flex: 1 }}>
           <div style={{ position: 'relative', maxWidth: '300px', width: '100%' }}>
             <Search size={18} color="var(--gray-400)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
-            <input 
-              type="text" 
-              className="input" 
-              placeholder="Search vehicle or plate..." 
+            <input
+              type="text"
+              className="input"
+              placeholder="Search vehicle or plate..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ width: '100%', paddingLeft: '2.5rem', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
@@ -338,8 +206,8 @@ const AdminMaintenancePage: React.FC = () => {
           </div>
           <div style={{ position: 'relative' }}>
             <Filter size={18} color="var(--gray-400)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-            <select 
-              className="input" 
+            <select
+              className="input"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               style={{ paddingLeft: '2.5rem', borderRadius: '12px', border: '1px solid var(--gray-200)', appearance: 'none', paddingRight: '2.5rem', fontWeight: 600, color: 'var(--gray-600)' }}
@@ -352,10 +220,14 @@ const AdminMaintenancePage: React.FC = () => {
             </select>
           </div>
         </div>
-        <button 
-          className="btn-brand" 
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '12px' }} 
-          onClick={() => { setSelectedVehicleId(''); setShowLogModal(true); }}
+        <button
+          className="btn-brand"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '12px' }}
+          onClick={() => {
+            setSelectedVehicleId('');
+            setNewLog({ serviceType: 'ROUTINE', description: '', cost: '', serviceDate: new Date().toISOString().split('T')[0], nextServiceDate: '', status: 'COMPLETED', odometerKm: '' });
+            setShowLogModal(true);
+          }}
         >
           <Plus size={18} /> Add Maintenance Log
         </button>
@@ -399,7 +271,7 @@ const AdminMaintenancePage: React.FC = () => {
                     <td style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{vehicle.currentOdometerKm?.toLocaleString()} km</td>
                     <td style={{ fontWeight: 600, color: 'var(--gray-500)' }}>{vehicle.lastOilChangeOdometerKm?.toLocaleString() || '--'} km</td>
                     <td>
-                      <span className="maintenance-status-badge" style={{ 
+                      <span className="maintenance-status-badge" style={{
                         backgroundColor: vehicle.status === 'UNDER_MAINTENANCE' ? '#EFF6FF' : vehicle.oilChangeStatus === 'DUE_NOW' ? '#FEF2F2' : vehicle.oilChangeStatus === 'DUE_SOON' ? '#FFFBEB' : '#ECFDF5',
                         color: vehicle.status === 'UNDER_MAINTENANCE' ? '#1D4ED8' : vehicle.oilChangeStatus === 'DUE_NOW' ? '#DC2626' : vehicle.oilChangeStatus === 'DUE_SOON' ? '#D97706' : '#16A34A'
                       }}>
@@ -412,31 +284,34 @@ const AdminMaintenancePage: React.FC = () => {
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         {vehicle.status !== 'UNDER_MAINTENANCE' ? (
-                          <button 
-                            className="maintenance-action-button" 
+                          <button
+                            className="maintenance-action-button"
                             style={{ color: '#DC2626', backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}
                             onClick={() => openConfirmModal(vehicle, 'SHOP')}
                           >
                             Send to Shop
                           </button>
                         ) : (
-                          <button 
-                            className="maintenance-action-button" 
+                          <button
+                            className="maintenance-action-button"
                             style={{ color: '#16A34A', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
                             onClick={() => openConfirmModal(vehicle, 'AVAILABLE')}
                           >
                             Mark Ready
                           </button>
                         )}
-                          <button 
-                          className="btn-outline" 
+                          <button
+                          className="btn-outline"
                           style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderRadius: '8px' }}
                           onClick={() => {
                             setSelectedVehicleId(vehicle.id);
                             setNewLog({
-                              ...newLog,
                               serviceType: 'OIL_CHANGE',
                               description: `Routine oil change at ${vehicle.currentOdometerKm} km`,
+                              cost: '',
+                              serviceDate: new Date().toISOString().split('T')[0],
+                              nextServiceDate: '',
+                              status: 'COMPLETED',
                               odometerKm: vehicle.currentOdometerKm.toString()
                             });
                             setShowLogModal(true);
@@ -451,6 +326,159 @@ const AdminMaintenancePage: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+        {/* Recent Damage Reports */}
+        <div className="maintenance-table-card">
+          <div className="table-header">
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--black)' }}>
+              <AlertTriangle size={22} color="#EF4444" /> Recent Damage Reports
+            </h3>
+          </div>
+          <div className="table-container" style={{ flex: 1, maxHeight: '400px', overflowY: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Damage Info</th>
+                  <th>Severity</th>
+                  <th>Estimate</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {damageReports.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <div className="maintenance-empty-state">
+                        <AlertTriangle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                        <h4>No damage reports found</h4>
+                        <p>Returned vehicle damage reports will appear here.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  damageReports.map(report => (
+                    <tr key={report.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--black)' }}>{report.booking.vehicle.brand} {report.booking.vehicle.model}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{report.booking.vehicle.licensePlate}</div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 700 }}>{report.damageType || 'General'}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{report.description}</div>
+                      </td>
+                      <td>
+                        <span className="maintenance-status-badge" style={{
+                          backgroundColor: report.severity === 'CRITICAL' ? '#FEF2F2' : report.severity === 'HIGH' ? '#FFFBEB' : '#F3F4F6',
+                          color: report.severity === 'CRITICAL' ? '#DC2626' : report.severity === 'HIGH' ? '#D97706' : '#374151'
+                        }}>
+                          {report.severity || 'LOW'}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 800, color: 'var(--black)' }}>{report.estimatedCost ? `₱${report.estimatedCost.toLocaleString()}` : <span style={{ color: 'var(--gray-400)' }}>No estimate</span>}</td>
+                      <td>
+                        <button
+                          className="btn-outline"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderRadius: '8px' }}
+                          onClick={() => {
+                            setSelectedVehicleId(report.booking.vehicleId);
+                            setNewLog({
+                              serviceType: 'REPAIR',
+                              description: `Repair for: ${report.description}`,
+                              cost: String(report.estimatedCost || ''),
+                              serviceDate: new Date().toISOString().split('T')[0],
+                              nextServiceDate: '',
+                              status: 'COMPLETED',
+                              odometerKm: ''
+                            });
+                            setShowLogModal(true);
+                          }}
+                        >
+                          Create Log
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Service Logs Summary */}
+        <div className="maintenance-table-card">
+          <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--black)' }}>
+              <ClipboardList size={22} color="var(--warm-taupe)" /> Service History
+            </h3>
+            <select
+              value={logStatusFilter}
+              onChange={(e) => setLogStatusFilter(e.target.value)}
+              style={{ fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: '1px solid var(--gray-200)', padding: '0.35rem 0.75rem', color: 'var(--gray-600)', backgroundColor: 'white' }}
+            >
+              <option value="ALL">All</option>
+              <option value="SCHEDULED">Scheduled</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+          <div className="table-container" style={{ flex: 1, maxHeight: '400px', overflowY: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Service Type</th>
+                  <th>Cost</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const filtered = logs.filter(log => logStatusFilter === 'ALL' || log.status === logStatusFilter);
+                  if (filtered.length === 0) return (
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="maintenance-empty-state">
+                          <ClipboardList size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                          <h4>No service logs yet</h4>
+                          <p>Maintenance records will appear after you add a service log.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                  return filtered.slice(0, 15).map(log => (
+                    <tr key={log.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--black)' }}>{log.vehicle.brand} {log.vehicle.model}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{log.vehicle.licensePlate}</div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{log.serviceType.replace(/_/g, ' ')}</div>
+                      </td>
+                      <td style={{ fontWeight: 800, color: 'var(--black)' }}>
+                        ₱{log.cost?.toLocaleString() || 0}
+                      </td>
+                      <td style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>
+                        {new Date(log.serviceDate).toLocaleDateString()}
+                      </td>
+                      <td>
+                        <span className="maintenance-status-badge" style={{
+                          backgroundColor: log.status === 'COMPLETED' ? '#F0FDF4' : log.status === 'IN_PROGRESS' ? '#EFF6FF' : '#FEF3C7',
+                          color: log.status === 'COMPLETED' ? '#16A34A' : log.status === 'IN_PROGRESS' ? '#1D4ED8' : '#D97706'
+                        }}>
+                          {log.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -475,13 +503,16 @@ const AdminMaintenancePage: React.FC = () => {
             if (e.target === e.currentTarget) setShowLogModal(false);
           }}
         >
-          <div 
-            className="card" 
-            style={{ 
-              width: '100%', 
-              maxWidth: '720px', 
-              padding: 0, 
-              border: 'none', 
+          <div
+            className="card"
+            style={{
+              width: '100%',
+              maxWidth: '720px',
+              maxHeight: 'calc(100vh - 3rem)',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: 0,
+              border: 'none',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               overflow: 'hidden',
               animation: 'modalSlideUp 0.3s ease-out'
@@ -523,8 +554,8 @@ const AdminMaintenancePage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreateLog}>
-              <div style={{ padding: '2rem' }}>
+            <form onSubmit={handleCreateLog} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
                   {/* Left Column Group: Vehicle & Service */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

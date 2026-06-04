@@ -115,20 +115,20 @@ const BookingRequestsPage: React.FC = () => {
 
   const getStatusQuery = (filter: WorkflowFilter): string | string[] => {
     switch (filter) {
-      case 'ALL_ACTIVE': 
-        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
+      case 'ALL_ACTIVE':
+        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED', 'CANCELLED'];
       case 'NEEDS_ACTION': 
         return ['PENDING_REVIEW', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
       case 'WAITING_CUSTOMER': 
         return 'APPROVED_FOR_PAYMENT';
       case 'ACTIVE_RENTALS': 
         return 'ACTIVE';
-      case 'REJECTED': 
-        return 'REJECTED';
+      case 'REJECTED':
+        return ['REJECTED', 'CANCELLED'];
       case 'COMPLETED': 
         return 'COMPLETED';
-      default: 
-        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
+      default:
+        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED', 'CANCELLED'];
     }
   };
 
@@ -293,6 +293,8 @@ const BookingRequestsPage: React.FC = () => {
         return { label: 'Returned', actionLabel: 'Complete Rental', actionPriority: 'ACTION_REQUIRED', actionType: 'COMPLETE_RENTAL' };
       case 'REJECTED':
         return { label: 'Rejected', actionLabel: 'View Details', actionPriority: 'MUTED', actionType: 'VIEW' };
+      case 'CANCELLED':
+        return { label: 'Cancelled by Customer', actionLabel: 'View Details', actionPriority: 'MUTED', actionType: 'VIEW' };
       case 'COMPLETED':
         return { label: 'Completed', actionLabel: 'View History', actionPriority: 'MUTED', actionType: 'VIEW' };
       default:
@@ -409,6 +411,7 @@ const BookingRequestsPage: React.FC = () => {
       case 'RETURNED': return 'Returned';
       case 'COMPLETED': return 'Completed';
       case 'REJECTED': return 'Rejected';
+      case 'CANCELLED': return 'Cancelled';
       default: return status.replace(/_/g, ' ');
     }
   };
@@ -586,7 +589,7 @@ const BookingRequestsPage: React.FC = () => {
           { id: 'NEEDS_ACTION', label: 'Needs Admin Action' },
           { id: 'WAITING_CUSTOMER', label: 'Waiting for Customer' },
           { id: 'ACTIVE_RENTALS', label: 'Active Rentals' },
-          { id: 'REJECTED', label: 'Rejected / Issues' },
+          { id: 'REJECTED', label: 'Rejected / Cancelled' },
           { id: 'COMPLETED', label: 'Completed' }
         ].map(filter => (
           <button 

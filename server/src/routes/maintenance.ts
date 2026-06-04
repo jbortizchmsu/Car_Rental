@@ -159,6 +159,7 @@ router.get('/vehicles', authenticate, authorizeAdmin, async (req, res) => {
 router.get('/damage-reports', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const reports = await prisma.damageReport.findMany({
+      where: { booking: { vehicle: { status: { not: 'RETIRED' } } } },
       include: {
         booking: {
           include: {
@@ -181,6 +182,7 @@ router.get('/damage-reports', authenticate, authorizeAdmin, async (req, res) => 
 router.get('/logs', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const logs = await prisma.maintenanceLog.findMany({
+      where: { vehicle: { status: { not: 'RETIRED' } } },
       include: {
         vehicle: true
       },

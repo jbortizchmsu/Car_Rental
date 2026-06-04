@@ -5,6 +5,7 @@ import { Loader2, Calendar, MapPin, ChevronRight, CreditCard, CheckCircle2, Navi
 import { Link } from 'react-router-dom';
 import { bookingsApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
+import ConfirmActionModal from '../components/ConfirmActionModal';
 
 const MyBookingsPage: React.FC = () => {
   const toast = useToast();
@@ -63,6 +64,30 @@ const MyBookingsPage: React.FC = () => {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [details, setDetails] = useState<any>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const handleCancelBooking = async () => {
+    if (!cancelTargetId) return;
+    setCancelLoading(true);
+    setCancelError(null);
+    try {
+      await bookingsApi.cancel(cancelTargetId);
+      setBookings(prev => prev.map(b =>
+        b.id === cancelTargetId ? { ...b, status: 'CANCELLED' } : b
+      ));
+      toast.success('Booking cancelled', 'Your booking has been successfully cancelled.');
+      setCancelTargetId(null);
+    } catch (error: any) {
+      const msg = getApiErrorMessage(error);
+      setCancelError(msg);
+      toast.error('Cancellation failed', msg);
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const handleViewDetails = async (id: string) => {
     setSelectedBookingId(id);
@@ -218,6 +243,30 @@ const MyBookingsPage: React.FC = () => {
                             <CheckCircle2 size={20} /> READY FOR PICKUP
                           </div>
                         )}
+
+                        {['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT'].includes(booking.status) && (
+                          <button
+                            onClick={() => { setCancelTargetId(booking.id); setCancelError(null); }}
+                            style={{
+                              marginTop: '0.5rem',
+                              background: 'none',
+                              border: '1px solid #DC2626',
+                              color: '#DC2626',
+                              borderRadius: '8px',
+                              padding: '0.4rem 0.75rem',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              justifyContent: 'center',
+                              width: '100%',
+                            }}
+                          >
+                            <X size={13} /> Cancel Booking
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -257,6 +306,19 @@ const MyBookingsPage: React.FC = () => {
           )}
         </div>
       </main>
+
+      <ConfirmActionModal
+        isOpen={cancelTargetId !== null}
+        title="Cancel Booking"
+        message="Are you sure you want to cancel this booking? This action cannot be undone."
+        confirmLabel="Yes, Cancel Booking"
+        cancelLabel="Keep Booking"
+        variant="danger"
+        loading={cancelLoading}
+        error={cancelError}
+        onConfirm={handleCancelBooking}
+        onCancel={() => { if (!cancelLoading) { setCancelTargetId(null); setCancelError(null); } }}
+      />
 
       {/* Booking Details Modal */}
       {selectedBookingId && (
@@ -481,6 +543,30 @@ const MyBookingsPage: React.FC = () => {
 
             <div className="modal-footer">
               <button className="btn-outline" onClick={() => setSelectedBookingId(null)}>Close</button>
+              {['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT'].includes(details?.status) && (
+                <button
+                  onClick={() => {
+                    setSelectedBookingId(null);
+                    setCancelTargetId(details.id);
+                    setCancelError(null);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #DC2626',
+                    color: '#DC2626',
+                    borderRadius: '8px',
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <X size={14} /> Cancel Booking
+                </button>
+              )}
               {details?.status === 'APPROVED_FOR_PAYMENT' && (
                 <Link to={`/customer/payment/${details.id}`} className="btn-primary">
                   Proceed to Payment
