@@ -381,6 +381,20 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
       return res.status(400).json({ error: 'Booking must be READY_FOR_PICKUP before release.' });
     }
 
+    // Date guard: cannot release before the scheduled pickup date
+    if (!existingBooking.startDate) {
+      return res.status(400).json({ error: 'Booking start date is missing. Cannot release vehicle.' });
+    }
+    const now = new Date();
+    if (now < existingBooking.startDate) {
+      const formattedDate = existingBooking.startDate.toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila'
+      });
+      return res.status(400).json({
+        error: `Vehicle cannot be released before the scheduled pickup date. Pickup is scheduled for ${formattedDate}.`
+      });
+    }
+
     if (!existingBooking.agreementSignedAt) {
       return res.status(400).json({ error: 'Rental agreement must be signed before release.' });
     }
@@ -527,6 +541,26 @@ router.post('/:id/complete', authenticate, authorizeAdmin, async (req: AuthReque
     res.json(booking);
   } catch (error) {
     res.status(500).json({ error: 'Completion failed' });
+  }
+});
+
+// Customer: Get Booked Date Ranges for a Vehicle
+router.get('/vehicle/:vehicleId/booked-dates', authenticate, async (req: AuthRequest, res) => {
+  const { vehicleId } = req.params;
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: {
+        vehicleId,
+        status: { notIn: ['REJECTED', 'CANCELLED', 'COMPLETED'] }
+      },
+      select: { startDate: true, endDate: true }
+    });
+    res.json(bookings.map(b => ({
+      startDate: b.startDate.toISOString(),
+      endDate: b.endDate.toISOString()
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch booked dates' });
   }
 });
 

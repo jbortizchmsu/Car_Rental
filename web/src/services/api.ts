@@ -87,6 +87,7 @@ export const bookingsApi = {
   completeRental: (id: string, data: any) => api.post(`/customer/bookings/${id}/complete`, data),
   getDetails: (id: string) => api.get(`/customer/bookings/${id}`),
   cancel: (id: string) => api.patch(`/customer/bookings/${id}/cancel`),
+  getVehicleBookedDates: (vehicleId: string) => api.get(`/customer/bookings/vehicle/${vehicleId}/booked-dates`),
   signAgreement: (id: string, signerName: string) => api.post(`/customer/bookings/${id}/sign-agreement`, { signerName }),
   confirmCashPayment: (id: string, amount: number) => api.post(`/payments/booking/${id}/confirm-cash`, { amount }),
 };

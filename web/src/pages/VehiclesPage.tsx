@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import VehicleCard from '../components/VehicleCard';
 import BookingRequestModal from '../components/BookingRequestModal';
 import { vehiclesApi } from '../services/api';
@@ -24,27 +24,32 @@ const VehiclesPage: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [pickupDate, setPickupDate] = useState('');
+  const [returnDate, setReturnDate] = useState('');
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
+  // Guard so auto-open from navigation state only fires once
+  const autoOpenedRef = useRef(false);
 
-  const fetchVehicles = async () => {
+  const fetchVehicles = async (pickup = '', returnD = '') => {
     try {
       setLoading(true);
-      const { data } = await vehiclesApi.getAvailable();
+      const { data } = await vehiclesApi.getAvailable(
+        pickup || undefined,
+        returnD || undefined
+      );
       setVehicles(data);
-      
+
       // Auto-open modal if navigated from somewhere with a pre-selected vehicle
-      if (location.state?.vehicle) {
+      if (!autoOpenedRef.current && location.state?.vehicle) {
         const preSelected = data.find((v: any) => v.id === location.state.vehicle.id);
         if (preSelected) {
           setSelectedVehicle(preSelected);
           setIsModalOpen(true);
+          autoOpenedRef.current = true;
         }
       }
     } catch (error) {
@@ -53,6 +58,10 @@ const VehiclesPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchVehicles(pickupDate, returnDate);
+  }, [pickupDate, returnDate]);
 
   const filteredVehicles = vehicles.filter(v => 
     v.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -102,6 +111,49 @@ const VehiclesPage: React.FC = () => {
                 }}
               />
             </div>
+          </div>
+
+          {/* Date availability filter */}
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '2rem', padding: '1.25rem 1.5rem', backgroundColor: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-soft)', border: '1px solid #eee' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--muted-mauve)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pickup Date</label>
+              <input
+                type="date"
+                value={pickupDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => {
+                  setPickupDate(e.target.value);
+                  if (!e.target.value) setReturnDate('');
+                }}
+                style={{ padding: '0.6rem 0.9rem', borderRadius: '10px', border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none', cursor: 'pointer' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--muted-mauve)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Return Date</label>
+              <input
+                type="date"
+                value={returnDate}
+                min={pickupDate || new Date().toISOString().split('T')[0]}
+                disabled={!pickupDate}
+                onChange={(e) => setReturnDate(e.target.value)}
+                style={{ padding: '0.6rem 0.9rem', borderRadius: '10px', border: '1px solid #ddd', fontSize: '0.95rem', outline: 'none', cursor: pickupDate ? 'pointer' : 'not-allowed', opacity: pickupDate ? 1 : 0.5 }}
+              />
+            </div>
+            {(pickupDate || returnDate) && (
+              <button
+                onClick={() => { setPickupDate(''); setReturnDate(''); }}
+                style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #ddd', backgroundColor: 'white', fontSize: '0.85rem', fontWeight: 600, color: 'var(--muted-mauve)', cursor: 'pointer' }}
+              >
+                Clear dates
+              </button>
+            )}
+            {pickupDate && returnDate ? (
+              <span style={{ fontSize: '0.85rem', color: 'var(--warm-taupe)', fontWeight: 600 }}>
+                Showing vehicles available {new Date(pickupDate + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(returnDate + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.85rem', color: 'var(--gray-400)' }}>Select dates to see real-time availability</span>
+            )}
           </div>
 
           {loading ? (

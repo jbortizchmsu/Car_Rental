@@ -49,25 +49,37 @@ router.get('/:id/image', async (req, res) => {
 // Get available vehicles with optional date filtering
 router.get('/available', async (req, res) => {
   const { pickupDate, returnDate } = req.query;
-  
+
   try {
-    const where: any = { status: 'AVAILABLE' };
+    let where: any;
 
     if (pickupDate && returnDate) {
       const start = new Date(pickupDate as string);
       const end = new Date(returnDate as string);
 
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        where.bookings = {
-          none: {
-            status: { notIn: ['REJECTED', 'CANCELLED', 'COMPLETED'] },
-            AND: [
-              { startDate: { lt: end } },
-              { endDate: { gt: start } }
-            ]
+        // With valid dates: include AVAILABLE and RENTED vehicles,
+        // exclude those whose bookings overlap the requested range.
+        // Always exclude UNDER_MAINTENANCE and RETIRED regardless of dates.
+        where = {
+          status: { notIn: ['UNDER_MAINTENANCE', 'RETIRED'] },
+          bookings: {
+            none: {
+              status: { notIn: ['REJECTED', 'CANCELLED', 'COMPLETED'] },
+              AND: [
+                { startDate: { lt: end } },
+                { endDate: { gt: start } }
+              ]
+            }
           }
         };
+      } else {
+        // Invalid date strings — safe fallback
+        where = { status: 'AVAILABLE' };
       }
+    } else {
+      // No dates provided — show only AVAILABLE vehicles (safe default)
+      where = { status: 'AVAILABLE' };
     }
 
     const vehicles = await prisma.vehicle.findMany({

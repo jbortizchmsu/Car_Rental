@@ -1,3 +1,5 @@
+process.env.TZ = 'Asia/Manila'; // Force Philippine Standard Time (UTC+8) for all date parsing and display
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';

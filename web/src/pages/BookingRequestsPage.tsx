@@ -966,7 +966,29 @@ const BookingRequestsPage: React.FC = () => {
                         <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-500)', marginBottom: '0.25rem', display: 'block' }}>Release Odometer (km)</label>
                         <input type="number" className="input" placeholder="e.g., 15200" value={releaseOdometer} onChange={(e) => setReleaseOdometer(e.target.value)} style={{ width: '100%', borderRadius: '12px' }} />
                       </div>
-                      <button onClick={handleReleaseVehicle} disabled={actionLoading || !checklistConfirmed || (!agreementSigned && !selectedBooking.agreementSignedAt) || !releaseOdometer} className="btn-brand" style={{ width: '100%', padding: '1rem', marginTop: '0.5rem', backgroundColor: '#10B981' }}>
+                      {selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate) && (
+                        <div style={{ padding: '0.75rem 1rem', backgroundColor: '#FEF3C7', borderRadius: '10px', border: '1px solid #FCD34D', fontSize: '0.85rem', color: '#92400E', fontWeight: 600 }}>
+                          🗓 Release available from {new Date(selectedBooking.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleReleaseVehicle}
+                        disabled={
+                          actionLoading ||
+                          !checklistConfirmed ||
+                          (!agreementSigned && !selectedBooking.agreementSignedAt) ||
+                          !releaseOdometer ||
+                          (!!selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate))
+                        }
+                        className="btn-brand"
+                        style={{
+                          width: '100%',
+                          padding: '1rem',
+                          marginTop: '0.5rem',
+                          backgroundColor: (selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate)) ? '#94A3B8' : '#10B981',
+                          cursor: (selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate)) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
                         Release Vehicle & Start GPS Tracking
                       </button>
                     </div>
@@ -1100,14 +1122,15 @@ const BookingRequestsPage: React.FC = () => {
             break;
           case 'RELEASE_VEHICLE':
             title = 'Release Vehicle?';
-            message = 'You are about to release the vehicle to the customer. GPS tracking will begin immediately.';
+            message = `Are you sure you want to release this vehicle to ${selectedBooking.customer?.fullName}? This will activate GPS tracking and begin the rental period.`;
             confirmLabel = 'Release Vehicle';
             variant = 'success';
             details = (
               <ul>
                 <li><strong>Customer:</strong> <span>{selectedBooking.customer?.fullName}</span></li>
                 <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
-                <li><strong>Plate Number:</strong> <span>{selectedBooking.vehicle.plateNumber}</span></li>
+                <li><strong>Plate Number:</strong> <span>{selectedBooking.vehicle.licensePlate}</span></li>
+                <li><strong>Scheduled Pickup:</strong> <span>{selectedBooking.startDate ? new Date(selectedBooking.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}</span></li>
                 <li><strong>Release Odometer:</strong> <span>{releaseOdometer} km</span></li>
               </ul>
             );
