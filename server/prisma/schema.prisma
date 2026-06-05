@@ -19,9 +19,14 @@ model User {
   address      String?
   role         String    @default("customer") // "customer" or "admin"
   avatarUrl    String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
+  isActive                Boolean   @default(true)
+  emailVerified           Boolean   @default(false)
+  verificationToken       String?
+  verificationTokenExpiry DateTime?
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+  lastLoginAt             DateTime?
+  createdAt               DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   bookings     Booking[]

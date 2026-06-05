@@ -62,10 +62,11 @@ const BookingRequestsPage: React.FC = () => {
   const { setPageHeader } = usePageHeader();
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
-    type: 'APPROVE_BOOKING' | 'REJECT_BOOKING' | 'VERIFY_PAYMENT' | 'REJECT_PAYMENT' | 'CONFIRM_CASH' | 'RELEASE_VEHICLE' | 'RETURN_VEHICLE' | 'COMPLETE_RENTAL' | null;
+    type: 'APPROVE_BOOKING' | 'REJECT_BOOKING' | 'VERIFY_PAYMENT' | 'REJECT_PAYMENT' | 'CONFIRM_CASH' | 'RELEASE_VEHICLE' | 'RETURN_VEHICLE' | 'COMPLETE_RENTAL' | 'VOID_BOOKING' | null;
     paymentId?: string;
   }>({ isOpen: false, type: null });
   const [modalError, setModalError] = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState('');
 
   useEffect(() => {
     setPageHeader({
@@ -231,8 +232,15 @@ const BookingRequestsPage: React.FC = () => {
           await bookingsApi.completeRental(selectedBooking.id, { maintenance: false });
           toast.success('Rental completed', 'The vehicle status has been updated.');
           break;
+
+        case 'VOID_BOOKING':
+          await bookingsApi.voidBooking(selectedBooking.id, voidReason);
+          toast.success('Booking voided', 'Booking voided successfully. Customer has been notified.');
+          setVoidReason('');
+          setSelectedBooking(null);
+          break;
       }
-      
+
       closeModal();
       fetchBookings();
     } catch (error: any) {
@@ -434,6 +442,32 @@ const BookingRequestsPage: React.FC = () => {
     const proof = latestPayment.proofs?.[0];
     const paidAmount = selectedBooking.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
     const balance = Number(selectedBooking.totalAmount) - paidAmount;
+
+    // Show clear rejection state — booking has been rolled back to APPROVED_FOR_PAYMENT
+    if (latestPayment.status === 'REJECTED') {
+      return (
+        <section>
+          <div className="detail-section-header">
+            <CreditCard size={18} color="var(--warm-taupe)" />
+            <h4>Payment Details</h4>
+          </div>
+          <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle size={18} color="#DC2626" />
+              <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#991B1B' }}>Payment Rejected</span>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: '#B91C1C', margin: 0 }}>
+              The customer's payment proof was rejected. The booking has been reset to <strong>Awaiting Payment</strong> — the customer can now resubmit.
+            </p>
+            {proof?.referenceNumber && (
+              <p style={{ fontSize: '0.8rem', color: '#DC2626', margin: 0 }}>
+                Rejected reference: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{proof.referenceNumber}</span>
+              </p>
+            )}
+          </div>
+        </section>
+      );
+    }
 
     return (
       <section>
@@ -991,6 +1025,34 @@ const BookingRequestsPage: React.FC = () => {
                       >
                         Release Vehicle & Start GPS Tracking
                       </button>
+
+                      {/* Void Booking — secondary destructive action */}
+                      <div style={{ borderTop: '1px solid #E2E8F0', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
+                        <button
+                          onClick={() => { setVoidReason(''); openModal('VOID_BOOKING'); }}
+                          disabled={actionLoading}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            background: 'none',
+                            border: '1.5px solid #DC2626',
+                            color: '#DC2626',
+                            borderRadius: '12px',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem'
+                          }}
+                        >
+                          Void Booking
+                        </button>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--gray-400)', textAlign: 'center', marginTop: '0.4rem' }}>
+                          Cancels the booking and reverts vehicle to Available.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : selectedBooking.status === 'ACTIVE' ? (
@@ -1077,7 +1139,9 @@ const BookingRequestsPage: React.FC = () => {
         let message: React.ReactNode = '';
         let variant: 'default' | 'danger' | 'warning' | 'success' = 'default';
         let confirmLabel = 'Confirm';
+        let cancelLabel = 'Cancel';
         let details: React.ReactNode = null;
+        let reasonInputConfig: { label: string; placeholder?: string; minLength?: number; value: string; onChange: (v: string) => void } | undefined = undefined;
 
         switch (modalConfig.type) {
           case 'APPROVE_BOOKING':
@@ -1157,6 +1221,21 @@ const BookingRequestsPage: React.FC = () => {
             confirmLabel = 'Complete Rental';
             variant = 'success';
             break;
+
+          case 'VOID_BOOKING':
+            title = 'Void This Booking';
+            message = 'This will cancel the booking and notify the customer. The vehicle will be returned to Available status. A refund must be handled manually. This action cannot be undone.';
+            confirmLabel = 'Void Booking';
+            cancelLabel = 'Keep Booking';
+            variant = 'danger';
+            reasonInputConfig = {
+              label: 'Reason for voiding (required)',
+              placeholder: 'Describe why this booking is being voided and what will happen with the refund...',
+              minLength: 10,
+              value: voidReason,
+              onChange: setVoidReason
+            };
+            break;
         }
 
         return (
@@ -1167,10 +1246,12 @@ const BookingRequestsPage: React.FC = () => {
             details={details}
             variant={variant}
             confirmLabel={confirmLabel}
+            cancelLabel={cancelLabel}
             loading={actionLoading}
             error={modalError}
             onConfirm={executeModalAction}
             onCancel={closeModal}
+            reasonInput={reasonInputConfig}
           />
         );
       })()}

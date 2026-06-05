@@ -1,6 +1,7 @@
 process.env.TZ = 'Asia/Manila'; // Force Philippine Standard Time (UTC+8) for all date parsing and display
 
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -25,22 +26,38 @@ import { initializeBackgroundJobs } from './lib/background-jobs';
 // Load environment variables
 dotenv.config();
 
+const PORT = process.env.PORT || 4000;
+
+// Allowed CORS origins — set ALLOWED_ORIGINS in .env for production (comma-separated)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
 const app = express();
 const httpServer = createServer(app);
 export const io = new Server(httpServer, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
-const PORT = process.env.PORT || 4000;
+// Trust first proxy (nginx) for accurate IP-based rate limiting
+app.set('trust proxy', 1);
+
+// Security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' } // allow file serving across origins
+}));
 
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow all origins in development (including mobile LAN IPs)
-    callback(null, true);
+    // Allow requests with no origin (mobile apps, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS policy: origin ${origin} is not allowed`));
   },
   credentials: true
 }));
@@ -61,9 +78,8 @@ io.on('connection', (socket) => {
   });
 });
 
-// Serve static uploads
-const uploadDir = process.env.UPLOAD_DIR || '.uploads';
-app.use('/uploads', express.static(path.join(__dirname, '..', uploadDir)));
+// NOTE: /uploads static route intentionally removed.
+// All file access is authenticated through /api/files/:fileId
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -94,6 +110,6 @@ initializeBackgroundJobs();
 // Start server
 httpServer.listen(PORT, () => {
   console.log(`🚀 JD Car Rental API running on http://localhost:${PORT}`);
-  console.log(`📂 Static uploads served at http://localhost:${PORT}/uploads`);
+  console.log(`🔒 File access via authenticated /api/files/:fileId only`);
   console.log(`📡 WebSocket server initialized`);
 });

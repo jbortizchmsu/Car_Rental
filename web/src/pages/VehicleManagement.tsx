@@ -98,12 +98,14 @@ const VehicleManagement: React.FC = () => {
   };
 
   const stats = useMemo(() => {
+    // Exclude RETIRED so stat cards match the active fleet shown in the list
+    const active = vehicles.filter(v => v.status !== 'RETIRED');
     return {
-      total: vehicles.length,
-      available: vehicles.filter(v => v.status === 'AVAILABLE').length,
-      rented: vehicles.filter(v => v.status === 'RENTED' || v.status === 'RESERVED').length,
-      maintenance: vehicles.filter(v => v.status === 'UNDER_MAINTENANCE').length,
-      dueService: vehicles.filter(v => v.currentOdometerKm >= (v.lastOilChangeOdometerKm + v.oilChangeIntervalKm)).length
+      total: active.length,
+      available: active.filter(v => v.status === 'AVAILABLE').length,
+      rented: active.filter(v => v.status === 'RENTED' || v.status === 'RESERVED').length,
+      maintenance: active.filter(v => v.status === 'UNDER_MAINTENANCE').length,
+      dueService: active.filter(v => v.currentOdometerKm >= (v.lastOilChangeOdometerKm + v.oilChangeIntervalKm)).length
     };
   }, [vehicles]);
 

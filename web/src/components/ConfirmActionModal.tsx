@@ -3,6 +3,14 @@ import { AlertTriangle, AlertCircle, Info, CheckCircle2, Loader2, X } from 'luci
 
 export type ConfirmVariant = 'danger' | 'warning' | 'success' | 'default';
 
+export interface ReasonInputConfig {
+  label: string;
+  placeholder?: string;
+  minLength?: number;
+  value: string;
+  onChange: (val: string) => void;
+}
+
 export interface ConfirmActionModalProps {
   isOpen: boolean;
   title: string;
@@ -15,6 +23,7 @@ export interface ConfirmActionModalProps {
   error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
+  reasonInput?: ReasonInputConfig; // Optional mandatory reason textarea
 }
 
 const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
@@ -28,7 +37,8 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   loading = false,
   error = null,
   onConfirm,
-  onCancel
+  onCancel,
+  reasonInput
 }) => {
   if (!isOpen) return null;
 
@@ -108,6 +118,27 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
           </div>
         )}
 
+        {reasonInput && (
+          <div style={{ padding: '0 1.5rem 0.5rem' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--gray-500)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {reasonInput.label}
+            </label>
+            <textarea
+              value={reasonInput.value}
+              onChange={(e) => reasonInput.onChange(e.target.value)}
+              placeholder={reasonInput.placeholder}
+              rows={3}
+              disabled={loading}
+              style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--gray-200)', padding: '0.75rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.5 }}
+            />
+            {reasonInput.minLength && (
+              <p style={{ fontSize: '0.75rem', color: reasonInput.value.trim().length < reasonInput.minLength ? '#DC2626' : 'var(--gray-400)', marginTop: '0.3rem' }}>
+                {reasonInput.value.trim().length} / {reasonInput.minLength} characters minimum
+              </p>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="confirm-modal-error">
             <AlertCircle size={18} />
@@ -124,12 +155,12 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
           >
             {cancelLabel}
           </button>
-          <button 
+          <button
             type="button"
             className={`confirm-modal-confirm ${confirmBtnClass}`}
             style={confirmBtnStyle}
             onClick={onConfirm}
-            disabled={loading}
+            disabled={loading || (reasonInput ? reasonInput.value.trim().length < (reasonInput.minLength ?? 1) : false)}
           >
             {loading ? (
               <>

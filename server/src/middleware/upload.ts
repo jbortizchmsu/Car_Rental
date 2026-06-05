@@ -3,14 +3,18 @@ import path from 'path';
 import fs from 'fs';
 import { AuthRequest } from './auth';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const sanitizeUuid = (value: unknown): string =>
+  typeof value === 'string' && UUID_REGEX.test(value) ? value : 'unknown';
+
 const storage = multer.diskStorage({
   destination: (req: AuthRequest, file, cb) => {
-    const { type, bookingId } = req.body;
-    const userId = req.user?.id;
+    const { type } = req.body;
+    const bookingId = sanitizeUuid(req.body.bookingId);
+    const userId = sanitizeUuid(req.user?.id);
 
-    console.log(`[Multer] Destination Check - Type: ${type}, BookingId: ${bookingId}, User: ${userId}`);
-
-    if (!userId) {
+    if (!req.user?.id) {
       return cb(new Error('Unauthorized upload attempt'), '');
     }
 
@@ -73,9 +77,10 @@ export const vehicleImageUpload = multer({
   storage: vehicleStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const allowedMimeTypes = /^(image\/jpeg|image\/png|image\/webp)$/;
+    const allowedExtensions = /^\.(jpg|jpeg|png|webp)$/;
+    const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedMimeTypes.test(file.mimetype);
 
     if (extname && mimetype) {
       return cb(null, true);
@@ -85,13 +90,14 @@ export const vehicleImageUpload = multer({
   }
 });
 
-export const upload = multer({ 
+export const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|webp|pdf/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const allowedMimeTypes = /^(image\/jpeg|image\/png|image\/webp|application\/pdf)$/;
+    const allowedExtensions = /^\.(jpg|jpeg|png|webp|pdf)$/;
+    const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedMimeTypes.test(file.mimetype);
 
     if (extname && mimetype) {
       return cb(null, true);

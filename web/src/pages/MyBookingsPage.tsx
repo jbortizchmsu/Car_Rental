@@ -66,6 +66,7 @@ const MyBookingsPage: React.FC = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
 
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
+  const [cancelTargetStatus, setCancelTargetStatus] = useState<string>('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -78,7 +79,11 @@ const MyBookingsPage: React.FC = () => {
       setBookings(prev => prev.map(b =>
         b.id === cancelTargetId ? { ...b, status: 'CANCELLED' } : b
       ));
-      toast.success('Booking cancelled', 'Your booking has been successfully cancelled.');
+      if (cancelTargetStatus === 'READY_FOR_PICKUP') {
+        toast.success('Cancellation request submitted', 'The admin will review your request and contact you regarding the refund.');
+      } else {
+        toast.success('Booking cancelled', 'Your booking has been successfully cancelled.');
+      }
       setCancelTargetId(null);
     } catch (error: any) {
       const msg = getApiErrorMessage(error);
@@ -246,7 +251,7 @@ const MyBookingsPage: React.FC = () => {
 
                         {['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT'].includes(booking.status) && (
                           <button
-                            onClick={() => { setCancelTargetId(booking.id); setCancelError(null); }}
+                            onClick={() => { setCancelTargetId(booking.id); setCancelTargetStatus(booking.status); setCancelError(null); }}
                             style={{
                               marginTop: '0.5rem',
                               background: 'none',
@@ -265,6 +270,30 @@ const MyBookingsPage: React.FC = () => {
                             }}
                           >
                             <X size={13} /> Cancel Booking
+                          </button>
+                        )}
+
+                        {booking.status === 'READY_FOR_PICKUP' && (
+                          <button
+                            onClick={() => { setCancelTargetId(booking.id); setCancelTargetStatus(booking.status); setCancelError(null); }}
+                            style={{
+                              marginTop: '0.5rem',
+                              background: 'none',
+                              border: '1px solid #D97706',
+                              color: '#D97706',
+                              borderRadius: '8px',
+                              padding: '0.4rem 0.75rem',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              justifyContent: 'center',
+                              width: '100%',
+                            }}
+                          >
+                            <X size={13} /> Request Cancellation
                           </button>
                         )}
                       </div>
@@ -309,11 +338,14 @@ const MyBookingsPage: React.FC = () => {
 
       <ConfirmActionModal
         isOpen={cancelTargetId !== null}
-        title="Cancel Booking"
-        message="Are you sure you want to cancel this booking? This action cannot be undone."
-        confirmLabel="Yes, Cancel Booking"
+        title={cancelTargetStatus === 'READY_FOR_PICKUP' ? 'Request Cancellation' : 'Cancel Booking'}
+        message={cancelTargetStatus === 'READY_FOR_PICKUP'
+          ? 'You have already made a payment for this booking and the vehicle is ready for release. Submitting a cancellation request will notify the admin for review. Refunds are subject to admin approval and business policy. Do you want to proceed?'
+          : 'Are you sure you want to cancel this booking? This action cannot be undone.'
+        }
+        confirmLabel={cancelTargetStatus === 'READY_FOR_PICKUP' ? 'Submit Request' : 'Yes, Cancel Booking'}
         cancelLabel="Keep Booking"
-        variant="danger"
+        variant={cancelTargetStatus === 'READY_FOR_PICKUP' ? 'warning' : 'danger'}
         loading={cancelLoading}
         error={cancelError}
         onConfirm={handleCancelBooking}
@@ -548,6 +580,7 @@ const MyBookingsPage: React.FC = () => {
                   onClick={() => {
                     setSelectedBookingId(null);
                     setCancelTargetId(details.id);
+                    setCancelTargetStatus(details.status);
                     setCancelError(null);
                   }}
                   style={{
@@ -565,6 +598,31 @@ const MyBookingsPage: React.FC = () => {
                   }}
                 >
                   <X size={14} /> Cancel Booking
+                </button>
+              )}
+              {details?.status === 'READY_FOR_PICKUP' && (
+                <button
+                  onClick={() => {
+                    setSelectedBookingId(null);
+                    setCancelTargetId(details.id);
+                    setCancelTargetStatus(details.status);
+                    setCancelError(null);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #D97706',
+                    color: '#D97706',
+                    borderRadius: '8px',
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <X size={14} /> Request Cancellation
                 </button>
               )}
               {details?.status === 'APPROVED_FOR_PAYMENT' && (

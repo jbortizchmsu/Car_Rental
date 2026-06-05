@@ -39,6 +39,10 @@ export const authApi = {
   login: (credentials: any) => api.post('/auth/login', credentials),
   register: (data: any) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
+  verifyEmail: (token: string) => api.post('/auth/verify-email', { token }),
+  resendVerification: (email: string) => api.post('/auth/resend-verification', { email }),
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) => api.post('/auth/reset-password', { token, password }),
 };
 
 // Vehicles API
@@ -87,6 +91,7 @@ export const bookingsApi = {
   completeRental: (id: string, data: any) => api.post(`/customer/bookings/${id}/complete`, data),
   getDetails: (id: string) => api.get(`/customer/bookings/${id}`),
   cancel: (id: string) => api.patch(`/customer/bookings/${id}/cancel`),
+  voidBooking: (id: string, voidReason: string) => api.patch(`/customer/bookings/${id}/void`, { voidReason }),
   getVehicleBookedDates: (vehicleId: string) => api.get(`/customer/bookings/vehicle/${vehicleId}/booked-dates`),
   signAgreement: (id: string, signerName: string) => api.post(`/customer/bookings/${id}/sign-agreement`, { signerName }),
   confirmCashPayment: (id: string, amount: number) => api.post(`/payments/booking/${id}/confirm-cash`, { amount }),

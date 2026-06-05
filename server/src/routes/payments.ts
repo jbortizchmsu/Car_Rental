@@ -275,6 +275,8 @@ router.post('/:id/verify', authenticate, authorizeAdmin, async (req: AuthRequest
 // Admin: Reject Payment
 router.post('/:id/reject', authenticate, authorizeAdmin, async (req, res) => {
   const { reason } = req.body;
+  const rejectionMessage = (reason && reason.trim()) ? reason.trim() : 'Proof of payment invalid or unclear.';
+
   try {
     const payment = await prisma.payment.update({
       where: { id: req.params.id },
@@ -282,15 +284,30 @@ router.post('/:id/reject', authenticate, authorizeAdmin, async (req, res) => {
       include: { booking: true }
     });
 
-    // Notify Customer
+    // Roll back booking status so the customer can resubmit
+    // Only roll back from payment-submitted states — never touch ACTIVE/COMPLETED/etc.
+    const rollbackMap: Record<string, string> = {
+      'FULL_PAYMENT_SUBMITTED': 'APPROVED_FOR_PAYMENT',
+      'DOWNPAYMENT_SUBMITTED': 'APPROVED_FOR_PAYMENT',
+    };
+    const rollbackStatus = rollbackMap[payment.booking.status];
+    if (rollbackStatus) {
+      await prisma.booking.update({
+        where: { id: payment.bookingId },
+        data: { status: rollbackStatus }
+      });
+    }
+
+    // Notify Customer — include resubmission guidance
     await createNotification(
       payment.booking.customerId,
       'Payment Rejected',
-      `Your payment was rejected. Reason: ${reason || 'Proof of payment invalid.'}`
+      `Your payment submission was rejected. Reason: ${rejectionMessage}. Your booking has been reset — please resubmit your payment proof to continue with your booking.`
     );
 
     res.json(payment);
   } catch (error) {
+    console.error('Payment rejection error:', error);
     res.status(500).json({ error: 'Rejection failed' });
   }
 });
