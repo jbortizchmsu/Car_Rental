@@ -6,11 +6,11 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 if (!API_BASE_URL) {
   console.error("Mobile API URL is missing. Set EXPO_PUBLIC_API_URL in mobile/.env.");
 } else {
-  console.log(`API Base URL: ${API_BASE_URL}`); // Safe log for debugging
+  console.log(`API Base URL: ${API_BASE_URL}`);
 }
 
 const api = axios.create({
-  baseURL: API_BASE_URL || 'http://localhost:4000/api', // Fallback
+  baseURL: API_BASE_URL || 'http://localhost:4000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -33,7 +33,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('jd_token');
       await AsyncStorage.removeItem('jd_user');
-      // In a real app, you'd trigger a navigation to Login here
     }
     return Promise.reject(error);
   }
@@ -49,19 +48,44 @@ export const authApi = {
 
 export const vehiclesApi = {
   getAvailable: () => api.get('/vehicles/available'),
+  getAvailableWithDates: (pickupDate?: string, returnDate?: string) => {
+    const params = new URLSearchParams();
+    if (pickupDate) params.append('pickupDate', pickupDate);
+    if (returnDate) params.append('returnDate', returnDate);
+    const query = params.toString();
+    return api.get(`/vehicles/available${query ? `?${query}` : ''}`);
+  },
+  getImageUrl: (id: string) =>
+    `${API_BASE_URL || 'http://localhost:4000/api'}/vehicles/${id}/image`,
 };
 
 export const bookingsApi = {
-  getMyBookings: () => api.get('/bookings/my'),
-  uploadDocument: (bookingId: string, formData: FormData) => api.post(`/bookings/${bookingId}/documents`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  // Existing — do not modify
+  getMyBookings: () => api.get('/customer/bookings/my'),
+  uploadDocument: (bookingId: string, formData: FormData) =>
+    api.post(`/customer/bookings/${bookingId}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  // New
+  createBooking: (data: any) => api.post('/customer/bookings', data),
+  getBookingDetail: (id: string) => api.get(`/customer/bookings/${id}`),
+  cancelBooking: (id: string) => api.patch(`/customer/bookings/${id}/cancel`),
+};
+
+export const paymentsApi = {
+  submit: (bookingId: string, formData: FormData) =>
+    api.post(`/payments/${bookingId}/submit`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  getBookingPayments: (bookingId: string) =>
+    api.get(`/payments/booking/${bookingId}`),
 };
 
 export const notificationsApi = {
-  getNotifications: () => api.get('/notifications'),
-  markAsRead: (id: string) => api.post(`/notifications/${id}/read`),
-  markAllAsRead: () => api.post('/notifications/read-all'),
+  getNotifications: () => api.get('/customer/notifications'),
+  markAsRead: (id: string) => api.post(`/customer/notifications/${id}/read`),
+  markAllAsRead: () => api.post('/customer/notifications/read-all'),
 };
 
 export const gpsApi = {

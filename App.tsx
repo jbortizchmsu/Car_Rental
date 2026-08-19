@@ -3,15 +3,25 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, RefreshControl, Image, Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import {
+  StyleSheet, Text, View, TouchableOpacity, TextInput,
+  ActivityIndicator, Alert, ScrollView, RefreshControl, Image,
+  Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform,
+} from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
-import * as ImagePicker from 'expo-image-picker';
-import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, Clock, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X, Eye, EyeOff } from 'lucide-react-native';
+import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X, Eye, EyeOff } from 'lucide-react-native';
 import api, { authApi, bookingsApi, gpsApi, notificationsApi, customerApi } from './src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// --- Login Screen ---
+// New screen imports
+import BookingsListScreen from './src/screens/BookingsListScreen';
+import BookingDetailScreen from './src/screens/BookingDetailScreen';
+import PaymentScreen from './src/screens/PaymentScreen';
+import VehiclesScreen from './src/screens/VehiclesScreen';
+import BookingFormScreen from './src/screens/BookingFormScreen';
+
+// --- Login Screen (unchanged) ---
 const LoginScreen = ({ onLogin }: any) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,15 +33,12 @@ const LoginScreen = ({ onLogin }: any) => {
       Alert.alert('Error', 'Please enter email and password');
       return;
     }
-
     setLoading(true);
     try {
       const response = await authApi.login({ email, password });
       const { token, user } = response.data;
-      
       await AsyncStorage.setItem('jd_token', token);
       await AsyncStorage.setItem('jd_user', JSON.stringify(user));
-      
       onLogin(user);
     } catch (error: any) {
       if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
@@ -50,57 +57,31 @@ const LoginScreen = ({ onLogin }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView 
-            contentContainerStyle={styles.loginScrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
+          <ScrollView contentContainerStyle={styles.loginScrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.content}>
               <Car size={64} stroke="#AD9B8D" />
               <Text style={styles.title}>JD CAR RENTAL</Text>
               <Text style={styles.subtitle}>Premium Self-Drive Experience</Text>
-              
               <View style={styles.form}>
                 <TextInput
-                  onChangeText={(text) => setEmail(text)}
-                  value={email}
-                  placeholder="email@address.com"
-                  autoCapitalize={'none'}
-                  style={styles.input}
-                  keyboardType="email-address"
+                  onChangeText={setEmail} value={email}
+                  placeholder="email@address.com" autoCapitalize="none"
+                  style={styles.input} keyboardType="email-address"
                 />
-                
                 <View style={styles.passwordContainer}>
                   <TextInput
-                    onChangeText={(text) => setPassword(text)}
-                    value={password}
-                    secureTextEntry={!showPassword}
-                    placeholder="Password"
-                    autoCapitalize={'none'}
-                    style={styles.passwordInput}
+                    onChangeText={setPassword} value={password}
+                    secureTextEntry={!showPassword} placeholder="Password"
+                    autoCapitalize="none" style={styles.passwordInput}
                   />
-                  <TouchableOpacity 
-                    style={styles.showPasswordBtn} 
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff size={20} stroke="#958786" />
-                    ) : (
-                      <Eye size={20} stroke="#958786" />
-                    )}
+                  <TouchableOpacity style={styles.showPasswordBtn} onPress={() => setShowPassword(!showPassword)}>
+                    {showPassword ? <EyeOff size={20} stroke="#958786" /> : <Eye size={20} stroke="#958786" />}
                   </TouchableOpacity>
                 </View>
               </View>
-
-              <TouchableOpacity 
-                style={styles.button}
-                disabled={loading}
-                onPress={() => signInWithEmail()}
-              >
+              <TouchableOpacity style={styles.button} disabled={loading} onPress={signInWithEmail}>
                 {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Login</Text>}
               </TouchableOpacity>
             </View>
@@ -111,7 +92,7 @@ const LoginScreen = ({ onLogin }: any) => {
   );
 };
 
-// --- Home (Active Rental) Screen ---
+// --- Home (Active Rental + GPS) Screen (unchanged) ---
 const HomeScreen = () => {
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -124,19 +105,15 @@ const HomeScreen = () => {
   const fetchActiveBooking = async () => {
     try {
       const response = await customerApi.getActiveRental();
-      
       if (response.data && response.data.data) {
         setActiveBooking(response.data.data);
-        console.log('Active rental found:', response.data.data.id);
-        
-        const session = response.data.meta?.trackingSessionId 
-          ? { id: response.data.meta.trackingSessionId } 
+        const session = response.data.meta?.trackingSessionId
+          ? { id: response.data.meta.trackingSessionId }
           : null;
         setTrackingSession(session);
       } else {
         setActiveBooking(null);
         setTrackingSession(null);
-        console.log('No active rental found.');
       }
     } catch (error: any) {
       console.error('Fetch Booking Error:', error.message || 'Unknown error');
@@ -151,20 +128,14 @@ const HomeScreen = () => {
 
   useEffect(() => {
     let locationSubscription: any = null;
-
     const startTracking = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         setLocationPermission(status === 'granted');
-
         if (status === 'granted' && activeBooking && trackingSession) {
           setTrackingActive(true);
           locationSubscription = await Location.watchPositionAsync(
-            {
-              accuracy: Location.Accuracy.Balanced,
-              timeInterval: 15000,
-              distanceInterval: 30,
-            },
+            { accuracy: Location.Accuracy.Balanced, timeInterval: 15000, distanceInterval: 30 },
             async (location) => {
               setLastLocation(location);
               try {
@@ -177,7 +148,7 @@ const HomeScreen = () => {
                   speed: location.coords.speed,
                   heading: location.coords.heading,
                   accuracy: location.coords.accuracy,
-                  recordedAt: new Date(location.timestamp).toISOString()
+                  recordedAt: new Date(location.timestamp).toISOString(),
                 });
               } catch (err) {
                 console.error('GPS Upload Error:', err);
@@ -191,7 +162,6 @@ const HomeScreen = () => {
         console.error('Location Setup Error:', err);
       }
     };
-
     startTracking();
     return () => locationSubscription?.remove();
   }, [activeBooking, trackingSession]);
@@ -215,7 +185,7 @@ const HomeScreen = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>JD Active Drive</Text>
       </View>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchActiveBooking(); }} />}
       >
@@ -267,8 +237,8 @@ const HomeScreen = () => {
                     {locationPermission === false ? 'Permission Denied' : 'Waiting for vehicle release'}
                   </Text>
                   <Text style={styles.trackingSubtext}>
-                    {locationPermission === false 
-                      ? 'Location permission is required for active rentals.' 
+                    {locationPermission === false
+                      ? 'Location permission is required for active rentals.'
                       : 'GPS tracking will start automatically once the admin releases the vehicle.'}
                   </Text>
                 </>
@@ -287,190 +257,7 @@ const HomeScreen = () => {
   );
 };
 
-// --- Bookings & Document Upload Screen ---
-const BookingsScreen = () => {
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const fetchBookings = async () => {
-    try {
-      const response = await bookingsApi.getMyBookings();
-      setBookings(response.data);
-    } catch (error) {
-      console.error('Fetch Bookings Error:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const pickAndUpload = async (bookingId: string, docType: string) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setUploading(true);
-
-      const formData = new FormData();
-      formData.append('documentType', docType);
-      // @ts-ignore
-      formData.append('file', {
-        uri: asset.uri,
-        name: asset.fileName || `upload_${Date.now()}.jpg`,
-        type: 'image/jpeg',
-      });
-
-      try {
-        await bookingsApi.uploadDocument(bookingId, formData);
-        Alert.alert('Success', `${docType.replace('_', ' ')} uploaded successfully.`);
-        fetchBookings();
-      } catch (error) {
-        Alert.alert('Upload Failed', 'Could not upload document.');
-      } finally {
-        setUploading(false);
-      }
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING_REVIEW': return '#F59E0B';
-      case 'APPROVED_FOR_PAYMENT': return '#3B82F6';
-      case 'RESERVED': return '#10B981';
-      case 'ACTIVE': return '#7B1FA2';
-      case 'COMPLETED': return '#6B7280';
-      case 'REJECTED': return '#EF4444';
-      default: return '#9CA3AF';
-    }
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Bookings</Text>
-      </View>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchBookings(); }} />}
-      >
-        {bookings.length === 0 && !loading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <FileText size={64} stroke="#DDD" />
-            <Text style={styles.subtitle}>No bookings found.</Text>
-          </View>
-        ) : (
-          bookings.map(booking => (
-            <TouchableOpacity 
-              key={booking.id} 
-              style={styles.card}
-              onPress={() => setSelectedBooking(booking)}
-            >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{booking.vehicle.brand} {booking.vehicle.model}</Text>
-                  <Text style={styles.detailText}>{new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}</Text>
-                </View>
-                <View style={[styles.badge, { backgroundColor: getStatusColor(booking.status) }]}>
-                  <Text style={styles.badgeText}>{booking.status.replace(/_/g, ' ')}</Text>
-                </View>
-              </View>
-              
-              <View style={{ marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: '700' }}>₱{Number(booking.totalAmount).toLocaleString()}</Text>
-                <View style={{ flexDirection: 'row', gap: 5 }}>
-                  <FileText size={16} stroke={booking.documents?.length > 0 ? '#10B981' : '#EF4444'} />
-                  <Text style={{ fontSize: 12, color: booking.documents?.length > 0 ? '#10B981' : '#EF4444' }}>
-                    {booking.documents?.length || 0} Docs
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
-
-      {/* Upload Modal */}
-      <Modal visible={!!selectedBooking} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Documents & Details</Text>
-              <TouchableOpacity onPress={() => setSelectedBooking(null)}>
-                <X size={24} stroke="#000" />
-              </TouchableOpacity>
-            </View>
-
-            {selectedBooking && (
-              <ScrollView style={{ padding: 20 }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 5 }}>
-                  {selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}
-                </Text>
-                <Text style={{ color: '#6B7280', marginBottom: 20 }}>Booking ID: {selectedBooking.id.slice(0, 8)}</Text>
-
-                <Text style={styles.sectionTitle}>Required Documents</Text>
-                <View style={styles.uploadRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '600' }}>Valid ID</Text>
-                    <Text style={{ fontSize: 12, color: '#958786' }}>Government issued ID (Passport, etc)</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={[styles.uploadBtn, { backgroundColor: selectedBooking.documents?.some((d:any) => d.documentType === 'valid_id') ? '#E8F5E9' : '#F3F4F6' }]}
-                    onPress={() => pickAndUpload(selectedBooking.id, 'valid_id')}
-                  >
-                    {selectedBooking.documents?.some((d:any) => d.documentType === 'valid_id') ? (
-                      <CheckCircle2 size={20} stroke="#2E7D32" />
-                    ) : (
-                      <Upload size={20} stroke="#AD9B8D" />
-                    )}
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.uploadRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '600' }}>Driver's License</Text>
-                    <Text style={{ fontSize: 12, color: '#958786' }}>Must be valid and not expired</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={[styles.uploadBtn, { backgroundColor: selectedBooking.documents?.some((d:any) => d.documentType === 'drivers_license') ? '#E8F5E9' : '#F3F4F6' }]}
-                    onPress={() => pickAndUpload(selectedBooking.id, 'drivers_license')}
-                  >
-                    {selectedBooking.documents?.some((d:any) => d.documentType === 'drivers_license') ? (
-                      <CheckCircle2 size={20} stroke="#2E7D32" />
-                    ) : (
-                      <Upload size={20} stroke="#AD9B8D" />
-                    )}
-                  </TouchableOpacity>
-                </View>
-
-                {uploading && (
-                  <View style={{ marginTop: 20, alignItems: 'center' }}>
-                    <ActivityIndicator color="#AD9B8D" />
-                    <Text style={{ marginTop: 10, color: '#AD9B8D' }}>Uploading document...</Text>
-                  </View>
-                )}
-
-                <View style={{ height: 40 }} />
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
-};
-
-// --- Notifications Screen ---
+// --- Notifications Screen (unchanged) ---
 const NotificationsScreen = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -490,7 +277,7 @@ const NotificationsScreen = () => {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Poll every minute
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -511,7 +298,7 @@ const NotificationsScreen = () => {
           <Text style={{ color: '#FFF', fontSize: 12 }}>Mark all read</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={{ padding: 0 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(); }} />}
       >
@@ -522,8 +309,8 @@ const NotificationsScreen = () => {
           </View>
         ) : (
           notifications.map(n => (
-            <TouchableOpacity 
-              key={n.id} 
+            <TouchableOpacity
+              key={n.id}
               style={[styles.notificationItem, { backgroundColor: n.isRead ? '#FFF' : '#F3E5F5' }]}
               onPress={() => !n.isRead && markAsRead(n.id)}
             >
@@ -545,7 +332,7 @@ const NotificationsScreen = () => {
   );
 };
 
-// --- Profile / Settings Screen ---
+// --- Profile Screen (unchanged) ---
 const ProfileScreen = ({ onLogout }: any) => {
   const [user, setUser] = useState<any>(null);
 
@@ -572,7 +359,6 @@ const ProfileScreen = ({ onLogout }: any) => {
         </View>
         <Text style={{ fontSize: 22, fontWeight: '800' }}>{user?.fullName || 'JD Customer'}</Text>
         <Text style={{ color: '#958786', marginBottom: 30 }}>{user?.email}</Text>
-
         <TouchableOpacity style={[styles.button, { backgroundColor: '#EF4444' }]} onPress={handleLogout}>
           <Text style={styles.buttonText}>Logout</Text>
         </TouchableOpacity>
@@ -581,26 +367,37 @@ const ProfileScreen = ({ onLogout }: any) => {
   );
 };
 
-// --- Navigation ---
+// --- Navigation stacks ---
+const BookingStackNav = createStackNavigator();
+const BookingsStackNavigator = () => (
+  <BookingStackNav.Navigator screenOptions={{ headerShown: false }}>
+    <BookingStackNav.Screen name="BookingsList" component={BookingsListScreen} />
+    <BookingStackNav.Screen name="BookingDetail" component={BookingDetailScreen} />
+    <BookingStackNav.Screen name="PaymentSubmit" component={PaymentScreen} />
+  </BookingStackNav.Navigator>
+);
+
+const VehicleStackNav = createStackNavigator();
+const VehiclesStackNavigator = () => (
+  <VehicleStackNav.Navigator screenOptions={{ headerShown: false }}>
+    <VehicleStackNav.Screen name="VehiclesList" component={VehiclesScreen} />
+    <VehicleStackNav.Screen name="BookingForm" component={BookingFormScreen} />
+  </VehicleStackNav.Navigator>
+);
+
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const AuthStack = createStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    checkSession();
-  }, []);
+  useEffect(() => { checkSession(); }, []);
 
   const checkSession = async () => {
     try {
       const storedUser = await AsyncStorage.getItem('jd_user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      } else {
-        setUser(null);
-      }
+      setUser(storedUser ? JSON.parse(storedUser) : null);
     } catch (e) {
       console.error('Session check error', e);
       setUser(null);
@@ -626,6 +423,7 @@ export default function App() {
               headerShown: false,
               tabBarIcon: ({ focused, color, size }) => {
                 if (route.name === 'Home') return <Car size={size} stroke={color} />;
+                if (route.name === 'Book') return <Calendar size={size} stroke={color} />;
                 if (route.name === 'Bookings') return <FileText size={size} stroke={color} />;
                 if (route.name === 'Alerts') return <Bell size={size} stroke={color} />;
                 if (route.name === 'Profile') return <User size={size} stroke={color} />;
@@ -636,19 +434,23 @@ export default function App() {
               tabBarStyle: { height: 60, paddingBottom: 10 },
             })}
           >
-            <Tab.Screen name="Home" component={HomeScreen} />
-            <Tab.Screen name="Bookings" component={BookingsScreen} />
-            <Tab.Screen name="Alerts" component={NotificationsScreen} />
-            <Tab.Screen name="Profile">
+            <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Active' }} />
+            <Tab.Screen name="Book" component={VehiclesStackNavigator} options={{ tabBarLabel: 'Book' }} />
+            <Tab.Screen name="Bookings" component={BookingsStackNavigator} options={{ tabBarLabel: 'Bookings' }} />
+            <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ tabBarLabel: 'Alerts' }} />
+            <Tab.Screen
+              name="Profile"
+              options={{ tabBarLabel: 'Profile' }}
+            >
               {(props) => <ProfileScreen {...props} onLogout={() => setUser(null)} />}
             </Tab.Screen>
           </Tab.Navigator>
         ) : (
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Login">
+          <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+            <AuthStack.Screen name="Login">
               {(props) => <LoginScreen {...props} onLogin={(u: any) => setUser(u)} />}
-            </Stack.Screen>
-          </Stack.Navigator>
+            </AuthStack.Screen>
+          </AuthStack.Navigator>
         )}
       </NavigationContainer>
     </SafeAreaProvider>
@@ -679,18 +481,9 @@ const styles = StyleSheet.create({
   trackingContainer: { alignItems: 'center', marginTop: 20, padding: 25, backgroundColor: '#F9FAFB', borderRadius: 24, width: '100%' },
   trackingText: { fontSize: 18, fontWeight: '700', marginTop: 12, color: '#374151' },
   trackingSubtext: { textAlign: 'center', color: '#958786', marginTop: 8, lineHeight: 20, fontSize: 14 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
   notificationItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   notifIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   notifTitle: { fontSize: 15, color: '#000', marginBottom: 2 },
   notifMessage: { fontSize: 13, color: '#6B7280', marginBottom: 4 },
   notifTime: { fontSize: 11, color: '#9CA3AF' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '80%' },
-  modalHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: '800' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 10, marginBottom: 15 },
-  uploadRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 15, borderRadius: 12, marginBottom: 12 },
-  uploadBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' }
 });
