@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Fuel, Shield } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
-import { vehiclesApi } from '../services/api';
+import VehicleImage from './VehicleImage';
 
 interface VehicleCardProps {
   id: string;
@@ -21,11 +21,6 @@ interface VehicleCardProps {
 const VehicleCard: React.FC<VehicleCardProps> = ({ id, model, brand, price, seats, fuel, status, imageUrl, mileage, onBookNow }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-
-  const displayImageUrl = imageUrl 
-    ? (imageUrl.startsWith('http') ? imageUrl : vehiclesApi.getImageUrl(id))
-    : null;
-
   const handleBookNow = () => {
     if (!user) {
       navigate('/login', { state: { message: 'Please log in or create an account to book a vehicle.', from: '/vehicles' } });
@@ -33,7 +28,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ id, model, brand, price, seat
     }
     
     if (onBookNow) {
-      onBookNow({ id, model, brand, dailyRate: price, seats, fuelType: fuel, status, imageUrl: displayImageUrl, category: '' });
+      onBookNow({ id, model, brand, dailyRate: price, seats, fuelType: fuel, status, imageUrl, category: '' });
     } else {
       // Fallback
       navigate('/vehicles');
@@ -57,11 +52,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ id, model, brand, price, seat
         justifyContent: 'center',
         position: 'relative'
       }}>
-        {displayImageUrl ? (
-          <img src={displayImageUrl} alt={model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <span style={{ color: 'var(--muted-mauve)', fontWeight: 500 }}>{brand} {model}</span>
-        )}
+        <VehicleImage vehicleId={id} brand={brand} model={model} className="w-full h-full" />
         <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
           <StatusBadge status={status} />
         </div>
@@ -103,13 +94,15 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ id, model, brand, price, seat
             <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>₱{price.toLocaleString()}</span>
             <span style={{ fontSize: '0.85rem', color: 'var(--muted-mauve)', marginLeft: '4px' }}>/day</span>
           </div>
-          <button 
-            className="btn-primary" 
+          <button
+            className="btn-primary"
             style={{ padding: '0.6rem 1.2rem' }}
-            disabled={status !== 'AVAILABLE'}
+            disabled={status === 'UNDER_MAINTENANCE' || status === 'RETIRED'}
             onClick={handleBookNow}
           >
-            {status === 'AVAILABLE' ? 'Book Now' : status.replace('_', ' ')}
+            {status === 'UNDER_MAINTENANCE' || status === 'RETIRED'
+              ? status.replace('_', ' ')
+              : 'Book Now'}
           </button>
         </div>
       </div>

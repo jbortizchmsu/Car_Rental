@@ -111,6 +111,57 @@ export async function createTypedNotification(
 }
 
 /**
+ * Create a typed notification for a specific user (customer-facing).
+ * Prevents duplicates by checking type + referenceId + userId within 24 hours.
+ * Caller supplies explicit title and message (no template lookup).
+ */
+export async function createTypedUserNotification(
+  userId: string,
+  type: NotificationType,
+  title: string,
+  message: string,
+  referenceId?: string,
+  referenceType?: string
+) {
+  try {
+    if (referenceId) {
+      const existing = await prisma.notification.findFirst({
+        where: {
+          userId,
+          type,
+          referenceId,
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        }
+      });
+      if (existing) {
+        console.log(`Skipped duplicate user notification: ${type} for ${referenceId} (user: ${userId})`);
+        return null;
+      }
+    }
+
+    const notification = await prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        message,
+        isRead: false,
+        targetRole: 'customer',
+        referenceId,
+        referenceType,
+        createdAt: new Date()
+      }
+    });
+
+    io.to(userId).emit('notification-created', notification);
+    return notification;
+  } catch (error) {
+    console.error(`Error creating typed user notification (${type}):`, error);
+    return null;
+  }
+}
+
+/**
  * Create a notification for a specific user
  */
 export async function createUserNotification(

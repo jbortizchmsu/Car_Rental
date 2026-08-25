@@ -43,6 +43,7 @@ export const authApi = {
   resendVerification: (email: string) => api.post('/auth/resend-verification', { email }),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token: string, password: string) => api.post('/auth/reset-password', { token, password }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) => api.post('/auth/change-password', data),
 };
 
 // Vehicles API
@@ -55,7 +56,9 @@ export const vehiclesApi = {
     return api.get(`/vehicles/available${params.toString() ? `?${params.toString()}` : ''}`);
   },
   create: (data: any) => api.post('/vehicles', data),
-  update: (id: string, data: any) => api.put(`/vehicles/${id}`, data),
+  update: (id: string, data: any) => api.put(`/vehicles/${id}`, data, {
+    headers: { 'Content-Type': undefined } // let browser set multipart/form-data + boundary automatically
+  }),
   retire: (id: string) => api.post(`/vehicles/${id}/retire`),
   getImageUrl: (id: string) => `${API_BASE_URL}/vehicles/${id}/image`,
 };
@@ -128,10 +131,14 @@ export const adminApi = {
   getGeofenceAlertReport: (params?: any) => api.get('/admin/reports/geofence-alerts', { params }),
   getLiveLocations: () => api.get('/gps/live'),
   resolveGeofenceAlert: (id: string) => api.post(`/gps/alerts/${id}/resolve`),
+  getGpsStats: () => api.get('/gps/stats'),
+  getGpsSession: (bookingId: string) => api.get(`/gps/session/${bookingId}`),
+  exportGpsSession: (bookingId: string) => api.get(`/gps/session/${bookingId}/export`, { responseType: 'blob' }),
   getGeofences: () => api.get('/gps/geofences'),
   saveGeofence: (data: any) => api.post('/gps/geofences', data),
   deleteGeofence: (id: string) => api.delete(`/gps/geofences/${id}`),
   toggleGeofence: (id: string, active: boolean) => api.patch(`/gps/geofences/${id}/toggle`, { active }),
+  getActiveGeofenceZones: () => api.get('/gps/active-geofence-zones'),
 };
 
 // Notifications API

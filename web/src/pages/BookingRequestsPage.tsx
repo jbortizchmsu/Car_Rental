@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { bookingsApi, filesApi, paymentsApi } from '../services/api';
+import { bookingsApi, filesApi, paymentsApi, pricingApi } from '../services/api';
 import {
   Loader2, X, FileText, User,
   Phone, MapPin, ExternalLink,
@@ -13,6 +13,7 @@ import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
+import VehicleImage from '../components/VehicleImage';
 
 type WorkflowFilter = 'ALL_ACTIVE' | 'NEEDS_ACTION' | 'WAITING_CUSTOMER' | 'ACTIVE_RENTALS' | 'REJECTED' | 'COMPLETED';
 
@@ -67,6 +68,7 @@ const BookingRequestsPage: React.FC = () => {
   }>({ isOpen: false, type: null });
   const [modalError, setModalError] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState('');
+  const [livePricingQuote, setLivePricingQuote] = useState<any>(null);
 
   useEffect(() => {
     setPageHeader({
@@ -75,6 +77,24 @@ const BookingRequestsPage: React.FC = () => {
     });
     return () => setPageHeader({});
   }, []);
+
+  useEffect(() => {
+    const vId = selectedBooking?.vehicleId || selectedBooking?.vehicle?.id;
+    if (vId && selectedBooking?.startDate && selectedBooking?.endDate) {
+      pricingApi.getQuote({
+        vehicleId: vId,
+        startDate: selectedBooking.startDate,
+        endDate: selectedBooking.endDate,
+      })
+        .then(({ data }) => setLivePricingQuote(data))
+        .catch((err) => {
+          console.error('Failed to fetch live pricing quote for admin booking review:', err);
+          setLivePricingQuote(null);
+        });
+    } else {
+      setLivePricingQuote(null);
+    }
+  }, [selectedBooking?.id, selectedBooking?.vehicleId, selectedBooking?.vehicle?.id, selectedBooking?.startDate, selectedBooking?.endDate]);
 
   useEffect(() => {
     fetchBookings();
@@ -697,12 +717,13 @@ const BookingRequestsPage: React.FC = () => {
                 >
                   {/* Left: Customer & ID */}
                   <div className="booking-list-main" style={{ minWidth: '220px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
-                      {booking.vehicle.imageUrl ? (
-                        <img src={booking.vehicle.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <User size={20} color="var(--gray-400)" />
-                      )}
+                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
+                      <VehicleImage
+                        vehicleId={booking.vehicle.id}
+                        brand={booking.vehicle.brand}
+                        model={booking.vehicle.model}
+                        className="w-full h-full"
+                      />
                     </div>
                     <div className="booking-list-meta">
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Customer</span>
@@ -831,8 +852,13 @@ const BookingRequestsPage: React.FC = () => {
                   <h4>Rental Specification</h4>
                 </div>
                 <div style={{ backgroundColor: 'white', border: '1px solid var(--gray-200)', borderRadius: '20px', padding: '1.5rem', display: 'flex', gap: '1.5rem' }}>
-                  <div className="booking-vehicle-thumb" style={{ width: '100px', height: '80px', flexShrink: 0 }}>
-                    {selectedBooking.vehicle.imageUrl && <img src={selectedBooking.vehicle.imageUrl} alt="" />}
+                  <div className="booking-vehicle-thumb" style={{ width: '100px', height: '80px', flexShrink: 0, overflow: 'hidden' }}>
+                    <VehicleImage
+                      vehicleId={selectedBooking.vehicle.id}
+                      brand={selectedBooking.vehicle.brand}
+                      model={selectedBooking.vehicle.model}
+                      className="w-full h-full"
+                    />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 900, fontSize: '1.1rem' }}>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</div>
@@ -922,28 +948,59 @@ const BookingRequestsPage: React.FC = () => {
                   <ArrowUpDown size={18} color="var(--warm-taupe)" />
                   <h4>Financial Summary</h4>
                 </div>
-                <div style={{ backgroundColor: 'var(--black)', color: 'white', padding: '1.75rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'relative', zIndex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                      <span>Base Daily Rate:</span>
-                      <span>₱{Number(selectedBooking.baseDailyRate).toLocaleString()}</span>
-                    </div>
-                    {selectedBooking.pricingMultiplier > 1 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                        <span>Rule Applied: {selectedBooking.pricingRule?.name || selectedBooking.pricingRuleName || 'Dynamic Pricing'}</span>
-                        <span style={{ color: '#FCD34D' }}>{selectedBooking.pricingMultiplier}x</span>
+                {(() => {
+                  const baseRate = Number(selectedBooking.baseDailyRate || livePricingQuote?.baseDailyRate || selectedBooking.vehicle?.dailyRate || 0);
+                  const storedMultiplier = Number(selectedBooking.pricingMultiplier || 1);
+                  const liveMultiplier = Number(livePricingQuote?.multiplier || 1);
+                  const multiplier = storedMultiplier > 1 ? storedMultiplier : liveMultiplier;
+                  const ruleName = selectedBooking.pricingRule?.name || selectedBooking.pricingRuleName || livePricingQuote?.appliedRuleName;
+                  const storedTotal = Number(selectedBooking.totalAmount || 0);
+                  const liveTotal = Number(livePricingQuote?.totalPrice || 0);
+                  const totalAmount = (storedMultiplier > 1 && storedTotal > 0) ? storedTotal : (liveTotal > 0 ? liveTotal : storedTotal);
+                  const days = livePricingQuote?.rentalDays;
+
+                  return (
+                    <div style={{ backgroundColor: 'var(--black)', color: 'white', padding: '1.75rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                      <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                          <span>Base Daily Rate:</span>
+                          <span>₱{baseRate.toLocaleString()}</span>
+                        </div>
+                        {days ? (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                            <span>Rental Duration:</span>
+                            <span>{days} {days === 1 ? 'Day' : 'Days'}</span>
+                          </div>
+                        ) : null}
+                        {multiplier > 1 ? (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#FCD34D', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            <span>⚡ Rule Applied: {ruleName || 'Dynamic Pricing'}</span>
+                            <span>{multiplier}x multiplier</span>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.5, marginBottom: '0.5rem' }}>
+                            <span>Pricing Multiplier:</span>
+                            <span>1.0x (Standard Rate)</span>
+                          </div>
+                        )}
+                        {storedTotal > 0 && storedTotal !== totalAmount && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', opacity: 0.6, marginBottom: '0.5rem' }}>
+                            <span>Submitted Base Total:</span>
+                            <span>₱{storedTotal.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1rem 0' }}></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                          <span style={{ fontWeight: 700 }}>Grand Total</span>
+                          <span style={{ fontWeight: 900, fontSize: '1.75rem' }}>₱{totalAmount.toLocaleString()}</span>
+                        </div>
                       </div>
-                    )}
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1rem 0' }}></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                      <span style={{ fontWeight: 700 }}>Grand Total</span>
-                      <span style={{ fontWeight: 900, fontSize: '1.75rem' }}>₱{Number(selectedBooking.totalAmount).toLocaleString()}</span>
+                      <div style={{ position: 'absolute', right: '-20px', bottom: '-20px', opacity: 0.05 }}>
+                        <ShieldCheck size={120} />
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ position: 'absolute', right: '-20px', bottom: '-20px', opacity: 0.05 }}>
-                    <ShieldCheck size={120} />
-                  </div>
-                </div>
+                  );
+                })()}
               </section>
 
               {renderPaymentSection()}

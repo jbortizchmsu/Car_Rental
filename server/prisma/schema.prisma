@@ -220,6 +220,11 @@ model GeofenceZone {
   vehicleId          String?
   bookingId          String?
   polygonCoordinates String    // JSON stringified array of {lat, lng}
+  // Circle-based fields — populated for auto-created zones on vehicle release
+  centerLatitude     Float?
+  centerLongitude    Float?
+  radiusKm           Float?    @default(15)
+  activatedAt        DateTime?
   isActive           Boolean   @default(true)
   createdById        String?
   createdAt          DateTime  @default(now())

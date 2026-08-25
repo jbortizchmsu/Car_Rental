@@ -91,6 +91,9 @@ const AdminDynamicPricingPage: React.FC = () => {
     try {
       const { data } = await vehiclesApi.getAll();
       setVehicles(data);
+      if (data && data.length > 0 && !previewData.vehicleId) {
+        setPreviewData(prev => ({ ...prev, vehicleId: data[0].id }));
+      }
     } catch (error) {
       console.error('Error fetching vehicles:', error);
     }
@@ -192,7 +195,9 @@ const AdminDynamicPricingPage: React.FC = () => {
     if (!previewData.vehicleId || !previewData.startDate || !previewData.endDate) return;
     try {
       setPreviewLoading(true);
+      console.log('[DEBUG AdminDynamicPricingPage] handlePreview payload:', JSON.stringify(previewData));
       const { data } = await pricingApi.getQuote(previewData);
+      console.log('[DEBUG AdminDynamicPricingPage] handlePreview response:', JSON.stringify(data));
       setPreviewResult(data);
     } catch (error) {
       console.error('Preview error:', error);
@@ -200,6 +205,12 @@ const AdminDynamicPricingPage: React.FC = () => {
       setPreviewLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (previewData.vehicleId && previewData.startDate && previewData.endDate) {
+      handlePreview();
+    }
+  }, [previewData.vehicleId, previewData.startDate, previewData.endDate, rules]);
 
   const activeRulesCount = rules.filter(r => r.isActive).length;
   const seasonalCount = rules.filter(r => r.type === 'SEASONAL' && r.isActive).length;
@@ -252,9 +263,9 @@ const AdminDynamicPricingPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="pricing-layout-grid">
+      <div className="flex flex-col lg:flex-row gap-6 items-start min-w-0">
         {/* Rules Table */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: 0 }}>
+        <div className="flex-1 min-w-0 flex flex-col gap-6">
           {/* Page Header with Action Button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
             <button
@@ -286,7 +297,7 @@ const AdminDynamicPricingPage: React.FC = () => {
                 />
               </div>
             </div>
-            <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
+            <div className="table-container" style={{ border: 'none', borderRadius: 0, overflowX: 'auto' }}>
               <table className="table">
                 <thead>
                   <tr>
@@ -368,6 +379,7 @@ const AdminDynamicPricingPage: React.FC = () => {
         </div>
 
         {/* Preview Panel */}
+        <div className="w-80 flex-shrink-0">
         <div className="pricing-preview-card">
           <div className="pricing-preview-header">
             <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -473,6 +485,7 @@ const AdminDynamicPricingPage: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
 

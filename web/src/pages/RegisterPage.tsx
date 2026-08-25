@@ -211,8 +211,14 @@ const RegisterPage: React.FC = () => {
               <input
                 type="tel"
                 required
+                inputMode='numeric'
+                pattern='[0-9]{11}'
+                maxLength={11}
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setPhoneNumber(digitsOnly);
+                }}
                 placeholder="09123456789"
                 style={{ width: '100%', padding: '0.875rem 1rem', borderRadius: '12px', border: '1px solid #E5E7EB', fontSize: '1rem', outline: 'none' }}
               />

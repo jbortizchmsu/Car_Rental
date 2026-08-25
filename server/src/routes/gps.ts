@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
 import { createAdminNotification, createNotification } from '../lib/notifications';
+import { isPointInCircle } from '../lib/negros-coords';
 
 const router = Router();
 
@@ -54,30 +55,42 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
       customerName: req.user!.fullName
     });
 
-    // 4. Geofence Check (Basic Placeholder)
+    // 4. Geofence Check
     if (booking.geofenceActivatedAt && !booking.geofenceEndedAt) {
       const zones = await prisma.geofenceZone.findMany({
-        where: { 
+        where: {
+          isActive: true,
           OR: [
             { bookingId: booking.id },
-            { vehicleId: booking.vehicleId },
-            { isActive: true, bookingId: null, vehicleId: null }
+            { vehicleId: booking.vehicleId, bookingId: null },
           ]
         }
       });
 
-      // Mock breach check for demonstration purposes if coordinates are exactly 0,0 or something similar
-      // In production, this would use @turf/turf or similar
-      const isMockBreach = latitude === 0 && longitude === 0; 
-      
-      if (isMockBreach) {
-        // Prevent duplicate spam: check if there's already an unresolved OUT_OF_ZONE alert for this booking
-        const existingAlert = await prisma.geofenceAlert.findFirst({
-          where: {
-            bookingId,
-            alertType: 'OUT_OF_ZONE',
-            resolved: false
+      // Check if vehicle is outside ALL active geofence zones
+      let isOutsideAllZones = zones.length > 0;
+      for (const zone of zones) {
+        if (
+          zone.centerLatitude !== null && zone.centerLongitude !== null && zone.radiusKm !== null
+        ) {
+          // Circle-based check (used for auto-created zones)
+          if (isPointInCircle(latitude, longitude, zone.centerLatitude, zone.centerLongitude, zone.radiusKm)) {
+            isOutsideAllZones = false;
+            break;
           }
+        }
+        // Polygon-based zones without center coords: treated as "inside" for now
+        // (full polygon check can be added with @turf/turf later)
+        else {
+          isOutsideAllZones = false;
+          break;
+        }
+      }
+
+      if (isOutsideAllZones) {
+        // Prevent duplicate spam: only create a new alert if no unresolved one exists
+        const existingAlert = await prisma.geofenceAlert.findFirst({
+          where: { bookingId, alertType: 'OUT_OF_ZONE', resolved: false }
         });
 
         if (!existingAlert) {
@@ -86,7 +99,8 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
               bookingId,
               vehicleId,
               trackingSessionId,
-              message: `Vehicle ${booking.vehicle.brand} ${booking.vehicle.model} left the allowed zone (Dest: ${booking.destinationName || 'Unknown'})!`,
+              geofenceZoneId: zones[0]?.id ?? null,
+              message: `Vehicle ${booking.vehicle.brand} ${booking.vehicle.model} is outside the allowed zone (Dest: ${booking.destinationName || 'Unknown'})!`,
               latitude,
               longitude,
               alertType: 'OUT_OF_ZONE',
@@ -94,10 +108,9 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
             }
           });
 
-          // Notify Admin
           await createAdminNotification(
             'Geofence Breach',
-            `CRITICAL: ${booking.vehicle.brand} (${booking.vehicle.licensePlate}) is outside the allowed area!`
+            `CRITICAL: ${booking.vehicle.brand} (${booking.vehicle.licensePlate}) is outside the allowed area near ${booking.destinationName || 'destination'}!`
           );
 
           io.emit('geofence-alert-created', alert);
@@ -215,6 +228,116 @@ router.delete('/geofences/:id', authenticate, authorizeAdmin, async (req, res) =
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete geofence' });
+  }
+});
+
+// Admin: Get Active Geofence Zones (for map display)
+router.get('/active-geofence-zones', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const zones = await prisma.geofenceZone.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { booking: { status: 'ACTIVE' } },
+          { bookingId: null }
+        ]
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            status: true,
+            vehicle: { select: { brand: true, model: true, licensePlate: true } },
+            customer: { select: { fullName: true } }
+          }
+        }
+      },
+      orderBy: { activatedAt: 'desc' }
+    });
+    res.json({ zones });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch active geofence zones' });
+  }
+});
+
+// Admin: GPS Stats (total location records + completed sessions with GPS data)
+router.get('/stats', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const [locationCount, sessionCount] = await Promise.all([
+      prisma.vehicleLocation.count(),
+      prisma.booking.count({
+        where: { status: 'COMPLETED', locations: { some: {} } }
+      })
+    ]);
+    res.json({ locationCount, sessionCount });
+  } catch (error) {
+    console.error('GPS stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch GPS stats' });
+  }
+});
+
+// Admin: Session Playback — all location points for a booking in chronological order
+router.get('/session/:bookingId', authenticate, authorizeAdmin, async (req, res) => {
+  const { bookingId } = req.params;
+  try {
+    const locations = await prisma.vehicleLocation.findMany({
+      where: { bookingId },
+      orderBy: { recordedAt: 'asc' },
+      select: {
+        id: true,
+        latitude: true,
+        longitude: true,
+        speed: true,
+        heading: true,
+        accuracy: true,
+        recordedAt: true
+      }
+    });
+    res.json({ locations, count: locations.length });
+  } catch (error) {
+    console.error('GPS session error:', error);
+    res.status(500).json({ error: 'Failed to fetch session locations' });
+  }
+});
+
+// Admin: Export Session GPS Logs as CSV
+router.get('/session/:bookingId/export', authenticate, authorizeAdmin, async (req, res) => {
+  const { bookingId } = req.params;
+  try {
+    const locations = await prisma.vehicleLocation.findMany({
+      where: { bookingId },
+      orderBy: { recordedAt: 'asc' },
+      select: {
+        latitude: true,
+        longitude: true,
+        speed: true,
+        heading: true,
+        accuracy: true,
+        recordedAt: true
+      }
+    });
+
+    if (!locations.length) {
+      return res.status(404).json({ error: 'No GPS data found for this booking.' });
+    }
+
+    const headers = ['Timestamp', 'Latitude', 'Longitude', 'Speed (km/h)', 'Heading (deg)', 'Accuracy (m)'];
+    const rows = locations.map(l => [
+      new Date(l.recordedAt).toISOString(),
+      l.latitude,
+      l.longitude,
+      l.speed ?? '',
+      l.heading ?? '',
+      l.accuracy ?? ''
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="gps-session-${bookingId}.csv"`);
+    return res.send(csv);
+  } catch (error) {
+    console.error('GPS export error:', error);
+    res.status(500).json({ error: 'Failed to export GPS data' });
   }
 });
 

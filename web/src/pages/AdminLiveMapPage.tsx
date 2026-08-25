@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../services/api';
 import { io } from 'socket.io-client';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, TrafficLayer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, TrafficLayer, Circle } from '@react-google-maps/api';
 
 interface ActiveRental {
   id: string;
@@ -38,6 +38,21 @@ interface FleetStats {
   maintenance: number;
 }
 
+interface ActiveGeofenceZone {
+  id: string;
+  name: string;
+  centerLatitude: number;
+  centerLongitude: number;
+  radiusKm: number;
+  bookingId: string | null;
+  vehicleId: string | null;
+  booking?: {
+    id: string;
+    vehicle: { brand: string; model: string; licensePlate: string };
+    customer: { fullName: string };
+  } | null;
+}
+
 const NEGROS_DEFAULT_CENTER = { 
   lat: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LAT || '10.3000'), 
   lng: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LNG || '123.0000') 
@@ -60,6 +75,7 @@ const AdminLiveMapPage: React.FC = () => {
   const [unresolvedAlerts, setUnresolvedAlerts] = useState<any[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [geofenceZones, setGeofenceZones] = useState<ActiveGeofenceZone[]>([]);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -84,28 +100,44 @@ const AdminLiveMapPage: React.FC = () => {
     return DEFAULT_ZOOM;
   }, [selectedRental, activeRentals]);
 
+  const visibleGeofenceZones = useMemo(() => {
+    if (!selectedRental) {
+      return geofenceZones;
+    }
+    return geofenceZones.filter(
+      zone => zone.bookingId === selectedRental.id || zone.booking?.id === selectedRental.id
+    );
+  }, [geofenceZones, selectedRental]);
+
   const fetchMonitoringData = async () => {
     try {
-      const [locationsRes, summaryRes, alertsRes] = await Promise.all([
+      const [locationsRes, summaryRes, alertsRes, zonesRes] = await Promise.all([
         adminApi.getLiveLocations(),
         adminApi.getSummaryReport(),
-        adminApi.getGeofenceAlertReport()
+        adminApi.getGeofenceAlertReport(),
+        adminApi.getActiveGeofenceZones().catch(() => ({ data: { zones: [] } })),
       ]);
 
       setActiveRentals(locationsRes.data);
-      
+
       if (summaryRes.data) {
         setFleetStats({
           total: summaryRes.data.vehicles.total,
           available: summaryRes.data.vehicles.available,
           active: summaryRes.data.bookings.active,
-          maintenance: summaryRes.data.vehicles.total - summaryRes.data.vehicles.available - summaryRes.data.bookings.active // Estimate
+          maintenance: summaryRes.data.vehicles.total - summaryRes.data.vehicles.available - summaryRes.data.bookings.active,
         });
       }
 
       if (alertsRes.data) {
         setUnresolvedAlerts(alertsRes.data.details.filter((a: any) => !a.resolved));
       }
+
+      // Only keep zones that have center coordinates (auto-created circle zones)
+      const zones: ActiveGeofenceZone[] = (zonesRes.data?.zones ?? []).filter(
+        (z: any) => z.centerLatitude !== null && z.centerLongitude !== null && z.radiusKm !== null
+      );
+      setGeofenceZones(zones);
 
       setLastUpdated(new Date());
     } catch (error) {
@@ -314,6 +346,51 @@ const AdminLiveMapPage: React.FC = () => {
             </React.Fragment>
           );
         })}
+
+        {/* Shop location marker — CHMSU Talisay */}
+        <Marker
+          position={{ lat: 10.7391, lng: 122.9691 }}
+          title="JD Car Rental — CHMSU Talisay"
+          icon={{
+            path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+            fillColor: '#AD9B8D',
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 2,
+            scale: 1.6,
+            anchor: new google.maps.Point(12, 24),
+          }}
+        />
+
+        {/* Geofence zone circles */}
+        {visibleGeofenceZones.map(zone => (
+          <React.Fragment key={zone.id}>
+            <Circle
+              center={{ lat: zone.centerLatitude, lng: zone.centerLongitude }}
+              radius={zone.radiusKm * 1000}
+              options={{
+                fillColor: '#3B82F6',
+                fillOpacity: 0.12,
+                strokeColor: '#2563EB',
+                strokeOpacity: 0.7,
+                strokeWeight: 2,
+              }}
+            />
+            {/* Zone label marker */}
+            <Marker
+              position={{ lat: zone.centerLatitude, lng: zone.centerLongitude }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 6,
+                fillColor: '#2563EB',
+                fillOpacity: 0.9,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+              }}
+              title={`Geofence: ${zone.name}${zone.booking ? ` — ${zone.booking.vehicle.brand} ${zone.booking.vehicle.model}` : ''}`}
+            />
+          </React.Fragment>
+        ))}
       </GoogleMap>
     );
   };
@@ -383,11 +460,6 @@ const AdminLiveMapPage: React.FC = () => {
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             <span>UPDATED {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-
-          <button onClick={() => setIsFullScreen(true)} className="btn-primary" style={{ padding: '0.7rem 1.4rem', fontSize: '0.8rem' }}>
-            <Maximize2 size={16} />
-            Open Map View
-          </button>
         </div>
       </header>
 
@@ -494,9 +566,9 @@ const AdminLiveMapPage: React.FC = () => {
         </main>
 
         {/* Right Column: Monitoring Panels */}
-        <aside className="map-status-panel">
+        <aside className="w-72 flex-shrink-0 h-full overflow-y-auto flex flex-col gap-3 pb-4" style={{ scrollbarWidth: 'thin' }}>
           {/* Fleet Status Summary */}
-          <section className="card" style={{ padding: '1.25rem', borderRadius: '24px' }}>
+          <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400" style={{ margin: 0 }}>Fleet Overview</h3>
               <Activity size={16} className="text-gray-300" />
@@ -527,7 +599,7 @@ const AdminLiveMapPage: React.FC = () => {
           </section>
 
           {/* Alerts Panel */}
-          <section className="card" style={{ padding: '1.25rem', borderRadius: '24px' }}>
+          <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400" style={{ margin: 0 }}>Live Alerts</h3>
@@ -568,7 +640,7 @@ const AdminLiveMapPage: React.FC = () => {
           </section>
 
           {/* Tracking Stats */}
-          <section className="card" style={{ padding: '1.25rem', borderRadius: '24px' }}>
+          <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400" style={{ margin: 0 }}>Monitoring Stats</h3>
               <Activity size={16} className="text-gray-300" />
@@ -598,8 +670,8 @@ const AdminLiveMapPage: React.FC = () => {
           </section>
 
           {/* Quick Actions */}
-          <section className="card" style={{ padding: '1.25rem', borderRadius: '24px' }}>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-5" style={{ margin: 0 }}>Actions</h3>
+          <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm mb-2">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Actions</h3>
             <div className="map-actions-grid">
               <button className="flex flex-col items-center justify-center gap-2 p-3.5 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all opacity-50 cursor-not-allowed border border-gray-100">
                 <Download size={16} className="text-gray-400" />

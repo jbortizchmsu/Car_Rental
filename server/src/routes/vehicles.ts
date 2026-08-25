@@ -22,27 +22,69 @@ router.get('/', async (req, res) => {
 // GET /api/vehicles/:id/image - Publicly serve vehicle image
 router.get('/:id/image', async (req, res) => {
   try {
+    console.log('=== IMAGE REQUEST ===');
+    console.log('Vehicle ID:', req.params.id);
+
     const vehicle = await prisma.vehicle.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
+      select: { imageUrl: true }
     });
 
-    if (!vehicle || !vehicle.imageUrl) {
-      return res.status(404).send('No image found for this vehicle.');
+    console.log('Vehicle found:', !!vehicle);
+    console.log('imageUrl from DB:', vehicle?.imageUrl);
+
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
     }
 
-    // Check if it's an external URL or internal path
-    if (vehicle.imageUrl.startsWith('http')) {
-      return res.redirect(vehicle.imageUrl);
+    const imageUrl = vehicle.imageUrl;
+
+    // No image stored
+    if (!imageUrl || imageUrl.trim() === '') {
+      console.log('No imageUrl — returning 404');
+      return res.status(404).json({ error: 'No image available' });
     }
 
-    const filePath = path.resolve(vehicle.imageUrl);
+    // External URL — redirect
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      console.log('External URL — redirecting to:', imageUrl);
+      return res.redirect(imageUrl);
+    }
+
+    // Local file
+    const normalizedPath = imageUrl.replace(/\\/g, '/');
+    console.log('Normalized path:', normalizedPath);
+
+    // Support paths with or without the .uploads/ prefix
+    const filePath = path.resolve(
+      __dirname, '..', '..',
+      normalizedPath.startsWith('.uploads') ? normalizedPath : `.uploads/${normalizedPath}`
+    );
+    console.log('Resolved filePath:', filePath);
+    console.log('__dirname:', __dirname);
+    console.log('File exists:', fs.existsSync(filePath));
+
+    const uploadsRoot = path.resolve(__dirname, '..', '..', '.uploads');
+    console.log('uploadsRoot:', uploadsRoot);
+    console.log('Path within uploads root:', filePath.startsWith(uploadsRoot));
+
+    // Security boundary check
+    if (!filePath.startsWith(uploadsRoot)) {
+      console.log('SECURITY: Path outside uploads root — blocked');
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     if (!fs.existsSync(filePath)) {
-      return res.status(404).send('Image file not found on server.');
+      console.log('FILE NOT FOUND at:', filePath);
+      return res.status(404).json({ error: 'Image file not found' });
     }
 
-    res.sendFile(filePath);
-  } catch (error) {
-    res.status(500).send('Error serving image.');
+    console.log('Serving file:', filePath);
+    return res.sendFile(filePath);
+
+  } catch (err: any) {
+    console.error('Image endpoint error:', err.message);
+    return res.status(500).json({ error: 'Failed to serve image' });
   }
 });
 
@@ -130,10 +172,10 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
       return res.status(400).json({ error: 'Seats must be a valid number.' });
     }
 
-    // If a file was uploaded, use its path as imageUrl
+    // If a file was uploaded, normalize backslashes so path.join resolves correctly on all platforms
     let finalImageUrl = imageUrl;
     if (req.file) {
-      finalImageUrl = req.file.path; // Store relative path like ".uploads/vehicle-images/..."
+      finalImageUrl = req.file.path.replace(/\\/g, '/');
     }
 
     const vehicle = await prisma.vehicle.create({
@@ -228,10 +270,23 @@ router.put('/:id', authenticate, authorizeAdmin, vehicleImageUpload.single('vehi
       });
     }
 
-    // If a new image file was uploaded
+    // Debug logging — confirm what multer received
+    console.log('req.file:', req.file ? `File received: ${req.file.filename}` : 'No file uploaded');
+    console.log('req.body.imageUrl:', req.body.imageUrl);
+
+    // Only update imageUrl when a new file was uploaded — never overwrite with body value
     if (req.file) {
-      data.imageUrl = req.file.path;
+      data.imageUrl = req.file.path.replace(/\\/g, '/');
+      console.log('Image uploaded, saving imageUrl:', data.imageUrl);
+    } else {
+      // Remove imageUrl from data entirely so Prisma leaves the existing DB value unchanged
+      delete data.imageUrl;
     }
+
+    console.log('data.imageUrl after assignment:', data.imageUrl);
+
+    // Remove the multer file-field key — it is not a Prisma model field
+    delete data.vehicleImage;
 
     const vehicle = await prisma.vehicle.update({
       where: { id: req.params.id },

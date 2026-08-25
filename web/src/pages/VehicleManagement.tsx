@@ -10,6 +10,33 @@ import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 
+const VehicleImage = ({ vehicleId, brand, model, className }: {
+  vehicleId: string;
+  brand: string;
+  model: string;
+  className?: string;
+}) => {
+  const [error, setError] = useState(false);
+  const imageUrl = vehiclesApi.getImageUrl(vehicleId);
+
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center bg-gray-100 ${className ?? ''}`}>
+        <span className="text-gray-400 text-xs text-center px-2">{brand} {model}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={`${brand} ${model}`}
+      className={`object-cover ${className ?? ''}`}
+      onError={() => setError(true)}
+    />
+  );
+};
+
 interface Vehicle {
   id: string;
   brand: string;
@@ -220,6 +247,7 @@ const VehicleManagement: React.FC = () => {
         data.append(key, value != null ? value.toString() : '');
       });
       
+      console.log('File being uploaded:', selectedFile?.name, selectedFile?.size);
       if (selectedFile) {
         data.append('vehicleImage', selectedFile);
       }
@@ -444,18 +472,7 @@ const VehicleManagement: React.FC = () => {
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                           <div style={{ width: '80px', height: '54px', borderRadius: '12px', backgroundColor: 'var(--gray-100)', overflow: 'hidden', flexShrink: 0, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)' }}>
-                            {vehicle.imageUrl ? (
-                              <img 
-                                src={vehicle.imageUrl.startsWith('http') ? vehicle.imageUrl : vehiclesApi.getImageUrl(vehicle.id)} 
-                                alt={vehicle.model}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80x54?text=No+Img'; }}
-                              />
-                            ) : (
-                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-300)' }}>
-                                <ImageIcon size={20} />
-                              </div>
-                            )}
+                            <VehicleImage vehicleId={vehicle.id} brand={vehicle.brand} model={vehicle.model} className="w-full h-full rounded" />
                           </div>
                           <div>
                             <div className="font-black text-black">{vehicle.brand} {vehicle.model}</div>
@@ -519,17 +536,7 @@ const VehicleManagement: React.FC = () => {
         {selectedVehicle && (
           <div className="card" style={{ padding: '0', border: 'none', background: 'white', borderRadius: '24px', overflow: 'hidden', height: 'fit-content', position: 'sticky', top: '2rem' }}>
             <div style={{ height: '200px', backgroundColor: 'var(--gray-100)', position: 'relative' }}>
-              {selectedVehicle.imageUrl ? (
-                <img 
-                  src={selectedVehicle.imageUrl.startsWith('http') ? selectedVehicle.imageUrl : vehiclesApi.getImageUrl(selectedVehicle.id)} 
-                  alt={selectedVehicle.model}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-300)' }}>
-                  <ImageIcon size={48} />
-                </div>
-              )}
+              <VehicleImage vehicleId={selectedVehicle.id} brand={selectedVehicle.brand} model={selectedVehicle.model} className="w-full h-full" />
               <button 
                 onClick={() => setSelectedVehicle(null)}
                 style={{ position: 'absolute', top: '1rem', right: '1rem', backgroundColor: 'rgba(0,0,0,0.5)', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

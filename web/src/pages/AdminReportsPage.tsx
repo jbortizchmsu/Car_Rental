@@ -73,6 +73,7 @@ const AdminReportsPage: React.FC = () => {
 
   const fetchReport = async (sDate = startDate, eDate = endDate) => {
     setLoading(true);
+    setData(null); // clear stale data — prevents wrong-shape render while new fetch is in flight
     try {
       let response;
       const params = { startDate: sDate, endDate: eDate };
@@ -294,7 +295,7 @@ const AdminReportsPage: React.FC = () => {
   };
 
   const renderBookingReport = () => {
-    if (!data) return null;
+    if (!data || !data.statusCounts || !data.details) return null;
     const totalBookings = data.details.length;
     const completedCount = data.statusCounts['COMPLETED'] || 0;
     const activeCount = data.statusCounts['ACTIVE'] || 0;
@@ -362,7 +363,7 @@ const AdminReportsPage: React.FC = () => {
   };
 
   const renderVehicleReport = () => {
-    if (!data) return null;
+    if (!data || !data.stats || !data.topRented || !data.details) return null;
     const utilization = Math.round(data.stats.utilizationRate * 100);
     
     return (
@@ -469,7 +470,7 @@ const AdminReportsPage: React.FC = () => {
   };
 
   const renderPaymentReport = () => {
-    if (!data) return null;
+    if (!data || !data.statusSummary || !data.details) return null;
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
@@ -506,10 +507,10 @@ const AdminReportsPage: React.FC = () => {
               {data.details.map((p: any) => (
                 <tr key={p.id}>
                   <td className="text-sm">{new Date(p.createdAt).toLocaleDateString()}</td>
-                  <td className="text-sm font-semibold">{p.booking.customer.fullName}</td>
-                  <td className="text-xs font-bold">{p.paymentType.replace('_', ' ')}</td>
-                  <td className="text-sm font-black">₱{Number(p.amount).toLocaleString()}</td>
-                  <td className="text-xs font-mono">{p.proofs?.[0]?.referenceNumber || 'No ref provided'}</td>
+                  <td className="text-sm font-semibold">{p.booking?.customer?.fullName ?? 'N/A'}</td>
+                  <td className="text-xs font-bold">{p.paymentType?.replace('_', ' ') ?? '—'}</td>
+                  <td className="text-sm font-black">₱{Number(p.amount ?? 0).toLocaleString()}</td>
+                  <td className="text-xs font-mono">{p.proofs?.[0]?.referenceNumber ?? 'No ref provided'}</td>
                   <td><StatusBadge status={p.status} /></td>
                 </tr>
               ))}
@@ -521,7 +522,7 @@ const AdminReportsPage: React.FC = () => {
   };
 
   const renderMaintenanceReport = () => {
-    if (!data) return null;
+    if (!data || !data.summary || !data.maintenance || !data.damages) return null;
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
@@ -613,7 +614,7 @@ const AdminReportsPage: React.FC = () => {
   };
 
   const renderAlertReport = () => {
-    if (!data) return null;
+    if (!data || !data.stats || !data.details) return null;
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
@@ -659,10 +660,10 @@ const AdminReportsPage: React.FC = () => {
               {data.details.map((a: any) => (
                 <tr key={a.id}>
                   <td className="text-sm">{new Date(a.createdAt).toLocaleString()}</td>
-                  <td className="text-sm font-semibold">{a.vehicle.brand} {a.vehicle.model}</td>
-                  <td className="text-sm">{a.booking.customer.fullName}</td>
-                  <td className="text-xs font-bold">{a.alertType}</td>
-                  <td className="text-xs font-black" style={{ color: a.severity === 'HIGH' ? '#DC2626' : '#EA580C' }}>{a.severity}</td>
+                  <td className="text-sm font-semibold">{a.vehicle?.brand ?? '—'} {a.vehicle?.model ?? ''}</td>
+                  <td className="text-sm">{a.booking?.customer?.fullName ?? 'N/A'}</td>
+                  <td className="text-xs font-bold">{a.alertType ?? '—'}</td>
+                  <td className="text-xs font-black" style={{ color: a.severity === 'HIGH' ? '#DC2626' : '#EA580C' }}>{a.severity ?? '—'}</td>
                   <td>{a.resolved ? <span className="text-green-600 font-bold text-xs">RESOLVED</span> : <span className="text-red-600 font-bold text-xs">PENDING</span>}</td>
                 </tr>
               ))}
@@ -735,7 +736,7 @@ const AdminReportsPage: React.FC = () => {
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setReportType(tab.id)}
+            onClick={() => { setData(null); setReportType(tab.id); }}
             className={`booking-tab ${reportType === tab.id ? 'booking-tab-active' : ''}`}
             style={{ flex: 1, justifyContent: 'center' }}
           >

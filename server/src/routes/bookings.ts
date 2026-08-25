@@ -5,6 +5,7 @@ import { createNotification, createAdminNotification } from '../lib/notification
 import { checkVehicleOilChangeDue } from '../lib/maintenance-alerts';
 import { checkVehicleAvailability } from '../lib/booking-availability';
 import { calculateBookingPrice } from '../lib/pricing';
+import { computeGeofence, generateCirclePolygon } from '../lib/negros-coords';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -442,6 +443,44 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
       data: { status: 'RENTED' }
     });
 
+    // Create geofence zone if destination is set
+    if (existingBooking.destinationName) {
+      try {
+        const geo = computeGeofence(existingBooking.destinationName);
+        if (geo) {
+          await prisma.geofenceZone.updateMany({
+            where: { vehicleId: existingBooking.vehicleId, isActive: true },
+            data: { isActive: false },
+          });
+
+          const circlePolygon = generateCirclePolygon(geo.centerLat, geo.centerLng, geo.radiusKm);
+
+          const geofenceZone = await prisma.geofenceZone.create({
+            data: {
+              bookingId: booking.id,
+              vehicleId: booking.vehicleId,
+              name: existingBooking.destinationName,
+              polygonCoordinates: JSON.stringify(circlePolygon),
+              centerLatitude: geo.centerLat,
+              centerLongitude: geo.centerLng,
+              radiusKm: geo.radiusKm,
+              isActive: true,
+              activatedAt: new Date(),
+            },
+          });
+
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data: {
+              approvedGeofenceZoneId: geofenceZone.id,
+            },
+          });
+        }
+      } catch (geofenceErr) {
+        console.error('[Geofence] Failed to create geofence zone on release:', geofenceErr);
+      }
+    }
+
     // Notify Customer
     await createNotification(
       booking.customerId,
@@ -491,6 +530,18 @@ router.post('/:id/return', authenticate, authorizeAdmin, async (req: AuthRequest
       }
     });
 
+    // Deactivate active geofence zone for this booking/vehicle on return
+    await prisma.geofenceZone.updateMany({
+      where: {
+        OR: [
+          { bookingId: id },
+          { vehicleId: existingBooking.vehicleId }
+        ],
+        isActive: true
+      },
+      data: { isActive: false }
+    });
+
     // Update vehicle current odometer
     await prisma.vehicle.update({
       where: { id: booking.vehicleId },
@@ -511,6 +562,23 @@ router.post('/:id/return', authenticate, authorizeAdmin, async (req: AuthRequest
           status: 'PENDING'
         }
       });
+
+      // Notify customer about the damage report filed for their booking
+      const vehicleName = existingBooking.vehicle
+        ? `${existingBooking.vehicle.brand} ${existingBooking.vehicle.model}`
+        : 'vehicle';
+      const costAmount = parseFloat(damageDetails.cost);
+      const costText = !isNaN(costAmount) && costAmount > 0
+        ? ` Estimated repair cost: ₱${costAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`
+        : '';
+      const damageTypeStr = damageDetails.type || 'General';
+      const descriptionText = damageDetails.desc ? ` Description: ${damageDetails.desc}.` : '';
+
+      await createNotification(
+        existingBooking.customerId,
+        'Damage Report Filed',
+        `A damage report (${damageTypeStr}) was filed for your rental of ${vehicleName} (Booking #${id.slice(0, 8).toUpperCase()}).${descriptionText}${costText} Please check your booking details for more information.`
+      );
     }
 
     res.json(booking);
@@ -531,6 +599,18 @@ router.post('/:id/complete', authenticate, authorizeAdmin, async (req: AuthReque
         completedAt: new Date(),
         geofenceEndedAt: new Date()
       }
+    });
+
+    // Deactivate active geofence zone for this booking/vehicle on completion
+    await prisma.geofenceZone.updateMany({
+      where: {
+        OR: [
+          { bookingId: id },
+          { vehicleId: booking.vehicleId }
+        ],
+        isActive: true
+      },
+      data: { isActive: false }
     });
 
     await prisma.vehicle.update({
@@ -602,6 +682,18 @@ router.patch('/:id/cancel', authenticate, async (req: AuthRequest, res) => {
     const updated = await prisma.booking.update({
       where: { id },
       data: { status: 'CANCELLED' }
+    });
+
+    // Deactivate any active geofence zone for this booking/vehicle on cancellation
+    await prisma.geofenceZone.updateMany({
+      where: {
+        OR: [
+          { bookingId: id },
+          { vehicleId: booking.vehicleId }
+        ],
+        isActive: true
+      },
+      data: { isActive: false }
     });
 
     // If cancelling from READY_FOR_PICKUP, revert vehicle to AVAILABLE

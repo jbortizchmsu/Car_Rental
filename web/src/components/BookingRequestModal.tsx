@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Upload, Calendar, MapPin, User, ShieldCheck, AlertCircle, X, CheckCircle2, Calculator, Car, FileText, ChevronRight, ChevronLeft, Check, Tag } from 'lucide-react';
 import { bookingsApi, pricingApi, vehiclesApi } from '../services/api';
+import { NEGROS_LOCATIONS, NEGROS_OCC, NEGROS_OR } from '../utils/negros-locations';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+
+import ConfirmActionModal from './ConfirmActionModal';
 
 interface BookingRequestModalProps {
   isOpen: boolean;
@@ -15,11 +18,11 @@ interface BookingRequestModalProps {
 const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClose, vehicle }) => {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     start_date: '',
     end_date: '',
@@ -45,11 +48,15 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
   const [error, setError] = useState<string | null>(null);
   const [pricingQuote, setPricingQuote] = useState<any>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [bookedRanges, setBookedRanges] = useState<Array<{startDate: string; endDate: string}>>([]);
+  const [checkboxError, setCheckboxError] = useState(false);
+  const [showCheckboxAlertModal, setShowCheckboxAlertModal] = useState(false);
+  const checkboxRef = useRef<HTMLLabelElement | null>(null);
+  const [bookedRanges, setBookedRanges] = useState<Array<{ startDate: string; endDate: string }>>([]);
   const [bookedDatesLoading, setBookedDatesLoading] = useState(false);
   const [bookedDatesFailed, setBookedDatesFailed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const step4MountedAtRef = useRef<number>(0);
 
   // Reset state when modal opens/closes or profile changes
   useEffect(() => {
@@ -66,8 +73,18 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
       setFieldErrors({});
       setPricingQuote(null);
       setConfirmed(false);
+      setCheckboxError(false);
+      setShowCheckboxAlertModal(false);
     }
   }, [isOpen, profile]);
+
+  useEffect(() => {
+    if (currentStep === 4) {
+      step4MountedAtRef.current = Date.now();
+    }
+    setCheckboxError(false);
+    setShowCheckboxAlertModal(false);
+  }, [currentStep]);
 
   useEffect(() => {
     if (isOpen && vehicle && formData.start_date && formData.end_date) {
@@ -193,8 +210,8 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
         }
       }
 
-      if (!formData.destinationName) {
-        errors.destinationName = 'Please provide your intended travel area.';
+      if (!formData.destinationName || formData.destinationName.trim() === '') {
+        errors.destinationName = 'Please select your intended travel area.';
       }
     }
 
@@ -242,8 +259,21 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentStep < 4) {
+      handleNext();
+      return;
+    }
+
+    if (Date.now() - step4MountedAtRef.current < 400) {
+      return;
+    }
+
     if (!confirmed) {
-      setError('Please confirm that the information is accurate.');
+      setCheckboxError(true);
+      setShowCheckboxAlertModal(true);
+      setTimeout(() => {
+        checkboxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
       return;
     }
 
@@ -319,7 +349,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
             <CheckCircle2 size={72} color="#2E7D32" style={{ margin: '0 auto 1.5rem' }} />
             <h2 style={{ marginBottom: '1rem', fontSize: '2rem', fontWeight: 900 }}>Booking request submitted</h2>
             <p style={{ color: 'var(--muted-mauve)', fontSize: '1.1rem', marginBottom: '2.5rem' }}>
-              Your booking request has been sent to JD Car Rental.<br/>
+              Your booking request has been sent to JD Car Rental.<br />
               Please wait for admin review.
             </p>
             <div style={{ backgroundColor: 'var(--soft-beige)', padding: '1.5rem', borderRadius: '12px', maxWidth: '400px', margin: '0 auto' }}>
@@ -477,33 +507,60 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
 
                         <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: '1.5rem 0 0.5rem' }}>Destination & Travel Area</h4>
 
-                        {/* Destination Name (required) */}
+                        {/* Destination Name (required) — municipality dropdown */}
                         <div ref={el => { fieldRefs.current['destinationName'] = el; }} className="booking-modal-field">
                           <label>Intended Travel Area (Required)</label>
-                          <input
-                            required
-                            placeholder="e.g. Bacolod, Silay, Kabankalan"
+                          <select
                             value={formData.destinationName}
                             style={fieldErrors.destinationName ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
                             onChange={(e) => {
-                              setFormData({...formData, destinationName: e.target.value});
+                              const selected = NEGROS_LOCATIONS.find(l => l.municipality === e.target.value);
+                              setFormData(prev => ({
+                                ...prev,
+                                destinationName: e.target.value,
+                                destinationAddress: selected
+                                  ? `${e.target.value}, ${selected.province}, Negros Island, Philippines`
+                                  : '',
+                              }));
                               clearFieldError('destinationName');
                             }}
-                          />
+                          >
+                            <option value="">Select destination municipality...</option>
+                            <optgroup label="— Negros Occidental —">
+                              {NEGROS_OCC.map(loc => (
+                                <option key={loc.municipality} value={loc.municipality}>
+                                  {loc.municipality} ({loc.type})
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="— Negros Oriental —">
+                              {NEGROS_OR.map(loc => (
+                                <option key={loc.municipality} value={loc.municipality}>
+                                  {loc.municipality} ({loc.type})
+                                </option>
+                              ))}
+                            </optgroup>
+                          </select>
                           {fieldErrors.destinationName && (
                             <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>
                               ⚠ {fieldErrors.destinationName}
                             </p>
                           )}
+                          <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#9CA3AF' }}>
+                            Travel is restricted to Negros Island municipalities only.
+                          </p>
                         </div>
 
                         <div className="booking-modal-field">
-                          <label>Destination Address / Specifics (Optional)</label>
+                          <label>Specific Destination / Landmark <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(Optional)</span></label>
                           <input
-                            placeholder="e.g. Campuestohan Highland Resort"
+                            placeholder="e.g. Campuestohan Highland Resort, Barangay Mansilingan"
                             value={formData.destinationAddress}
-                            onChange={(e) => setFormData({...formData, destinationAddress: e.target.value})}
+                            onChange={(e) => setFormData(prev => ({ ...prev, destinationAddress: e.target.value }))}
                           />
+                          <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#9CA3AF' }}>
+                            Add a specific landmark or barangay within your selected municipality.
+                          </p>
                         </div>
                         <div className="booking-modal-field">
                           <label>Travel Notes (Optional)</label>
@@ -511,7 +568,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                             rows={2}
                             placeholder="Any details about your trip?"
                             value={formData.destinationNotes}
-                            onChange={(e) => setFormData({...formData, destinationNotes: e.target.value})}
+                            onChange={(e) => setFormData({ ...formData, destinationNotes: e.target.value })}
                           />
                         </div>
 
@@ -520,9 +577,9 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         </div>
                       </div>
 
-                      <div className="booking-modal-column">
+                      <div className="booking-modal-column sticky-price-column">
                         {pricingQuote ? (
-                          <div className="booking-modal-price-summary" style={{ height: '100%' }}>
+                          <div className="booking-modal-price-summary">
                             <h4><Calculator size={16} /> Estimated Price</h4>
                             <div className="price-row">
                               <span>Base Daily Rate</span>
@@ -534,15 +591,42 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                             </div>
                             <div className={`price-row ${pricingQuote.multiplier > 1 ? 'highlight' : ''}`}>
                               <span>Pricing Multiplier</span>
-                              <strong>{pricingQuote.multiplier}x</strong>
+                              <strong style={{ color: pricingQuote.multiplier > 1 ? '#EA580C' : undefined }}>
+                                {pricingQuote.multiplier}x
+                              </strong>
                             </div>
+
+                            {/* Active rule badge */}
+                            {pricingQuote.appliedRuleName && pricingQuote.multiplier > 1 ? (
+                              <div style={{ marginTop: '0.4rem', backgroundColor: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '8px', padding: '0.55rem 0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+                                  <span style={{ color: '#EA580C', fontSize: '0.75rem', lineHeight: '1.4' }}>⚡</span>
+                                  <div>
+                                    <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9A3412', margin: 0 }}>
+                                      {pricingQuote.appliedRuleName} pricing active
+                                    </p>
+                                    {pricingQuote.appliedRuleDescription && (
+                                      <p style={{ fontSize: '0.7rem', color: '#C2410C', margin: '2px 0 0' }}>
+                                        {pricingQuote.appliedRuleDescription}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ marginTop: '0.4rem', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '0.55rem 0.75rem' }}>
+                                <p style={{ fontSize: '0.75rem', color: '#15803D', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                  <span>✓</span> Standard rate — no surcharge for selected dates
+                                </p>
+                              </div>
+                            )}
                             <div className="price-total">
                               <span>Total Amount</span>
                               <strong>₱{pricingQuote.totalPrice.toLocaleString()}</strong>
                             </div>
                           </div>
                         ) : (
-                          <div className="booking-modal-price-summary empty" style={{ height: '100%', minHeight: '200px' }}>
+                          <div className="booking-modal-price-summary empty">
                             {formData.start_date && formData.end_date && !error ? (
                               <><Loader2 className="animate-spin" size={18} /> Calculating...</>
                             ) : (
@@ -568,7 +652,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <input
                           value={formData.customer_full_name}
                           style={fieldErrors.customer_full_name ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                          onChange={(e) => { setFormData({...formData, customer_full_name: e.target.value}); clearFieldError('customer_full_name'); }}
+                          onChange={(e) => { setFormData({ ...formData, customer_full_name: e.target.value }); clearFieldError('customer_full_name'); }}
                           placeholder="Juan Dela Cruz"
                         />
                         {fieldErrors.customer_full_name && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.customer_full_name}</p>}
@@ -578,7 +662,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <input
                           value={formData.contact_number}
                           style={fieldErrors.contact_number ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                          onChange={(e) => { setFormData({...formData, contact_number: e.target.value}); clearFieldError('contact_number'); }}
+                          onChange={(e) => { setFormData({ ...formData, contact_number: e.target.value }); clearFieldError('contact_number'); }}
                           placeholder="09XX XXX XXXX"
                         />
                         {fieldErrors.contact_number && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.contact_number}</p>}
@@ -592,7 +676,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <input
                           value={formData.drivers_license_number}
                           style={fieldErrors.drivers_license_number ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                          onChange={(e) => { setFormData({...formData, drivers_license_number: e.target.value}); clearFieldError('drivers_license_number'); }}
+                          onChange={(e) => { setFormData({ ...formData, drivers_license_number: e.target.value }); clearFieldError('drivers_license_number'); }}
                           placeholder="e.g. N01-23-456789"
                         />
                         {fieldErrors.drivers_license_number && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.drivers_license_number}</p>}
@@ -603,7 +687,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                           type="date"
                           value={formData.drivers_license_expiry}
                           style={fieldErrors.drivers_license_expiry ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                          onChange={(e) => { setFormData({...formData, drivers_license_expiry: e.target.value}); clearFieldError('drivers_license_expiry'); }}
+                          onChange={(e) => { setFormData({ ...formData, drivers_license_expiry: e.target.value }); clearFieldError('drivers_license_expiry'); }}
                         />
                         {fieldErrors.drivers_license_expiry && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.drivers_license_expiry}</p>}
                       </div>
@@ -615,8 +699,9 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                       <input
                         value={formData.address}
                         style={fieldErrors.address ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                        onChange={(e) => { setFormData({...formData, address: e.target.value}); clearFieldError('address'); }}
+                        onChange={(e) => { setFormData({ ...formData, address: e.target.value }); clearFieldError('address'); }}
                         placeholder="Complete Residential Address"
+                        maxLength={100}
                       />
                       {fieldErrors.address && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.address}</p>}
                     </div>
@@ -626,8 +711,9 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <input
                           value={formData.emergency_contact_name}
                           style={fieldErrors.emergency_contact_name ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                          onChange={(e) => { setFormData({...formData, emergency_contact_name: e.target.value}); clearFieldError('emergency_contact_name'); }}
+                          onChange={(e) => { setFormData({ ...formData, emergency_contact_name: e.target.value }); clearFieldError('emergency_contact_name'); }}
                           placeholder="Name"
+                          maxLength={50}
                         />
                         {fieldErrors.emergency_contact_name && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.emergency_contact_name}</p>}
                       </div>
@@ -636,8 +722,14 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <input
                           value={formData.emergency_contact_number}
                           style={fieldErrors.emergency_contact_number ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                          onChange={(e) => { setFormData({...formData, emergency_contact_number: e.target.value}); clearFieldError('emergency_contact_number'); }}
+                          onChange={(e) => {
+                            const digitsOnly = e.target.value.replace(/[^0-9]/g, '');
+                            setFormData({ ...formData, emergency_contact_number: digitsOnly });
+                            clearFieldError('emergency_contact_number');
+                          }}
                           placeholder="Phone"
+                          inputMode="numeric"
+                          maxLength={11}
                         />
                         {fieldErrors.emergency_contact_number && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.emergency_contact_number}</p>}
                       </div>
@@ -667,7 +759,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                           <div className="booking-upload-info">
                             <h5>Upload Valid ID</h5>
                             {files.valid_id ? (
-                              <div className="booking-upload-filename"><Check size={14}/> {files.valid_id.name}</div>
+                              <div className="booking-upload-filename"><Check size={14} /> {files.valid_id.name}</div>
                             ) : (
                               <p>Click to browse or drag file</p>
                             )}
@@ -686,7 +778,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                           <div className="booking-upload-info">
                             <h5>Upload Driver's License</h5>
                             {files.drivers_license ? (
-                              <div className="booking-upload-filename"><Check size={14}/> {files.drivers_license.name}</div>
+                              <div className="booking-upload-filename"><Check size={14} /> {files.drivers_license.name}</div>
                             ) : (
                               <p>Click to browse or drag file</p>
                             )}
@@ -702,7 +794,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                 {currentStep === 4 && (
                   <div className="booking-form-section animate-fade-in">
                     <div className="booking-review-card">
-                      <div className="booking-review-header"><FileText size={18}/> Booking Summary</div>
+                      <div className="booking-review-header"><FileText size={18} /> Booking Summary</div>
                       <div className="booking-review-row">
                         <span className="booking-review-label">Vehicle</span>
                         <span className="booking-review-value">{vehicle?.brand} {vehicle?.model}</span>
@@ -710,7 +802,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                       <div className="booking-review-row">
                         <span className="booking-review-label">Schedule</span>
                         <span className="booking-review-value">
-                          {new Date(formData.start_date).toLocaleString()} <br/>
+                          {new Date(formData.start_date).toLocaleString()} <br />
                           to {new Date(formData.end_date).toLocaleString()}
                         </span>
                       </div>
@@ -727,7 +819,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                     </div>
 
                     <div className="booking-review-card">
-                      <div className="booking-review-header"><User size={18}/> Customer Details</div>
+                      <div className="booking-review-header"><User size={18} /> Customer Details</div>
                       <div className="booking-review-row">
                         <span className="booking-review-label">Name</span>
                         <span className="booking-review-value">{formData.customer_full_name}</span>
@@ -743,28 +835,51 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                     </div>
 
                     <div className="booking-review-card" style={{ marginBottom: '1rem' }}>
-                      <div className="booking-review-header"><ShieldCheck size={18}/> Uploaded Documents</div>
+                      <div className="booking-review-header"><ShieldCheck size={18} /> Uploaded Documents</div>
                       <div className="booking-review-row">
                         <span className="booking-review-label">Valid ID</span>
-                        <span className="booking-review-value" style={{ color: '#2E7D32' }}><Check size={14}/> {files.valid_id?.name}</span>
+                        <span className="booking-review-value" style={{ color: '#2E7D32' }}><Check size={14} /> {files.valid_id?.name}</span>
                       </div>
                       <div className="booking-review-row">
                         <span className="booking-review-label">Driver's License</span>
-                        <span className="booking-review-value" style={{ color: '#2E7D32' }}><Check size={14}/> {files.drivers_license?.name}</span>
+                        <span className="booking-review-value" style={{ color: '#2E7D32' }}><Check size={14} /> {files.drivers_license?.name}</span>
                       </div>
                     </div>
 
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', backgroundColor: '#F9FAFB', borderRadius: '8px', border: '1px solid #E5E7EB', cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={confirmed} 
-                        onChange={(e) => setConfirmed(e.target.checked)}
+                    <label
+                      ref={checkboxRef}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '1rem',
+                        backgroundColor: checkboxError ? '#FEF2F2' : '#F9FAFB',
+                        borderRadius: '8px',
+                        border: checkboxError ? '2px solid #DC2626' : '1px solid #E5E7EB',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={confirmed}
+                        onChange={(e) => {
+                          setConfirmed(e.target.checked);
+                          if (e.target.checked) {
+                            setCheckboxError(false);
+                          }
+                        }}
                         style={{ width: '18px', height: '18px' }}
                       />
                       <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--black)' }}>
                         I confirm that the information and uploaded documents are accurate.
                       </span>
                     </label>
+                    {checkboxError && (
+                      <p style={{ margin: '0.4rem 0 0', fontSize: '0.8rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                        ⚠ Please check the box to proceed.
+                      </p>
+                    )}
                   </div>
                 )}
               </form>
@@ -787,13 +902,13 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                   Cancel
                 </button>
               )}
-              
+
               {currentStep < 4 ? (
                 <button type="button" onClick={handleNext} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   Next <ChevronRight size={18} />
                 </button>
               ) : (
-                <button type="submit" form="step-booking-form" className="btn-primary" disabled={loading || !confirmed} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button type="submit" form="step-booking-form" className="btn-primary" disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   {loading ? <Loader2 className="animate-spin" size={20} /> : 'Submit Booking Request'}
                 </button>
               )}
@@ -801,6 +916,17 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
           </>
         )}
       </div>
+
+      <ConfirmActionModal
+        isOpen={showCheckboxAlertModal}
+        title="Confirmation Required"
+        message="Please check the box to proceed."
+        variant="warning"
+        confirmLabel="OK"
+        cancelLabel="Close"
+        onConfirm={() => setShowCheckboxAlertModal(false)}
+        onCancel={() => setShowCheckboxAlertModal(false)}
+      />
     </div>
   );
 };

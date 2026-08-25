@@ -3,9 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import { Loader2, Calendar, MapPin, ChevronRight, CreditCard, CheckCircle2, Navigation, RotateCcw, Info, X, ExternalLink, FileText, User, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { bookingsApi, getApiErrorMessage } from '../services/api';
+import { bookingsApi, filesApi, getApiErrorMessage } from '../services/api';
+import VehicleImage from '../components/VehicleImage';
 import { useToast } from '../components/ToastProvider';
 import ConfirmActionModal from '../components/ConfirmActionModal';
+import FilePreviewModal from '../components/FilePreviewModal';
 
 const MyBookingsPage: React.FC = () => {
   const toast = useToast();
@@ -64,6 +66,7 @@ const MyBookingsPage: React.FC = () => {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [details, setDetails] = useState<any>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{ id: string; title: string } | null>(null);
 
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
   const [cancelTargetStatus, setCancelTargetStatus] = useState<string>('');
@@ -165,21 +168,21 @@ const MyBookingsPage: React.FC = () => {
                     gap: '1rem'
                   }}>
                     <div style={{ display: 'flex', gap: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      {/* Vehicle Image Placeholder */}
-                      <div style={{ 
-                        width: '150px', 
-                        height: '100px', 
-                        backgroundColor: 'var(--soft-beige)', 
+                      {/* Vehicle Image */}
+                      <div style={{
+                        width: '150px',
+                        height: '100px',
+                        backgroundColor: 'var(--soft-beige)',
                         borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
+                        overflow: 'hidden',
+                        flexShrink: 0
                       }}>
-                        {booking.vehicle.imageUrl ? (
-                          <img src={booking.vehicle.imageUrl} alt={booking.vehicle.model} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }} />
-                        ) : (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--muted-mauve)' }}>{booking.vehicle.brand}</span>
-                        )}
+                        <VehicleImage
+                          vehicleId={booking.vehicle.id}
+                          brand={booking.vehicle.brand}
+                          model={booking.vehicle.model}
+                          className="w-full h-full rounded"
+                        />
                       </div>
 
                       {/* Info */}
@@ -422,8 +425,13 @@ const MyBookingsPage: React.FC = () => {
                         <ShieldCheck size={18} /> Vehicle Details
                       </h3>
                       <div style={{ display: 'flex', gap: '1.5rem' }}>
-                        <div style={{ width: '100px', height: '70px', backgroundColor: 'var(--soft-beige)', borderRadius: '8px', flexShrink: 0 }}>
-                           {details.vehicle.imageUrl && <img src={details.vehicle.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />}
+                        <div style={{ width: '100px', height: '70px', backgroundColor: 'var(--soft-beige)', borderRadius: '8px', flexShrink: 0, overflow: 'hidden' }}>
+                          <VehicleImage
+                            vehicleId={details.vehicle.id}
+                            brand={details.vehicle.brand}
+                            model={details.vehicle.model}
+                            className="w-full h-full rounded"
+                          />
                         </div>
                         <div>
                           <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{details.vehicle.brand} {details.vehicle.model}</div>
@@ -471,11 +479,13 @@ const MyBookingsPage: React.FC = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {details.documents && details.documents.length > 0 ? (
                           details.documents.map((doc: any) => (
-                            <a 
+                            <button 
                               key={doc.id} 
-                              href={`http://localhost:4000/api/files/${doc.id}`} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
+                              type="button"
+                              onClick={() => setPreviewFile({
+                                id: doc.id,
+                                title: doc.documentType === 'valid_id' ? 'Valid ID' : 'Driver\'s License'
+                              })}
                               style={{ 
                                 display: 'flex', 
                                 alignItems: 'center', 
@@ -484,13 +494,16 @@ const MyBookingsPage: React.FC = () => {
                                 backgroundColor: 'var(--gray-50)', 
                                 borderRadius: '10px',
                                 border: '1px solid var(--gray-100)',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                cursor: 'pointer',
+                                width: '100%',
+                                textAlign: 'left'
                               }}
                             >
                               <FileText size={18} color="var(--warm-taupe)" />
                               <span style={{ fontSize: '0.85rem', fontWeight: 600, flex: 1 }}>{doc.documentType === 'valid_id' ? 'Valid ID' : 'Driver\'s License'}</span>
                               <ExternalLink size={14} color="var(--gray-400)" />
-                            </a>
+                            </button>
                           ))
                         ) : (
                           <div style={{ fontSize: '0.85rem', color: 'var(--status-error)' }}>No documents found.</div>
@@ -633,6 +646,16 @@ const MyBookingsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* File Preview Modal */}
+      {previewFile && (
+        <FilePreviewModal
+          fileId={previewFile.id}
+          title={previewFile.title}
+          onClose={() => setPreviewFile(null)}
+          fetchFileBlob={filesApi.getProtectedFileBlob}
+        />
       )}
     </>
   );

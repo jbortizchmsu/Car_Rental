@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 import { NotificationType } from './notification-types';
-import { createTypedNotification } from './notifications';
+import { createTypedNotification, createTypedUserNotification } from './notifications';
 
 /**
  * Background jobs for operational alerts
@@ -8,46 +8,96 @@ import { createTypedNotification } from './notifications';
  */
 
 /**
- * Check for overdue rentals (past return date, rental still active)
- * Runs every 15 minutes
+ * Check for overdue rentals (past return date, rental still active).
+ * Grace period: 30 minutes before any alert fires.
+ * Three severity tiers — each uses a distinct notification type so the 24hr
+ * dedup guard fires independently per tier.
+ * Runs every 15 minutes.
  */
 export async function checkOverdueRentals() {
   try {
-    const overdueRentals = await prisma.booking.findMany({
-      where: {
-        AND: [
-          { endDate: { lt: new Date() } },                    // Past return date
-          { status: 'ACTIVE' },                               // Still active
-          { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } // Within last 30 days to avoid spam of very old bookings
-        ]
-      },
-      include: {
-        customer: { select: { fullName: true } },
-        vehicle: { select: { licensePlate: true, brand: true, model: true } }
-      }
+    const now = new Date();
+    const gracePeriod    = new Date(now.getTime() - 30 * 60 * 1000);        // 30 min
+    const tier2Threshold = new Date(now.getTime() - 3 * 60 * 60 * 1000);   // 3 hours
+    const tier3Threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);  // 24 hours
+
+    const getHoursOverdue = (endDate: Date): number =>
+      Math.floor((now.getTime() - endDate.getTime()) / (1000 * 60 * 60));
+
+    const baseInclude = {
+      customer: { select: { fullName: true } },
+      vehicle:  { select: { licensePlate: true, brand: true, model: true } }
+    };
+
+    // Tier 1 — 30 min to 3 hrs overdue (Warning)
+    const tier1 = await prisma.booking.findMany({
+      where: { status: 'ACTIVE', endDate: { lt: gracePeriod, gte: tier2Threshold } },
+      include: baseInclude
     });
 
-    for (const rental of overdueRentals) {
-      const hoursOverdue = Math.floor(
-        (Date.now() - rental.endDate.getTime()) / (1000 * 60 * 60)
-      );
+    // Tier 2 — 3 hrs to 24 hrs overdue (Urgent)
+    const tier2 = await prisma.booking.findMany({
+      where: { status: 'ACTIVE', endDate: { lt: tier2Threshold, gte: tier3Threshold } },
+      include: baseInclude
+    });
 
+    // Tier 3 — more than 24 hrs overdue (Critical)
+    const tier3 = await prisma.booking.findMany({
+      where: { status: 'ACTIVE', endDate: { lt: tier3Threshold } },
+      include: baseInclude
+    });
+
+    for (const booking of tier1) {
+      const hoursOverdue = getHoursOverdue(booking.endDate);
       await createTypedNotification(
-        NotificationType.BOOKING_RETURN_OVERDUE,
-        {
-          bookingId: rental.id,
-          customerName: rental.customer?.fullName || 'Unknown',
-          licensePlate: rental.vehicle?.licensePlate || 'Unknown',
-          hoursOverdue,
-          vehicleName: `${rental.vehicle?.brand} ${rental.vehicle?.model}`
-        },
-        rental.id,
-        'booking'
+        NotificationType.BOOKING_RETURN_OVERDUE_T1,
+        { bookingId: booking.id, customerName: booking.customer?.fullName || 'Unknown', licensePlate: booking.vehicle?.licensePlate || 'Unknown', hoursOverdue },
+        booking.id, 'booking'
+      );
+      await createTypedUserNotification(
+        booking.customerId,
+        NotificationType.BOOKING_RETURN_OVERDUE_T1,
+        'Return Reminder',
+        `Your rental of ${booking.vehicle?.brand} ${booking.vehicle?.model} (${booking.vehicle?.licensePlate}) was due ${hoursOverdue} hour${hoursOverdue !== 1 ? 's' : ''} ago. Please return the vehicle as soon as possible to avoid additional charges.`,
+        booking.id, 'booking'
       );
     }
 
-    if (overdueRentals.length > 0) {
-      console.log(`[ALERT] Found ${overdueRentals.length} overdue rentals`);
+    for (const booking of tier2) {
+      const hoursOverdue = getHoursOverdue(booking.endDate);
+      await createTypedNotification(
+        NotificationType.BOOKING_RETURN_OVERDUE_T2,
+        { bookingId: booking.id, customerName: booking.customer?.fullName || 'Unknown', licensePlate: booking.vehicle?.licensePlate || 'Unknown', hoursOverdue },
+        booking.id, 'booking'
+      );
+      await createTypedUserNotification(
+        booking.customerId,
+        NotificationType.BOOKING_RETURN_OVERDUE_T2,
+        'Urgent: Return Overdue',
+        `URGENT: Your rental of ${booking.vehicle?.brand} ${booking.vehicle?.model} is now ${hoursOverdue} hours overdue. Please contact us immediately or return the vehicle now.`,
+        booking.id, 'booking'
+      );
+    }
+
+    for (const booking of tier3) {
+      const hoursOverdue = getHoursOverdue(booking.endDate);
+      await createTypedNotification(
+        NotificationType.BOOKING_RETURN_OVERDUE_T3,
+        { bookingId: booking.id, customerName: booking.customer?.fullName || 'Unknown', licensePlate: booking.vehicle?.licensePlate || 'Unknown', hoursOverdue },
+        booking.id, 'booking'
+      );
+      await createTypedUserNotification(
+        booking.customerId,
+        NotificationType.BOOKING_RETURN_OVERDUE_T3,
+        'Critical: Return Overdue',
+        `CRITICAL: Your rental of ${booking.vehicle?.brand} ${booking.vehicle?.model} is more than 24 hours overdue. Additional charges are being applied. Please contact us immediately.`,
+        booking.id, 'booking'
+      );
+    }
+
+    const total = tier1.length + tier2.length + tier3.length;
+    if (total > 0) {
+      console.log(`[ALERT] Overdue rentals — T1: ${tier1.length}, T2: ${tier2.length}, T3: ${tier3.length}`);
     }
   } catch (error) {
     console.error('Error checking overdue rentals:', error);

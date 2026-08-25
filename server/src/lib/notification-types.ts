@@ -2,10 +2,13 @@
 
 export enum NotificationType {
   // Booking notifications
-  BOOKING_PICKUP_DUE = 'BOOKING_PICKUP_DUE',         // Pickup in ≤24 hrs, no confirmed payment
-  BOOKING_RETURN_OVERDUE = 'BOOKING_RETURN_OVERDUE', // Past return date, rental still active
-  BOOKING_EXPIRED = 'BOOKING_EXPIRED',               // Booking auto-cancelled due to no payment
-  NEW_BOOKING_REQUEST = 'NEW_BOOKING_REQUEST',       // Customer submitted new booking
+  BOOKING_PICKUP_DUE = 'BOOKING_PICKUP_DUE',                     // Pickup in ≤24 hrs, no confirmed payment
+  BOOKING_RETURN_OVERDUE = 'BOOKING_RETURN_OVERDUE',             // Past return date, rental still active (legacy)
+  BOOKING_RETURN_OVERDUE_T1 = 'BOOKING_RETURN_OVERDUE_T1',       // 30 min – 3 hrs overdue
+  BOOKING_RETURN_OVERDUE_T2 = 'BOOKING_RETURN_OVERDUE_T2',       // 3 hrs – 24 hrs overdue
+  BOOKING_RETURN_OVERDUE_T3 = 'BOOKING_RETURN_OVERDUE_T3',       // 24+ hrs overdue
+  BOOKING_EXPIRED = 'BOOKING_EXPIRED',                           // Booking auto-cancelled due to no payment
+  NEW_BOOKING_REQUEST = 'NEW_BOOKING_REQUEST',                   // Customer submitted new booking
 
   // Payment notifications
   PAYMENT_SUBMITTED = 'PAYMENT_SUBMITTED',           // Customer submitted payment proof
@@ -26,6 +29,9 @@ export enum NotificationType {
 // Type to icon mapping (for frontend)
 export const notificationTypeIcons: Record<NotificationType, string> = {
   [NotificationType.BOOKING_RETURN_OVERDUE]: 'AlertTriangle',
+  [NotificationType.BOOKING_RETURN_OVERDUE_T1]: 'AlertTriangle',
+  [NotificationType.BOOKING_RETURN_OVERDUE_T2]: 'AlertTriangle',
+  [NotificationType.BOOKING_RETURN_OVERDUE_T3]: 'AlertTriangle',
   [NotificationType.BOOKING_PICKUP_DUE]: 'Clock',
   [NotificationType.PAYMENT_SUBMITTED]: 'CreditCard',
   [NotificationType.GEOFENCE_BREACH]: 'AlertTriangle',
@@ -40,8 +46,11 @@ export const notificationTypeIcons: Record<NotificationType, string> = {
 
 // Type to color mapping (Bootstrap color classes or hex)
 export const notificationTypeColors: Record<NotificationType, string> = {
-  [NotificationType.BOOKING_RETURN_OVERDUE]: '#DC2626', // red
-  [NotificationType.BOOKING_PICKUP_DUE]: '#F59E0B',     // amber/orange
+  [NotificationType.BOOKING_RETURN_OVERDUE]: '#DC2626',   // red (legacy)
+  [NotificationType.BOOKING_RETURN_OVERDUE_T1]: '#F59E0B', // amber — warning
+  [NotificationType.BOOKING_RETURN_OVERDUE_T2]: '#EA580C', // orange-red — urgent
+  [NotificationType.BOOKING_RETURN_OVERDUE_T3]: '#DC2626', // red — critical
+  [NotificationType.BOOKING_PICKUP_DUE]: '#F59E0B',        // amber/orange
   [NotificationType.PAYMENT_SUBMITTED]: '#0284C7',      // blue
   [NotificationType.GEOFENCE_BREACH]: '#DC2626',        // red
   [NotificationType.GPS_SIGNAL_LOST]: '#DC2626',        // red
@@ -63,6 +72,24 @@ export function generateNotificationMessage(
       return {
         title: 'Rental Overdue',
         message: `Rental #${context.bookingId} — Customer is ${context.hoursOverdue} hours overdue. Vehicle: ${context.licensePlate}`
+      };
+
+    case NotificationType.BOOKING_RETURN_OVERDUE_T1:
+      return {
+        title: 'Rental Overdue',
+        message: `Rental #${context.bookingId} — ${context.customerName} is ${context.hoursOverdue} hour(s) overdue. Vehicle: ${context.licensePlate}.`
+      };
+
+    case NotificationType.BOOKING_RETURN_OVERDUE_T2:
+      return {
+        title: 'Urgent: Rental Overdue',
+        message: `URGENT: Rental #${context.bookingId} — ${context.customerName} is ${context.hoursOverdue} hours overdue. Vehicle: ${context.licensePlate}. Immediate action required.`
+      };
+
+    case NotificationType.BOOKING_RETURN_OVERDUE_T3:
+      return {
+        title: 'Critical: Rental Overdue',
+        message: `CRITICAL: Rental #${context.bookingId} — ${context.customerName} is MORE THAN 24 HOURS overdue. Vehicle: ${context.licensePlate}. Immediate escalation required.`
       };
 
     case NotificationType.BOOKING_PICKUP_DUE:
