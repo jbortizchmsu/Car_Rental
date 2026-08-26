@@ -5,7 +5,7 @@ import {
   Search, RefreshCw, Loader2,
   MapPin, AlertCircle, Layers, 
   Navigation as NavIcon, Activity, History, CheckCircle,
-  Zap, Info, MoreHorizontal, Download, User, X, Maximize2, Map as MapIcon
+  Zap, Info, MoreHorizontal, Download, User, X, Map as MapIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../services/api';
