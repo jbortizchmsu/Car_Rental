@@ -90,10 +90,24 @@ router.post('/:id/submit', authenticate, upload.single('proof'), async (req: Aut
 
 // Admin: Get Payments by Status
 router.get('/list', authenticate, authorizeAdmin, async (req, res) => {
-  const { status } = req.query;
+  const { status, startDate, endDate, paymentType } = req.query;
   try {
+    const whereClause: any = {};
+    if (status) whereClause.status = status as string;
+    if (paymentType && paymentType !== 'ALL') {
+      whereClause.paymentType = { contains: paymentType as string };
+    }
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) whereClause.createdAt.gte = new Date(startDate as string);
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = end;
+      }
+    }
     const payments = await prisma.payment.findMany({
-      where: status ? { status: status as string } : {},
+      where: whereClause,
       include: { 
         booking: { 
           include: { 
@@ -155,9 +169,20 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
 
 // Admin: Get Cash at Pickup (RESERVED bookings waiting for balance)
 router.get('/cash-at-pickup', authenticate, authorizeAdmin, async (req, res) => {
+  const { startDate, endDate } = req.query;
   try {
+    const whereClause: any = { status: 'RESERVED' };
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) whereClause.createdAt.gte = new Date(startDate as string);
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = end;
+      }
+    }
     const bookings = await prisma.booking.findMany({
-      where: { status: 'RESERVED' },
+      where: whereClause,
       include: { 
         customer: { select: { fullName: true, email: true, phoneNumber: true } },
         vehicle: true,
@@ -336,6 +361,33 @@ router.get('/booking/:id', authenticate, async (req: AuthRequest, res) => {
 // Admin: Get Payments with Aggregates per Status
 router.get('/admin/aggregates', authenticate, authorizeAdmin, async (req, res) => {
   try {
+    const { startDate, endDate, paymentType } = req.query;
+
+    const paymentWhere: any = {};
+    if (paymentType && paymentType !== 'ALL') {
+      paymentWhere.paymentType = { contains: paymentType as string };
+    }
+    if (startDate || endDate) {
+      paymentWhere.createdAt = {};
+      if (startDate) paymentWhere.createdAt.gte = new Date(startDate as string);
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        paymentWhere.createdAt.lte = end;
+      }
+    }
+
+    const reservedWhere: any = { status: 'RESERVED' };
+    if (startDate || endDate) {
+      reservedWhere.createdAt = {};
+      if (startDate) reservedWhere.createdAt.gte = new Date(startDate as string);
+      if (endDate) {
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        reservedWhere.createdAt.lte = end;
+      }
+    }
+
     const [
       pendingCount,
       verifiedCount,
@@ -345,21 +397,22 @@ router.get('/admin/aggregates', authenticate, authorizeAdmin, async (req, res) =
       rejectedAmount,
       thisMonthAmount,
       lastMonthAmount,
-      outstandingBookings
+      outstandingBookings,
+      reservedBookings
     ] = await Promise.all([
-      prisma.payment.count({ where: { status: 'SUBMITTED' } }),
-      prisma.payment.count({ where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } } }),
-      prisma.payment.count({ where: { status: 'REJECTED' } }),
+      prisma.payment.count({ where: { ...paymentWhere, status: 'SUBMITTED' } }),
+      prisma.payment.count({ where: { ...paymentWhere, status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } } }),
+      prisma.payment.count({ where: { ...paymentWhere, status: 'REJECTED' } }),
       prisma.payment.aggregate({
-        where: { status: 'SUBMITTED' },
+        where: { ...paymentWhere, status: 'SUBMITTED' },
         _sum: { amount: true }
       }),
       prisma.payment.aggregate({
-        where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } },
+        where: { ...paymentWhere, status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } },
         _sum: { amount: true }
       }),
       prisma.payment.aggregate({
-        where: { status: 'REJECTED' },
+        where: { ...paymentWhere, status: 'REJECTED' },
         _sum: { amount: true }
       }),
       prisma.payment.aggregate({
@@ -389,8 +442,18 @@ router.get('/admin/aggregates', authenticate, authorizeAdmin, async (req, res) =
             none: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } }
           }
         }
+      }),
+      prisma.booking.findMany({
+        where: reservedWhere,
+        include: { payments: true }
       })
     ]);
+
+    const cashPickupsCount = reservedBookings.length;
+    const cashPickupsAmount = reservedBookings.reduce((sum, b) => {
+      const paid = (b.payments || []).reduce((pSum, p) => pSum + Number(p.amount), 0);
+      return sum + Math.max(0, Number(b.totalAmount) - paid);
+    }, 0);
 
     const thisMonthValue = Number(thisMonthAmount._sum.amount) || 0;
     const lastMonthValue = Number(lastMonthAmount._sum.amount) || 0;
@@ -402,12 +465,14 @@ router.get('/admin/aggregates', authenticate, authorizeAdmin, async (req, res) =
       counts: {
         pending: pendingCount,
         verified: verifiedCount,
-        rejected: rejectedCount
+        rejected: rejectedCount,
+        cashPickups: cashPickupsCount
       },
       amounts: {
         pending: Number(pendingAmount._sum.amount) || 0,
         verified: Number(verifiedAmount._sum.amount) || 0,
-        rejected: Number(rejectedAmount._sum.amount) || 0
+        rejected: Number(rejectedAmount._sum.amount) || 0,
+        cashPickups: cashPickupsAmount
       },
       revenue: {
         thisMonth: thisMonthValue,

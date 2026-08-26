@@ -39,6 +39,24 @@ const AdminPaymentVerificationPage: React.FC = () => {
     return () => setPageHeader({});
   }, [setPageHeader]);
 
+  const getDateParams = (filter: string) => {
+    const now = new Date();
+    if (filter === 'today') {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return { startDate: today.toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+    }
+    if (filter === 'week') {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+      return { startDate: weekAgo.toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+    }
+    if (filter === 'month') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { startDate: monthStart.toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+    }
+    return {};
+  };
+
   useEffect(() => {
     fetchPayments();
   }, [activeTab, searchQuery, dateRangeFilter, paymentTypeFilter]);
@@ -47,11 +65,14 @@ const AdminPaymentVerificationPage: React.FC = () => {
     try {
       setLoading(true);
 
+      const dateParams = getDateParams(dateRangeFilter);
+      const queryParams = { ...dateParams, paymentType: paymentTypeFilter };
+
       const [paymentsRes, aggregatesRes] = await Promise.all([
         activeTab === 'CASH_AT_PICKUP'
-          ? paymentsApi.getCashAtPickup()
-          : paymentsApi.getPaymentsByStatus(activeTab),
-        paymentsApi.getAggregates()
+          ? paymentsApi.getCashAtPickup(dateParams)
+          : paymentsApi.getPaymentsByStatus(activeTab, queryParams),
+        paymentsApi.getAggregates(queryParams)
       ]);
 
       const normalizedData = Array.isArray(paymentsRes.data)
@@ -73,7 +94,8 @@ const AdminPaymentVerificationPage: React.FC = () => {
       toast.success('Exporting...', 'CSV export in progress');
 
       const statusFilter = activeTab === 'CASH_AT_PICKUP' ? undefined : activeTab;
-      const response = await paymentsApi.exportCSV(statusFilter);
+      const dateParams = getDateParams(dateRangeFilter);
+      const response = await paymentsApi.exportCSV(statusFilter, { ...dateParams, paymentType: paymentTypeFilter });
 
       const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -199,6 +221,10 @@ const AdminPaymentVerificationPage: React.FC = () => {
   const filteredPayments = useMemo(() => {
     let filtered = payments;
 
+    if (paymentTypeFilter && paymentTypeFilter !== 'ALL' && !isCashMode) {
+      filtered = filtered.filter((p: any) => p.paymentType?.includes(paymentTypeFilter));
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((p: any) => {
@@ -209,7 +235,7 @@ const AdminPaymentVerificationPage: React.FC = () => {
     }
 
     return filtered;
-  }, [payments, searchQuery, isCashMode]);
+  }, [payments, searchQuery, paymentTypeFilter, isCashMode]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -399,18 +425,23 @@ const AdminPaymentVerificationPage: React.FC = () => {
 
           {/* Cash Pickups Card */}
           <div
+            onClick={() => setActiveTab('CASH_AT_PICKUP')}
             style={{
               padding: '1.25rem',
-              backgroundColor: 'white',
+              backgroundColor: activeTab === 'CASH_AT_PICKUP' ? 'var(--gray-50)' : 'white',
               borderRadius: '12px',
               border: '1px solid var(--gray-200)',
               borderLeft: '4px solid #0284C7',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: activeTab === 'CASH_AT_PICKUP' ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.04)'
             }}
+            onMouseEnter={(e) => { if (activeTab !== 'CASH_AT_PICKUP') e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }}
+            onMouseLeave={(e) => { if (activeTab !== 'CASH_AT_PICKUP') e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; }}
           >
             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Cash Pickups</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>0</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0284C7' }}>₱0.00</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>{aggregates.counts?.cashPickups || 0}</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0284C7' }}>₱{Number(aggregates.amounts?.cashPickups || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
       )}
@@ -421,8 +452,8 @@ const AdminPaymentVerificationPage: React.FC = () => {
           {/* Total Verified Card */}
           <div style={{ padding: '1.5rem', backgroundColor: 'white', borderRadius: '12px', border: '1px solid var(--gray-200)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Total Verified</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16A34A', marginBottom: '0.5rem' }}>₱{Number(aggregates.revenue?.thisMonth || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>All verified payments</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#16A34A', marginBottom: '0.5rem' }}>₱{Number(aggregates.amounts?.verified || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>Verified revenue total</div>
           </div>
 
           {/* This Month Card */}

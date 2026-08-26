@@ -106,18 +106,15 @@ export const paymentsApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   getSubmitted: () => api.get('/payments/list?status=SUBMITTED'),
-  getPaymentsByStatus: (status: string) => api.get(`/payments/list?status=${status}`),
-  getCashAtPickup: () => api.get('/payments/cash-at-pickup'),
+  getPaymentsByStatus: (status?: string, params?: Record<string, any>) => api.get('/payments/list', { params: { status, ...params } }),
+  getCashAtPickup: (params?: Record<string, any>) => api.get('/payments/cash-at-pickup', { params }),
   confirmCash: (bookingId: string, amount: number) => api.post(`/payments/booking/${bookingId}/confirm-cash`, { amount }),
   verify: (id: string) => api.post(`/payments/${id}/verify`),
   reject: (id: string, reason: string) => api.post(`/payments/${id}/reject`, { reason }),
   getBookingForPayment: (id: string) => api.get(`/payments/booking/${id}`),
   getPaymentSummary: () => api.get('/payments/summary'),
-  getAggregates: () => api.get('/payments/admin/aggregates'),
-  exportCSV: (status?: string) => {
-    const url = status ? `/payments/export?status=${status}` : '/payments/export';
-    return api.get(url, { responseType: 'blob' });
-  }
+  getAggregates: (params?: Record<string, any>) => api.get('/payments/admin/aggregates', { params }),
+  exportCSV: (status?: string, params?: Record<string, any>) => api.get('/payments/export', { params: { status, ...params }, responseType: 'blob' }),
 };
 
 // Admin Reports API
