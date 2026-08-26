@@ -31,7 +31,7 @@ const PORT = process.env.PORT || 4000;
 // Allowed CORS origins — set ALLOWED_ORIGINS in .env for production (comma-separated)
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:3000', 'https://car-rental-project-5a58.vercel.app'];
 
 const app = express();
 const httpServer = createServer(app);
