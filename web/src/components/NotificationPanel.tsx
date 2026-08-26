@@ -29,7 +29,7 @@ const NotificationPanel: React.FC = () => {
     fetchNotifications();
 
     // Socket.io connection
-    const socket = io('http://localhost:4000');
+    const socket = io(import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:4000');
 
     if (user) {
       socket.emit('join-room', user.id);
@@ -48,7 +48,7 @@ const NotificationPanel: React.FC = () => {
   const fetchNotifications = async () => {
     try {
       const response = await notificationsApi.getNotifications();
-      const notifList = Array.isArray(response.data) ? response.data :  response.data?.data || [];
+      const notifList = Array.isArray(response.data) ? response.data : response.data?.data || [];
       setNotifications(notifList);
       setUnreadCount(notifList.filter((n: any) => !n.isRead).length);
     } catch (error) {
