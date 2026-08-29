@@ -409,12 +409,6 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'valid_id' | 'drivers_license') => {
-    if (e.target.files && e.target.files[0]) {
-      setFiles({ ...files, [type]: e.target.files[0] });
-    }
-  };
-
   const clearFieldError = (field: string) => {
     setFieldErrors(prev => {
       if (!prev[field]) return prev;
