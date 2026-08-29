@@ -1,0 +1,269 @@
+id,title,description,preconditions,postconditions,tags,priority,severity,type,behavior,automation,status,is_flaky,layer,steps_type,steps_actions,steps_result,steps_data,milestone_id,milestone,suite_id,suite_parent_id,suite,suite_without_cases,parameters,is_muted
+,,,,,,,,,,,,,,,,,,,,1,,User Management and Authentication Module,1,,
+,,,,,,,,,,,,,,,,,,,,2,,Booking and Reservation Module,1,,
+,,,,,,,,,,,,,,,,,,,,3,,Dynamic Pricing Module,1,,
+,,,,,,,,,,,,,,,,,,,,4,,Secure Payment Module,1,,
+,,,,,,,,,,,,,,,,,,,,5,,Real-Time Tracking and Monitoring Module,1,,
+,,,,,,,,,,,,,,,,,,,,6,,Geomapping and Security Module,1,,
+,,,,,,,,,,,,,,,,,,,,7,,Asset and Maintenance Management Module,1,,
+,,,,,,,,,,,,,,,,,,,,8,,Analytics and Reporting Dashboard Module,1,,
+,,,,,,,,,,,,,,,,,,,,9,,System Settings and Notifications Module,1,,
+1,UC-01: Customer Registration - Successful Account Creation,Verify that a new Customer can register and create a personal account in the car rental management system with valid credentials and document upload.,The customer is on the registration page (/register) and has valid identity documents ready.,"A new customer account is saved in the database, role assigned as customer, and account is ready for login.","auth,registration,customer",high,critical,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open the Car Rental application registration page.
+2. Enter full name, email address, phone number, and password.
+3. Upload valid Driver's License / ID image (<5MB).
+4. Click the Create Account button.","1. Registration form is displayed with all input fields.
+2. Input fields accept valid formatted data.
+3. Image preview is displayed successfully.
+4. Registration succeeds, toast notification displays success, and user is redirected to Login page.","1. URL: /register
+2. Name: John Doe, Email: john@example.com, Phone: 09171234567, Pass: Customer123!
+3. File: driver_license.png
+4. Button: Submit",,Release 1.0,1,,User Management and Authentication Module,,,no
+2,UC-01-NEG: Customer Registration - Duplicate Email / Invalid Input,Verify that registration fails gracefully when duplicate email or invalid phone/password format is provided.,The customer is on the registration page and email customer@example.com already exists in the system.,No duplicate user is created in DB and clear error message is shown to user.,"auth,registration,negative",medium,major,functional,negative,to-be-automated,actual,no,e2e,classic,"1. Navigate to registration page.
+2. Enter existing email customer@example.com.
+3. Fill in password and click Create Account.","1. Registration page is active.
+2. Form accepts input.
+3. System rejects request with error message: Email already registered.","1. URL: /register
+2. Existing Email: customer@example.com
+3. Action: Submit",,Release 1.0,1,,User Management and Authentication Module,,,no
+3,UC-02: User Login - Customer and Admin Authentication,Verify that registered Customers and Owners/Admins can securely log in using valid credentials and receive appropriate role-based JWT session tokens.,User account exists in system (Admin or Customer).,"Valid JWT token stored, role-based dashboard displayed (Customer home or Admin overview).","auth,login,rbac",high,blocker,smoke,positive,automated,actual,no,e2e,classic,"1. Access the Login page (/login).
+2. Input registered email and password.
+3. Click the Log In button.","1. Login interface loads.
+2. Credentials validated against password hash.
+3. User authenticated, session token generated, redirected to role landing page.","1. URL: /login
+2. Admin: admin@jdcarrental.com / Admin123! | Customer: customer@jdcarrental.com / Customer123!
+3. Action: Submit Login",,Release 1.0,1,,User Management and Authentication Module,,,no
+4,UC-02-NEG: User Login - Incorrect Credentials Failure,Verify system behavior when user enters invalid email or incorrect password.,Login page is loaded.,"Session is not created, user stays on login page with error toast message.","auth,login,negative",medium,normal,security,negative,automated,actual,no,e2e,classic,"1. Open Login page.
+2. Enter unregistered email or wrong password.
+3. Click Log In.","1. Login page displayed.
+2. Authentication fails.
+3. Error toast: Invalid credentials.","1. URL: /login
+2. Email: user@wrong.com, Pass: wrongpass
+3. Action: Click Login",,Release 1.0,1,,User Management and Authentication Module,,,no
+5,UC-03: User Log Out - Terminate Session,"Verify that a logged-in Customer or Owner can log out, clearing local storage session tokens and returning to public home page.",User is actively logged into the system.,"Session token cleared, protected routes locked, user redirected to homepage.","auth,logout,session",medium,normal,functional,positive,automated,actual,no,e2e,classic,"1. Click on User Profile / Avatar menu.
+2. Select Log Out option.
+3. Attempt to navigate back to protected route via URL bar.","1. Profile dropdown displays Logout button.
+2. Session terminated, local storage cleared, redirected to home page.
+3. Protected page access redirected back to Login.","1. Menu: Profile Dropdown
+2. Action: Click Logout
+3. Test URL: /admin/vehicles",,Release 1.0,1,,User Management and Authentication Module,,,no
+6,UC-04: Manage User Accounts & Roles,Verify that Customer can update personal profile info and Owner can manage user accounts and roles.,User is logged in (Customer on Profile page or Admin on User Roles page).,Updated account info or role assignments saved in User DB.,"auth,profile,admin",medium,normal,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Navigate to Customer Profile / Admin User Roles page.
+2. Modify profile details (phone, name) or update role.
+3. Click Save Changes.","1. Page displays editable user details.
+2. Form validates input changes.
+3. Data updated successfully in database.","1. Route: /profile or /admin/users
+2. New Phone: 09189876543
+3. Action: Click Save",,Release 1.0,1,,User Management and Authentication Module,,,no
+7,UC-05: Browse & Filter Available Vehicles,"Verify that Customer can explore fleet listing, filter by vehicle category (Sedan, SUV, Luxury, Van), transmission, and search by brand/model.",Customer is on Vehicles catalog page.,Filtered list of active available vehicles displayed.,"booking,vehicles,catalog",high,major,functional,positive,automated,actual,no,gui,classic,"1. Open Vehicles catalog page (/vehicles).
+2. Select Category filter (e.g. SUV).
+3. Type search keyword (e.g. Toyota).
+4. Click on a vehicle card.","1. Vehicle list loads with images and daily rates.
+2. Category filter updates displayed vehicles.
+3. Search filters results dynamically.
+4. Opens detailed vehicle preview modal/page.","1. URL: /vehicles
+2. Category: SUV
+3. Query: Toyota
+4. Action: Click Vehicle Card",,Release 1.0,2,,Booking and Reservation Module,,,no
+8,UC-06: Submit Rental Booking Request,"Verify that Customer can select pickup/return dates, time, destination, self-drive option, and submit a new booking request.",Customer is logged in and selects an Available vehicle.,"Booking record created in DB with status PENDING, estimated total price calculated.","booking,reservation,customer",high,critical,smoke,positive,to-be-automated,actual,no,e2e,classic,"1. Click Book Now on selected vehicle.
+2. Select Pickup Date/Time and Return Date/Time.
+3. Enter pickup location / destination details.
+4. Click Submit Booking Request.","1. Booking modal/form opens.
+2. System computes duration and total rental price.
+3. Form validates required fields.
+4. Booking saved as PENDING, confirmation toast shown, listed under My Bookings.","1. Vehicle: Toyota Camry
+2. Pickup: Tomorrow 09:00 AM, Return: +3 Days 09:00 AM
+3. Destination: Dumaguete City
+4. Action: Submit Booking",,Release 1.0,2,,Booking and Reservation Module,,,no
+9,UC-06-NEG: Book Vehicle with Overlapping Dates,Verify system prevents booking a vehicle for dates where it is already reserved or rented.,Vehicle is already booked for date range Oct 10 - Oct 15.,"System rejects request, preventing double booking.","booking,validation,negative",high,critical,functional,negative,automated,actual,no,api,classic,"1. Select vehicle already reserved from Oct 10 to Oct 15.
+2. Choose pickup date Oct 12 and return Oct 14.
+3. Attempt to submit booking.","1. Form displayed.
+2. System checks calendar availability.
+3. Validation error: Vehicle is unavailable for selected dates.","1. Pickup: Oct 12, Return: Oct 14
+2. Action: Submit",,Release 1.0,2,,Booking and Reservation Module,,,no
+10,UC-07: Approve Rental Booking Request,Verify that Owner/Admin can review pending booking requests and approve them.,"Admin logged in, pending booking exists in Booking Requests dashboard.","Booking status updated to APPROVED, customer notified to proceed with payment.","booking,approval,admin",high,critical,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Admin Booking Requests page (/admin/bookings).
+2. Review pending booking details and customer ID document.
+3. Click Approve button.","1. Pending booking list displayed.
+2. Document preview loads correctly.
+3. Status updates to APPROVED, real-time notification sent to customer.","1. Route: /admin/bookings
+2. Booking ID: #1001
+3. Action: Click Approve",,Release 1.0,2,,Booking and Reservation Module,,,no
+11,UC-08: Reject Rental Booking Request with Reason,Verify that Owner/Admin can reject a booking request and specify a reason for rejection.,Pending booking request exists.,"Booking status updated to REJECTED, rejection reason recorded, customer notified.","booking,rejection,admin",medium,major,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Navigate to Admin Booking Requests page.
+2. Click Reject button on pending booking.
+3. Enter rejection reason in popup modal and confirm.","1. Booking list loaded.
+2. Rejection modal opens prompting for reason.
+3. Booking status changed to REJECTED with reason stored, notification sent.","1. Booking ID: #1002
+2. Reason: Invalid identification document
+3. Action: Confirm Rejection",,Release 1.0,2,,Booking and Reservation Module,,,no
+12,UC-09: Cancel Pending Booking Request,Verify that Customer can cancel their own PENDING booking request before admin approval/payment.,Customer logged in with a PENDING booking under My Bookings.,"Booking status updated to CANCELLED, vehicle availability released.","booking,cancel,customer",medium,normal,functional,positive,automated,actual,no,e2e,classic,"1. Open My Bookings page (/my-bookings).
+2. Locate PENDING booking.
+3. Click Cancel Booking button and confirm.","1. Active bookings listed.
+2. Confirmation modal appears.
+3. Booking status updated to CANCELLED, toast notification displayed.","1. Route: /my-bookings
+2. Booking ID: #1003
+3. Action: Confirm Cancel",,Release 1.0,2,,Booking and Reservation Module,,,no
+13,UC-10: Release Vehicle to Customer,"Verify that Owner can release the vehicle to customer upon pickup after verifying payment, recording initial odometer reading.",Booking status is PAYMENT_VERIFIED / CONFIRMED.,"Booking status updated to RENTED / ACTIVE, vehicle status updated to RENTED, tracking session started.","booking,release,rented",high,critical,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Admin Active Rentals page.
+2. Click Release Vehicle button for approved booking.
+3. Input initial odometer reading (km) and handover notes.
+4. Confirm release.","1. Active rental queue displayed.
+2. Release modal opens with odometer input.
+3. Booking transitions to RENTED, vehicle marked as RENTED in fleet.","1. Booking ID: #1004
+2. Initial Odometer: 15420 km
+3. Action: Confirm Release",,Release 1.0,2,,Booking and Reservation Module,,,no
+14,UC-11: Close Rental & Process Vehicle Return,"Verify that Owner can finalize rental closure when vehicle is returned, recording ending odometer, fuel level, damage reports, and extra fees.",Rental status is RENTED / ACTIVE.,"Booking status updated to COMPLETED / CLOSED, vehicle status restored to AVAILABLE, odometer updated.","booking,return,close",high,critical,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Navigate to Active Rentals / Close Rental page.
+2. Click Return Vehicle button.
+3. Input return odometer reading, inspect vehicle for damages.
+4. Calculate final charges and click Close Rental.","1. Rental closure interface displayed.
+2. Odometer difference computed automatically.
+3. Rental marked COMPLETED, vehicle status restored to AVAILABLE.","1. Rental ID: #1004
+2. Return Odometer: 15750 km (330 km driven)
+3. Action: Finalize Closure",,Release 1.0,2,,Booking and Reservation Module,,,no
+15,UC-12: Compute Dynamic Rental Price,"Verify that system automatically calculates total rental price based on base rate, duration discounts, peak season surcharges, and demand multipliers.",Pricing rules exist in system database.,Calculated rental rate accurately reflects base rate plus active rule modifiers.,"pricing,dynamic,calculation",high,major,functional,positive,automated,actual,no,api,classic,"1. Select a vehicle with base rate ₱2,500/day.
+2. Select booking duration of 7 days (triggers >5 day duration discount rule).
+3. Check breakdown in price summary.","1. Vehicle selected.
+2. Duration computed as 7 days.
+3. Base total ₱17,500 modified by 10% duration discount = ₱15,750 final total.","1. Base Rate: ₱2500
+2. Duration: 7 Days
+3. Expected Discount: 10%",,Release 1.0,3,,Dynamic Pricing Module,,,no
+16,UC-13: Create Dynamic Pricing Rule,"Verify that Owner/Admin can create a new pricing rule (e.g. Weekend Surcharge, Holiday Rate, Long-term Discount).",Admin logged in on Dynamic Pricing page (/admin/pricing).,New pricing rule saved in Pricing Rules DB table.,"pricing,rules,admin",medium,normal,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Admin Dynamic Pricing page.
+2. Click Add Pricing Rule button.
+3. Enter Rule Name, Type (Multiplier/Discount), Adjustment Percentage/Amount, Start/End dates.
+4. Click Save Rule.","1. Pricing rules management dashboard displayed.
+2. Add rule modal opens.
+3. Rule validated and saved successfully, listed in active rules table.","1. Rule: Peak Season Surcharge
+2. Type: Surcharge +15%
+3. Dates: Dec 20 - Jan 05
+4. Action: Save Rule",,Release 1.0,3,,Dynamic Pricing Module,,,no
+17,UC-14: Manage & Toggle Dynamic Pricing Rules,"Verify that Owner can enable, disable, edit, or delete existing pricing rules.",Pricing rules exist in system.,"Rule status updated (active/inactive) or rule deleted, affecting subsequent price computations.","pricing,management,toggle",medium,normal,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Locate existing pricing rule on Dynamic Pricing page.
+2. Toggle switch to disable rule.
+3. Edit rule multiplier value and click update.","1. Rules list loaded.
+2. Rule status changes to Inactive.
+3. Updated multiplier saved in DB.","1. Rule ID: PR-01
+2. Toggle: Inactive
+3. Action: Save",,Release 1.0,3,,Dynamic Pricing Module,,,no
+18,UC-15: Process GCash Online Payment Proof Submission,Verify that Customer can upload GCash payment receipt screenshot and enter reference number for approved booking.,Booking is in APPROVED state awaiting payment.,Payment record and proof document saved in DB with status PAYMENT_SUBMITTED.,"payment,gcash,proof",high,critical,smoke,positive,to-be-automated,actual,no,e2e,classic,"1. Navigate to Payment Submission page (/payment/:bookingId).
+2. View GCash QR Code and total amount due.
+3. Enter GCash Reference Number (13 digits).
+4. Upload receipt screenshot image.
+5. Click Submit Payment Proof.","1. Payment page displays booking summary & GCash details.
+2. Form validates 13-digit reference number format.
+3. File upload preview displays image.
+4. Submission succeeds, status changes to PAYMENT_SUBMITTED.","1. Booking ID: #1001
+2. GCash Ref: 1002938475612
+3. Proof File: gcash_receipt.jpg
+4. Action: Submit Proof",,Release 1.0,4,,Secure Payment Module,,,no
+19,UC-15-VERIFY: Admin Payment Verification & Approval,"Verify that Owner/Admin can inspect submitted GCash receipt proof and reference number, then verify payment.",Booking has submitted payment proof pending admin review.,"Payment status updated to VERIFIED, booking status changed to CONFIRMED.","payment,verification,admin",high,critical,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Admin Payment Verification page (/admin/payments).
+2. Click View Proof modal for submitted payment.
+3. Verify GCash reference number against transaction log.
+4. Click Approve Payment button.","1. Payment verification table lists pending proofs.
+2. Proof modal displays high-resolution image modal.
+3. Payment marked as VERIFIED, booking confirmed, receipt notification sent.","1. Payment ID: PAY-501
+2. Action: Approve Payment",,Release 1.0,4,,Secure Payment Module,,,no
+20,UC-15-CASH: Record In-Person Cash Payment,Verify that Owner/Admin can manually record an in-person cash payment or remaining balance collection at vehicle pickup.,Active booking or pickup in progress.,"Cash transaction recorded in Payment DB, balance updated.","payment,cash,admin",medium,major,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Admin Payments page.
+2. Click Record Cash Payment button.
+3. Select booking, enter amount received, and notes.
+4. Submit cash payment entry.","1. Payment modal opens.
+2. Amount validated against remaining balance.
+3. Cash payment saved, receipt generated.","1. Booking ID: #1004
+2. Cash Amount: ₱5,000
+3. Action: Record Cash",,Release 1.0,4,,Secure Payment Module,,,no
+21,UC-16: Automated Vehicle GPS Telemetry Tracking,"Verify that system receives automated GPS location updates from active rental vehicles and logs latitude, longitude, speed, timestamp, and heading.",Vehicle rental is ACTIVE / RENTED and mobile GPS tracking is active.,GPS coordinate points saved in Vehicle_Locations table with valid timestamp.,"gps,tracking,telemetry",high,critical,functional,positive,automated,actual,no,api,classic,"1. Mobile app / GPS device sends HTTP/Socket payload with coords (Lat: 10.3156, Lng: 123.8854).
+2. Backend validates payload parameters.
+3. System stores record in database location log.","1. API endpoint /api/gps/telemetry receives request.
+2. Coordinates validated within Negros Island operating area.
+3. Entry written to DB, broadcasted to Admin Live Map via Socket.io.","1. Payload: { vehicleId: ""v-101"", lat: 10.3156, lng: 123.8854, speed: 45 }
+2. Expected Response: 200 OK { success: true }",,Release 1.0,5,,Real-Time Tracking and Monitoring Module,,,no
+22,UC-17: Detect & Handle Geofence Boundary Violation,"Verify that system automatically detects when a vehicle moves outside its assigned geofence boundary, logs a violation, computes penalty fee, and sends real-time alerts.",Active geofence zone defined for rented vehicle. Vehicle transmits GPS coordinates outside defined polygon.,"Violation alert record created, real-time alert sent to Admin & Customer, violation fee attached to booking.","gps,geofence,violation,alert",high,critical,functional,positive,automated,actual,no,e2e,classic,"1. Transmit GPS coordinate packet outside allowed geofence boundary.
+2. System position check algorithm evaluates coordinates against boundary polygon.
+3. Violation engine triggers alert generation.","1. Telemetry ingested.
+2. Position check returns OUT_OF_BOUNDS.
+3. Geofence_Alert record logged, high-priority notification toast & sound alert triggered on Admin Map dashboard.","1. Vehicle: Toyota Vios
+2. Geofence Zone: Dumaguete City Limits
+3. Test Coords: Lat 10.5000, Lng 123.5000 (Outside)",,Release 1.0,5,,Real-Time Tracking and Monitoring Module,,,no
+23,UC-18: View Live Vehicle Map & Telemetry Dashboard,Verify that Owner/Admin can view real-time locations of all active fleet vehicles on an interactive Leaflet/Mapbox hybrid map.,Admin logged in on Live Map page (/admin/map or /admin/gps).,"Interactive map renders vehicle marker icons, active alerts sidebar, telemetry replay line.","gps,map,live-monitoring",high,major,functional,positive,to-be-automated,actual,no,gui,classic,"1. Navigate to Admin Live Map page (/admin/map).
+2. View map centered on active fleet in Negros Island.
+3. Click on a vehicle marker pin to inspect live telemetry (speed, fuel, driver, location).
+4. Select historical telemetry replay date filter.","1. Map interface loads with hybrid satellite/labels mode.
+2. Live pins update position without full page refresh.
+3. Popup info card displays live vehicle stats.
+4. Route polyline rendered for route replay.","1. URL: /admin/map
+2. Filter: Active Rentals Only
+3. Action: Click Marker Pin",,Release 1.0,5,,Real-Time Tracking and Monitoring Module,,,no
+24,UC-19: Configure & Set Geofence Allowed Zone,Verify that Owner/Admin can draw or set a geofence polygon boundary for a specific vehicle or fleet zone.,Admin logged in on Geofence Management page (/admin/geofence).,Geofence boundary coordinates stored in Geofences table and assigned to target vehicle.,"geomapping,geofence,setup",high,major,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Geofence Management page (/admin/geofence).
+2. Select target vehicle from fleet dropdown.
+3. Draw boundary polygon or enter radius center on map interface.
+4. Click Save Geofence Zone.","1. Geofence editor interface opens with map controls.
+2. Polygon vertices captured dynamically.
+3. Boundary validated, saved, polygon rendered on map as active zone.","1. Zone Name: Negros Oriental Safe Zone
+2. Vertices: [(10.30, 123.00), (10.35, 123.10), ...]
+3. Action: Click Save Zone",,Release 1.0,6,,Geomapping and Security Module,,,no
+25,UC-20: Remove or Deactivate Geofence Zone,Verify that Owner/Admin can deactivate and remove an existing geofence zone assigned to a vehicle.,Active geofence zone exists.,"Geofence status set to inactive/deleted, boundary shape removed from map view.","geomapping,geofence,remove",medium,normal,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Geofence Management page.
+2. Select existing geofence zone from active list.
+3. Click Deactivate / Delete Zone button and confirm.","1. Active geofences list loaded.
+2. Confirmation dialog displayed.
+3. Zone deactivated, map boundary overlay cleared, success toast shown.","1. Zone ID: GEO-102
+2. Action: Confirm Delete",,Release 1.0,6,,Geomapping and Security Module,,,no
+26,UC-21: Add New Vehicle to the Fleet,"Verify that Owner/Admin can register a new vehicle with brand, model, year, license plate, category, daily rate, seats, and photo.",Admin logged in on Fleet Management page (/admin/fleet or /admin/vehicles).,New vehicle record added to DB with status AVAILABLE.,"asset,fleet,vehicle-add",high,critical,smoke,positive,to-be-automated,actual,no,e2e,classic,"1. Open Fleet Management page.
+2. Click Add New Vehicle button.
+3. Fill in Brand (Toyota), Model (Fortuner), Year (2024), License Plate (ABC 1234), Daily Rate (₱3,500), Capacity (7).
+4. Upload vehicle image file.
+5. Click Save Vehicle.","1. Fleet table displays current vehicles.
+2. Modal form validates plate format and required fields.
+3. Image saved to storage.
+4. Vehicle record saved, status set to AVAILABLE, displayed in fleet catalog.","1. Brand: Toyota, Model: Fortuner, Plate: ABC 1234
+2. Daily Rate: 3500, Seats: 7
+3. Action: Submit Form",,Release 1.0,7,,Asset and Maintenance Management Module,,,no
+27,UC-22: Send Vehicle to Maintenance Shop,"Verify that Owner can send a vehicle to shop, changing status to UNDER_MAINTENANCE and hiding it from public rental search.",Vehicle is registered and currently in AVAILABLE status.,"Vehicle status changed to UNDER_MAINTENANCE, excluded from customer search results.","asset,maintenance,status",high,major,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Admin Maintenance page (/admin/maintenance).
+2. Select vehicle with service due indicator.
+3. Click Send to Shop button and confirm.","1. Maintenance dashboard lists fleet service indicators.
+2. Confirmation modal appears.
+3. Vehicle status updated to UNDER_MAINTENANCE, removed from available rentals catalog.","1. Vehicle: Nissan Navara (Odometer > Service Due Interval)
+2. Action: Send to Shop",,Release 1.0,7,,Asset and Maintenance Management Module,,,no
+28,UC-23: Log Maintenance Entry & Service History,"Verify that Owner can log detailed maintenance work (Oil Change, Tire Replacement, Engine Repair, Service Cost, Service Odometer).",Vehicle is marked UNDER_MAINTENANCE.,"Maintenance record created in Maintenance_Logs table, last oil change odometer updated.","asset,maintenance,log",medium,normal,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Maintenance page.
+2. Click Log Maintenance Entry button for vehicle in shop.
+3. Select Service Type (Oil Change), enter Cost (₱4,500), Service Odometer (25,000 km), and Work Description.
+4. Click Save Log.","1. Maintenance entry modal displays.
+2. Form validates numeric inputs for cost and odometer.
+3. Maintenance record saved, vehicle service history updated.","1. Service: Synthetic Oil Change & Filter
+2. Cost: 4500, ODO: 25000
+3. Action: Save Entry",,Release 1.0,7,,Asset and Maintenance Management Module,,,no
+29,UC-24: Mark Vehicle as Available After Maintenance,Verify that Owner can restore vehicle status from UNDER_MAINTENANCE back to AVAILABLE after service completion.,Vehicle is currently in UNDER_MAINTENANCE status with logged service entry.,"Vehicle status updated to AVAILABLE, restored to public rental listing.","asset,maintenance,restore",high,major,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Maintenance page.
+2. Click Mark as Available button on completed service entry.
+3. Confirm action in modal.","1. Vehicle maintenance card displays Mark Available button.
+2. Modal confirmation verified.
+3. Vehicle status set back to AVAILABLE, relisted in public booking catalog.","1. Vehicle ID: V-103
+2. Action: Confirm Restore",,Release 1.0,7,,Asset and Maintenance Management Module,,,no
+30,UC-25: View Executive Analytics Dashboard,"Verify that Owner can view high-level business intelligence dashboard with total revenue, active rentals, fleet utilization rate, and pending tasks.",Admin logged in on Reports & Analytics page (/admin/reports or /admin/dashboard).,"Dashboard renders summary KPI cards, revenue charts, and operational summary.","analytics,dashboard,kpi",high,major,functional,positive,automated,actual,no,gui,classic,"1. Open Admin Dashboard / Analytics page (/admin/reports).
+2. View summary KPI cards (Total Fleet, Active Rentals, Total Revenue, Maintenance Alerts).
+3. Change date range filter (This Month, Last 30 Days, Year to Date).","1. Page loads aggregated metrics from DB tables.
+2. Charts (Revenue trend line, Vehicle Utilization bar chart) render properly.
+3. Date range filter updates metrics dynamically.","1. URL: /admin/reports
+2. Date Filter: Last 30 Days
+3. Action: Select Filter",,Release 1.0,8,,Analytics and Reporting Dashboard Module,,,no
+31,UC-26: View Detailed Operational & Financial Reports,"Verify that Owner can view structured reports for Bookings, Revenue Breakdown, Geofence Violations, and Maintenance Expenses.",Admin logged in on Reports page.,Structured data table of selected report type rendered with pagination and search.,"analytics,reports,data-table",medium,normal,functional,positive,to-be-automated,actual,no,gui,classic,"1. Open Reports page.
+2. Select Report Type tab (e.g. Revenue Ledger or Violation Logs).
+3. Search or filter by date / vehicle.","1. Tab switches report table view.
+2. Data populated accurately from backend aggregated endpoint.
+3. Search filters table rows instantly.","1. Tab: Revenue Ledger
+2. Search: GCash
+3. Action: Filter",,Release 1.0,8,,Analytics and Reporting Dashboard Module,,,no
+32,UC-27: Export Reports to CSV / PDF File,Verify that Owner can export generated report data as downloadable CSV or PDF file.,Report data is displayed on page.,Report file generated and downloaded to user's device.,"analytics,export,csv,pdf",medium,normal,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Select desired date range and report dataset.
+2. Click Export Report button.
+3. Select export format (CSV or PDF).
+4. Confirm download.","1. Export menu opens.
+2. File generation process triggered.
+3. Browser initiates file download (e.g. revenue_report_2026.csv).","1. Format: CSV
+2. Date Range: 2026-08-01 to 2026-08-31
+3. Action: Click Download",,Release 1.0,8,,Analytics and Reporting Dashboard Module,,,no
+33,UC-28: Configure System Settings & Operating Parameters,"Verify that Admin can configure core system parameters, business profile, GCash payment account numbers, default map center, and geofence defaults.",Admin logged in on Admin Settings page (/admin/settings).,System settings stored in SYSTEM_SETTINGS table and applied globally.,"settings,admin,config",medium,major,functional,positive,to-be-automated,actual,no,e2e,classic,"1. Open Admin Settings page (/admin/settings).
+2. Update GCash Merchant Number, Operating Hours, and Base Map Coordinates (Negros Island: 10.3000, 123.0000).
+3. Click Save System Settings.","1. Settings form loaded with current config values.
+2. Form validates input formats.
+3. Settings saved in DB, success toast displayed.","1. GCash No: 09171234567
+2. Map Center: 10.3000, 123.0000
+3. Action: Save Settings",,Release 1.0,9,,System Settings and Notifications Module,,,no
+34,UC-29: Real-Time In-App & Push Notifications,"Verify that Customer and Admin receive real-time Socket.io and stored in-app notifications for booking status changes, payment updates, and geofence alerts.",User is active in app with notification drawer.,"Notification badge count updates, notification item added to user notification drawer.","notifications,realtime,socket",medium,normal,functional,positive,automated,actual,no,e2e,classic,"1. Trigger system event (e.g. Booking Approved or Geofence Violation).
+2. Observe recipient top navigation bar.
+3. Click Bell icon to open notification drawer.","1. Event triggers Socket.io notification payload.
+2. Unread notification badge count increments in real time.
+3. Drawer displays alert title, timestamp, and action link.","1. Event: Booking #1001 Approved
+2. Recipient: customer@jdcarrental.com
+3. Action: Open Drawer",,Release 1.0,9,,System Settings and Notifications Module,,,no

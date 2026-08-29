@@ -1,28 +1,20 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const APP_NAME = process.env.APP_NAME || 'JD Car Rental';
 const APP_URL  = process.env.APP_URL  || 'http://localhost:5173';
 
-if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-  throw new Error('FATAL: GMAIL_USER and GMAIL_APP_PASSWORD must be set in .env');
+const resendApiKey = process.env.RESEND_API_KEY;
+if (!resendApiKey) {
+  console.warn('⚠️ RESEND_API_KEY is not set in environment variables. Email sending may fail.');
+} else {
+  console.log('✅ Resend HTTP API ready — email service initialized');
 }
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
+const resend = new Resend(resendApiKey);
 
-// Verify SMTP connection on startup — logs result to console immediately
-transporter.verify((error) => {
-  if (error) {
-    console.error('❌ Gmail SMTP connection failed:', error.message);
-  } else {
-    console.log('✅ Gmail SMTP ready — email service connected');
-  }
-});
+const FROM_EMAIL = process.env.FROM_EMAIL
+  ? (process.env.FROM_EMAIL.includes('<') ? process.env.FROM_EMAIL : `"${APP_NAME}" <${process.env.FROM_EMAIL}>`)
+  : `"${APP_NAME}" <onboarding@resend.dev>`;
 
 export const sendPasswordResetEmail = async (
   email: string,
@@ -31,8 +23,8 @@ export const sendPasswordResetEmail = async (
 ): Promise<void> => {
   const resetUrl = `${APP_URL}/reset-password?token=${token}`;
 
-  await transporter.sendMail({
-    from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
     to: email,
     subject: `Reset your password — ${APP_NAME}`,
     html: `
@@ -57,6 +49,10 @@ export const sendPasswordResetEmail = async (
       </div>
     `,
   });
+
+  if (error) {
+    throw new Error(`Resend email error: ${error.message}`);
+  }
 };
 
 export const sendVerificationEmail = async (
@@ -67,8 +63,8 @@ export const sendVerificationEmail = async (
   console.log('Attempting to send email to:', email);
   const verificationUrl = `${APP_URL}/verify-email?token=${token}`;
 
-  await transporter.sendMail({
-    from: `"${APP_NAME}" <${process.env.GMAIL_USER}>`,
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
     to: email,
     subject: `Verify your email — ${APP_NAME}`,
     html: `
@@ -92,4 +88,9 @@ export const sendVerificationEmail = async (
       </div>
     `,
   });
+
+  if (error) {
+    throw new Error(`Resend email error: ${error.message}`);
+  }
 };
+
