@@ -1,13 +1,272 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, Upload, Calendar, MapPin, User, ShieldCheck, AlertCircle, X, CheckCircle2, Calculator, Car, FileText, ChevronRight, ChevronLeft, Check, Tag } from 'lucide-react';
+import { Loader2, Upload, Calendar, MapPin, User, ShieldCheck, AlertCircle, X, CheckCircle2, Calculator, Car, FileText, ChevronRight, ChevronLeft, Check, Tag, Eye, RefreshCw } from 'lucide-react';
 import { bookingsApi, pricingApi, vehiclesApi } from '../services/api';
 import { NEGROS_LOCATIONS, NEGROS_OCC, NEGROS_OR } from '../utils/negros-locations';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
 import ConfirmActionModal from './ConfirmActionModal';
+
+interface DocumentUploadCardProps {
+  title: string;
+  file: File | null;
+  accept?: string;
+  hasError?: boolean;
+  onChange: (file: File) => void;
+  onClearError?: () => void;
+}
+
+const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
+  title,
+  file,
+  accept = "image/jpeg,image/png,image/webp,application/pdf",
+  hasError,
+  onChange,
+  onClearError
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleCardClick = () => {
+    if (!file) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onChange(e.target.files[0]);
+      if (onClearError) onClearError();
+    }
+  };
+
+  const handlePreviewClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  };
+
+  const handleClosePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+  };
+
+  const handleChangeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    fileInputRef.current?.click();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  return (
+    <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept={accept}
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
+      {!file ? (
+        <div
+          className="booking-upload-card"
+          style={hasError ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
+          onClick={handleCardClick}
+        >
+          <div className="booking-upload-icon">
+            <Upload />
+          </div>
+          <div className="booking-upload-info" style={{ flex: 1 }}>
+            <h5>{title}</h5>
+            <p>Click to browse or drag file</p>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="booking-upload-card"
+          style={{
+            cursor: 'default',
+            justifyContent: 'space-between',
+            borderColor: '#bbf7d0',
+            backgroundColor: '#f0fdf4',
+            padding: '0.9rem 0.85rem',
+            gap: '0.65rem',
+            overflow: 'hidden',
+            ...(hasError ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : {})
+          }}
+        >
+          {/* Zone 1: Preview Zone (Clickable) */}
+          <div
+            onClick={handlePreviewClick}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              flex: 1,
+              cursor: 'pointer',
+              minWidth: 0,
+              overflow: 'hidden'
+            }}
+            title="Click to preview file"
+          >
+            <div className="booking-upload-icon" style={{ backgroundColor: '#dcfce7', flexShrink: 0, width: '40px', height: '40px' }}>
+              <CheckCircle2 color="#2E7D32" size={22} />
+            </div>
+            <div className="booking-upload-info" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', minWidth: 0 }}>
+                <h5 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--black)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                  {title}
+                </h5>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: '#15803d',
+                    backgroundColor: '#dcfce7',
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '2px',
+                    flexShrink: 0
+                  }}
+                >
+                  <Eye size={11} /> Preview
+                </span>
+              </div>
+              <div
+                className="booking-upload-filename"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  marginTop: '0.2rem',
+                  fontSize: '0.8rem',
+                  minWidth: 0
+                }}
+              >
+                <Check size={13} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Zone 2: Change Button */}
+          <button
+            type="button"
+            onClick={handleChangeClick}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.4rem 0.65rem',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: 'var(--gray-700)',
+              backgroundColor: 'var(--white)',
+              border: '1px solid var(--gray-300)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              flexShrink: 0,
+              marginLeft: '0.25rem',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <RefreshCw size={12} /> Change
+          </button>
+        </div>
+      )}
+
+      {/* Local Preview Modal */}
+      {previewUrl && file && (
+        <div className="modal-overlay" style={{ zIndex: 2200 }} onClick={handleClosePreview}>
+          <div
+            className="modal-container"
+            style={{
+              maxWidth: '800px',
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: 'var(--white)',
+              borderRadius: '16px',
+              overflow: 'hidden'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header" style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)' }}>
+              <div>
+                <h3 className="modal-title" style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Document Preview</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--muted-mauve)', margin: '2px 0 0' }}>{file.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClosePreview}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', color: 'var(--gray-500)' }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div
+              className="modal-content"
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1.5rem',
+                backgroundColor: '#f8fafc',
+                minHeight: '350px'
+              }}
+            >
+              {file.type.startsWith('image/') ? (
+                <img
+                  src={previewUrl}
+                  alt={file.name}
+                  style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+              ) : file.type === 'application/pdf' ? (
+                <iframe
+                  src={previewUrl}
+                  title={file.name}
+                  style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <FileText size={56} color="var(--muted-mauve)" style={{ margin: '0 auto 1rem' }} />
+                  <p style={{ fontWeight: 600 }}>{file.name}</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)', marginTop: '0.25rem' }}>
+                    Preview is available for JPG, PNG, WEBP, and PDF files.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 interface BookingRequestModalProps {
   isOpen: boolean;
@@ -751,39 +1010,25 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                     <div className="booking-form-grid">
                       <div ref={el => { fieldRefs.current['valid_id'] = el; }} className="booking-modal-field">
                         <label>1. Valid ID (Passport / Gov ID)</label>
-                        <div className="booking-upload-card" style={fieldErrors.valid_id ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}>
-                          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => { handleFileChange(e, 'valid_id'); clearFieldError('valid_id'); }} />
-                          <div className="booking-upload-icon">
-                            {files.valid_id ? <CheckCircle2 color="#2E7D32" /> : <Upload />}
-                          </div>
-                          <div className="booking-upload-info">
-                            <h5>Upload Valid ID</h5>
-                            {files.valid_id ? (
-                              <div className="booking-upload-filename"><Check size={14} /> {files.valid_id.name}</div>
-                            ) : (
-                              <p>Click to browse or drag file</p>
-                            )}
-                          </div>
-                        </div>
+                        <DocumentUploadCard
+                          title="Upload Valid ID"
+                          file={files.valid_id}
+                          hasError={!!fieldErrors.valid_id}
+                          onChange={(file) => setFiles(prev => ({ ...prev, valid_id: file }))}
+                          onClearError={() => clearFieldError('valid_id')}
+                        />
                         {fieldErrors.valid_id && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.valid_id}</p>}
                       </div>
 
                       <div ref={el => { fieldRefs.current['drivers_license'] = el; }} className="booking-modal-field">
                         <label>2. Driver's License</label>
-                        <div className="booking-upload-card" style={fieldErrors.drivers_license ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}>
-                          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => { handleFileChange(e, 'drivers_license'); clearFieldError('drivers_license'); }} />
-                          <div className="booking-upload-icon">
-                            {files.drivers_license ? <CheckCircle2 color="#2E7D32" /> : <Upload />}
-                          </div>
-                          <div className="booking-upload-info">
-                            <h5>Upload Driver's License</h5>
-                            {files.drivers_license ? (
-                              <div className="booking-upload-filename"><Check size={14} /> {files.drivers_license.name}</div>
-                            ) : (
-                              <p>Click to browse or drag file</p>
-                            )}
-                          </div>
-                        </div>
+                        <DocumentUploadCard
+                          title="Upload Driver's License"
+                          file={files.drivers_license}
+                          hasError={!!fieldErrors.drivers_license}
+                          onChange={(file) => setFiles(prev => ({ ...prev, drivers_license: file }))}
+                          onClearError={() => clearFieldError('drivers_license')}
+                        />
                         {fieldErrors.drivers_license && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.drivers_license}</p>}
                       </div>
                     </div>
