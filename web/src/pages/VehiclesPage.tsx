@@ -174,7 +174,7 @@ const VehiclesPage: React.FC = () => {
           ) : (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
               gap: '2.5rem'
             }}>
               {filteredVehicles.map((vehicle) => (

@@ -425,6 +425,14 @@ h5 {
   width: 100%;
 }
 
+.h-full {
+  height: 100%;
+}
+
+.object-cover {
+  object-fit: cover;
+}
+
 .max-w-full {
   max-w: 100%;
 }

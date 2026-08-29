@@ -26,6 +26,7 @@ const VehicleImage = ({ vehicleId, brand, model, className }: VehicleImageProps)
       src={imageUrl}
       alt={`${brand} ${model}`}
       className={`object-cover ${className ?? ''}`}
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       onError={() => setError(true)}
     />
   );
