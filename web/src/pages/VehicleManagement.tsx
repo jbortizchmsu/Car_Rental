@@ -247,6 +247,53 @@ const VehicleManagement: React.FC = () => {
     }
   };
 
+  const handleDailyRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputEl = e.target;
+    const rawValue = inputEl.value;
+    const selectionStart = inputEl.selectionStart ?? rawValue.length;
+
+    // Count how many digits exist to the left of the cursor
+    let digitCountToLeft = 0;
+    for (let i = 0; i < selectionStart; i++) {
+      if (/[0-9]/.test(rawValue[i])) {
+        digitCountToLeft++;
+      }
+    }
+
+    // Extract digits only (whole numbers, no decimals)
+    const digitsOnly = rawValue.replace(/[^0-9]/g, '');
+    const numericValue = digitsOnly ? parseInt(digitsOnly, 10) : NaN;
+
+    setFormData(prev => ({ ...prev, dailyRate: numericValue }));
+
+    // Determine target cursor location after thousand-separator formatting
+    const formattedNew = numericValue && !Number.isNaN(numericValue) && numericValue !== 0
+      ? numericValue.toLocaleString('en-US')
+      : '';
+
+    let newCursorPos = 0;
+    let currentDigitCount = 0;
+    for (let i = 0; i < formattedNew.length; i++) {
+      if (currentDigitCount === digitCountToLeft) {
+        newCursorPos = i;
+        break;
+      }
+      if (/[0-9]/.test(formattedNew[i])) {
+        currentDigitCount++;
+      }
+      if (currentDigitCount === digitCountToLeft) {
+        newCursorPos = i + 1;
+        break;
+      }
+    }
+    if (digitCountToLeft === 0) newCursorPos = 0;
+    if (digitCountToLeft >= digitsOnly.length) newCursorPos = formattedNew.length;
+
+    requestAnimationFrame(() => {
+      inputEl.setSelectionRange(newCursorPos, newCursorPos);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -265,7 +312,7 @@ const VehicleManagement: React.FC = () => {
       return toast.warning('Invalid License Plate', msg);
     }
     
-    if ((formData.dailyRate ?? 0) <= 0) {
+    if (!formData.dailyRate || Number.isNaN(formData.dailyRate) || formData.dailyRate <= 0) {
       return toast.warning('Invalid pricing', 'Daily rate must be greater than zero.');
     }
 
@@ -748,7 +795,16 @@ const VehicleManagement: React.FC = () => {
                         <label className="form-label">Daily Base Rate (₱)</label>
                         <div style={{ position: 'relative' }}>
                           <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--gray-400)' }}>₱</span>
-                          <input type="number" required min="1" className="form-input" style={{ paddingLeft: '2.5rem' }} value={Number.isNaN(formData.dailyRate) ? '' : formData.dailyRate} onChange={(e) => setFormData({...formData, dailyRate: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
+                          <input 
+                            type="text" 
+                            inputMode="numeric"
+                            required 
+                            className="form-input" 
+                            style={{ paddingLeft: '2.5rem' }} 
+                            value={Number.isNaN(formData.dailyRate) || formData.dailyRate === 0 ? '' : formData.dailyRate.toLocaleString('en-US')} 
+                            onChange={handleDailyRateChange} 
+                            placeholder="0"
+                          />
                         </div>
                       </div>
                       <div className="form-group">
