@@ -53,27 +53,19 @@ router.get('/:id/image', async (req, res) => {
     }
 
     // Local file
-    const normalizedPath = imageUrl.replace(/\\/g, '/');
-    console.log('Normalized path:', normalizedPath);
+    const cleanPath = imageUrl.replace(/\\/g, '/').replace(/^\.?\/?/, '');
+    console.log('Clean path:', cleanPath);
 
-    // Support paths with or without the .uploads/ prefix
-    const filePath = path.resolve(
-      __dirname, '..', '..',
-      normalizedPath.startsWith('.uploads') ? normalizedPath : `.uploads/${normalizedPath}`
-    );
-    console.log('Resolved filePath:', filePath);
-    console.log('__dirname:', __dirname);
-    console.log('File exists:', fs.existsSync(filePath));
+    let filePath = path.resolve(process.cwd(), cleanPath.startsWith('uploads/') ? cleanPath : `uploads/${cleanPath}`);
 
-    const uploadsRoot = path.resolve(__dirname, '..', '..', '.uploads');
-    console.log('uploadsRoot:', uploadsRoot);
-    console.log('Path within uploads root:', filePath.startsWith(uploadsRoot));
-
-    // Security boundary check
-    if (!filePath.startsWith(uploadsRoot)) {
-      console.log('SECURITY: Path outside uploads root — blocked');
-      return res.status(403).json({ error: 'Access denied' });
+    // Fallback check for legacy .uploads directory if not found in uploads
+    if (!fs.existsSync(filePath)) {
+      const fallbackPath = path.resolve(process.cwd(), cleanPath.startsWith('uploads/') ? cleanPath.replace(/^uploads\//, '.uploads/') : `.uploads/${cleanPath}`);
+      if (fs.existsSync(fallbackPath)) {
+        filePath = fallbackPath;
+      }
     }
+    console.log('Resolved filePath:', filePath);
 
     if (!fs.existsSync(filePath)) {
       console.log('FILE NOT FOUND at:', filePath);
@@ -176,7 +168,7 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
     // If a file was uploaded, normalize backslashes so path.join resolves correctly on all platforms
     let finalImageUrl = imageUrl;
     if (req.file) {
-      finalImageUrl = req.file.path.replace(/\\/g, '/');
+      finalImageUrl = req.file.path.replace(/\\/g, '/').replace(/^\.?\/?/, '');
     }
 
     const vehicle = await prisma.vehicle.create({
@@ -289,7 +281,7 @@ router.put('/:id', authenticate, authorizeAdmin, vehicleImageUpload.single('vehi
 
     // Only update imageUrl when a new file was uploaded — never overwrite with body value
     if (req.file) {
-      data.imageUrl = req.file.path.replace(/\\/g, '/');
+      data.imageUrl = req.file.path.replace(/\\/g, '/').replace(/^\.?\/?/, '');
       console.log('Image uploaded, saving imageUrl:', data.imageUrl);
     } else {
       // Remove imageUrl from data entirely so Prisma leaves the existing DB value unchanged

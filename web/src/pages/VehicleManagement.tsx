@@ -669,7 +669,7 @@ const VehicleManagement: React.FC = () => {
                       </div>
                       <div className="form-group">
                         <label className="form-label">Year</label>
-                        <input type="number" required className="form-input" value={formData.year} onChange={(e) => setFormData({...formData, year: parseInt(e.target.value)})} />
+                        <input type="number" required className="form-input" value={Number.isNaN(formData.year) ? '' : formData.year} onChange={(e) => setFormData({...formData, year: e.target.value === '' ? NaN : parseInt(e.target.value)})} />
                       </div>
                       <div className="form-group">
                         <label className="form-label">License Plate</label>
@@ -690,7 +690,7 @@ const VehicleManagement: React.FC = () => {
                       </div>
                       <div className="form-group">
                         <label className="form-label">Capacity (Seats)</label>
-                        <input type="number" required min="1" className="form-input" value={formData.seats} onChange={(e) => setFormData({...formData, seats: parseInt(e.target.value)})} />
+                        <input type="number" required min="1" className="form-input" value={Number.isNaN(formData.seats) ? '' : formData.seats} onChange={(e) => setFormData({...formData, seats: e.target.value === '' ? NaN : parseInt(e.target.value)})} />
                       </div>
                     </div>
                   </section>
@@ -702,7 +702,7 @@ const VehicleManagement: React.FC = () => {
                         <label className="form-label">Daily Base Rate (₱)</label>
                         <div style={{ position: 'relative' }}>
                           <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--gray-400)' }}>₱</span>
-                          <input type="number" required min="1" className="form-input" style={{ paddingLeft: '2.5rem' }} value={formData.dailyRate} onChange={(e) => setFormData({...formData, dailyRate: parseFloat(e.target.value)})} />
+                          <input type="number" required min="1" className="form-input" style={{ paddingLeft: '2.5rem' }} value={Number.isNaN(formData.dailyRate) ? '' : formData.dailyRate} onChange={(e) => setFormData({...formData, dailyRate: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                         </div>
                       </div>
                       <div className="form-group">
@@ -759,15 +759,15 @@ const VehicleManagement: React.FC = () => {
                     <div className="space-y-4">
                       <div className="form-group">
                         <label className="form-label">Current Odometer (km)</label>
-                        <input type="number" required min="0" className="form-input" value={formData.currentOdometerKm} onChange={(e) => setFormData({...formData, currentOdometerKm: parseFloat(e.target.value)})} />
+                        <input type="number" required min="0" className="form-input" value={Number.isNaN(formData.currentOdometerKm) ? '' : formData.currentOdometerKm} onChange={(e) => setFormData({...formData, currentOdometerKm: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                       </div>
                       <div className="form-group">
                         <label className="form-label">Last Oil Change (km)</label>
-                        <input type="number" required min="0" className="form-input" value={formData.lastOilChangeOdometerKm} onChange={(e) => setFormData({...formData, lastOilChangeOdometerKm: parseFloat(e.target.value)})} />
+                        <input type="number" required min="0" className="form-input" value={Number.isNaN(formData.lastOilChangeOdometerKm) ? '' : formData.lastOilChangeOdometerKm} onChange={(e) => setFormData({...formData, lastOilChangeOdometerKm: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                       </div>
                       <div className="form-group">
                         <label className="form-label">Service Interval (km)</label>
-                        <input type="number" required min="100" className="form-input" value={formData.oilChangeIntervalKm} onChange={(e) => setFormData({...formData, oilChangeIntervalKm: parseFloat(e.target.value)})} />
+                        <input type="number" required min="100" className="form-input" value={Number.isNaN(formData.oilChangeIntervalKm) ? '' : formData.oilChangeIntervalKm} onChange={(e) => setFormData({...formData, oilChangeIntervalKm: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                       </div>
                     </div>
                   </section>

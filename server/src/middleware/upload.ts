@@ -59,7 +59,7 @@ const storage = multer.diskStorage({
 // Specialized storage for vehicle images
 const vehicleStorage = multer.diskStorage({
   destination: (req: AuthRequest, file, cb) => {
-    const uploadPath = '.uploads/vehicle-images/';
+    const uploadPath = 'uploads/vehicle-images/';
     const fullPath = path.resolve(uploadPath);
     if (!fs.existsSync(fullPath)) {
       fs.mkdirSync(fullPath, { recursive: true });
