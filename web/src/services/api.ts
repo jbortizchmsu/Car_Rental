@@ -55,7 +55,9 @@ export const vehiclesApi = {
     if (returnDate) params.append('returnDate', returnDate);
     return api.get(`/vehicles/available${params.toString() ? `?${params.toString()}` : ''}`);
   },
-  create: (data: any) => api.post('/vehicles', data),
+  create: (data: any) => api.post('/vehicles', data, {
+    headers: { 'Content-Type': undefined } // let browser set multipart/form-data + boundary automatically
+  }),
   update: (id: string, data: any) => api.put(`/vehicles/${id}`, data, {
     headers: { 'Content-Type': undefined } // let browser set multipart/form-data + boundary automatically
   }),
