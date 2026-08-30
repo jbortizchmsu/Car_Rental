@@ -1,13 +1,41 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { 
-  Plus, Edit2, Trash2, Loader2, X, AlertCircle, Upload, 
-  Image as ImageIcon, Search, Filter, ArrowUpDown, 
+import {
+  Plus, Edit2, Trash2, Loader2, X, AlertCircle, Upload,
+  Image as ImageIcon, Search, Filter, ArrowUpDown,
   Car, CheckCircle, Clock, Wrench, ChevronRight, Info
 } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import { vehiclesApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
+
+const VehicleImage = ({ vehicleId, brand, model, className }: {
+  vehicleId: string;
+  brand: string;
+  model: string;
+  className?: string;
+}) => {
+  const [error, setError] = useState(false);
+  const imageUrl = vehiclesApi.getImageUrl(vehicleId);
+
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center bg-gray-100 ${className ?? ''}`}>
+        <span className="text-gray-400 text-xs text-center px-2">{brand} {model}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt={`${brand} ${model}`}
+      className={`object-cover ${className ?? ''}`}
+      onError={() => setError(true)}
+    />
+  );
+};
 
 interface Vehicle {
   id: string;
@@ -28,12 +56,14 @@ interface Vehicle {
 }
 
 const VehicleManagement: React.FC = () => {
+  const { setPageHeader } = usePageHeader();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   // Toolbar State
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,6 +95,14 @@ const VehicleManagement: React.FC = () => {
   });
 
   useEffect(() => {
+    setPageHeader({
+      title: 'Fleet Management',
+      subtitle: 'Manage vehicles, pricing, availability, odometer, and maintenance readiness.',
+    });
+    return () => setPageHeader({});
+  }, []);
+
+  useEffect(() => {
     fetchVehicles();
   }, []);
 
@@ -88,12 +126,14 @@ const VehicleManagement: React.FC = () => {
   };
 
   const stats = useMemo(() => {
+    // Exclude RETIRED so stat cards match the active fleet shown in the list
+    const active = vehicles.filter(v => v.status !== 'RETIRED');
     return {
-      total: vehicles.length,
-      available: vehicles.filter(v => v.status === 'AVAILABLE').length,
-      rented: vehicles.filter(v => v.status === 'RENTED' || v.status === 'RESERVED').length,
-      maintenance: vehicles.filter(v => v.status === 'UNDER_MAINTENANCE').length,
-      dueService: vehicles.filter(v => v.currentOdometerKm >= (v.lastOilChangeOdometerKm + v.oilChangeIntervalKm)).length
+      total: active.length,
+      available: active.filter(v => v.status === 'AVAILABLE').length,
+      rented: active.filter(v => v.status === 'RENTED' || v.status === 'RESERVED').length,
+      maintenance: active.filter(v => v.status === 'UNDER_MAINTENANCE').length,
+      dueService: active.filter(v => v.currentOdometerKm >= (v.lastOilChangeOdometerKm + v.oilChangeIntervalKm)).length
     };
   }, [vehicles]);
 
@@ -122,6 +162,7 @@ const VehicleManagement: React.FC = () => {
 
   const handleOpenModal = (vehicle?: Vehicle) => {
     setSelectedFile(null);
+    setFormError(null);
     if (vehicle) {
       setEditingVehicle(vehicle);
       setFormData({
@@ -208,6 +249,7 @@ const VehicleManagement: React.FC = () => {
         data.append(key, value != null ? value.toString() : '');
       });
       
+      console.log('File being uploaded:', selectedFile?.name, selectedFile?.size);
       if (selectedFile) {
         data.append('vehicleImage', selectedFile);
       }
@@ -227,9 +269,10 @@ const VehicleManagement: React.FC = () => {
       setShowModal(false);
       fetchVehicles();
     } catch (error: any) {
-      console.error('Vehicle Update Error:', error);
-      const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to update vehicle';
-      toast.error('Update Failed', message);
+      console.error('Vehicle Creation/Update Error:', error);
+      const message = getApiErrorMessage(error, editingVehicle ? 'Failed to update vehicle' : 'Failed to create vehicle');
+      setFormError(message);
+      toast.error(editingVehicle ? 'Update Failed' : 'Creation Failed', message);
     } finally {
       setSubmitting(false);
     }
@@ -277,15 +320,16 @@ const VehicleManagement: React.FC = () => {
 
   return (
     <div className="space-y-8" style={{ paddingBottom: '4rem' }}>
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black text-black mb-1">Fleet Management</h1>
-          <p className="text-gray-500 font-medium">Manage vehicles, pricing, availability, odometer, and maintenance readiness.</p>
-        </div>
-        <button 
+      {/* Page Header with Action Button */}
+      <div className="flex items-center justify-between">
+        <button
           onClick={() => handleOpenModal()}
-          className="btn btn-brand"
-          style={{ padding: '0.75rem 1.5rem', borderRadius: '14px', boxShadow: '0 4px 12px rgba(173, 155, 141, 0.3)' }}
+          className="btn btn-brand ml-auto"
+          style={{
+            padding: '0.75rem 1.5rem',
+            borderRadius: '14px',
+            boxShadow: '0 4px 12px rgba(173, 155, 141, 0.3)',
+          }}
         >
           <Plus size={20} /> Add New Vehicle
         </button>
@@ -431,18 +475,7 @@ const VehicleManagement: React.FC = () => {
                       <td style={{ padding: '1.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                           <div style={{ width: '80px', height: '54px', borderRadius: '12px', backgroundColor: 'var(--gray-100)', overflow: 'hidden', flexShrink: 0, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)' }}>
-                            {vehicle.imageUrl ? (
-                              <img 
-                                src={vehicle.imageUrl.startsWith('http') ? vehicle.imageUrl : vehiclesApi.getImageUrl(vehicle.id)} 
-                                alt={vehicle.model}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/80x54?text=No+Img'; }}
-                              />
-                            ) : (
-                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-300)' }}>
-                                <ImageIcon size={20} />
-                              </div>
-                            )}
+                            <VehicleImage vehicleId={vehicle.id} brand={vehicle.brand} model={vehicle.model} className="w-full h-full rounded" />
                           </div>
                           <div>
                             <div className="font-black text-black">{vehicle.brand} {vehicle.model}</div>
@@ -506,17 +539,7 @@ const VehicleManagement: React.FC = () => {
         {selectedVehicle && (
           <div className="card" style={{ padding: '0', border: 'none', background: 'white', borderRadius: '24px', overflow: 'hidden', height: 'fit-content', position: 'sticky', top: '2rem' }}>
             <div style={{ height: '200px', backgroundColor: 'var(--gray-100)', position: 'relative' }}>
-              {selectedVehicle.imageUrl ? (
-                <img 
-                  src={selectedVehicle.imageUrl.startsWith('http') ? selectedVehicle.imageUrl : vehiclesApi.getImageUrl(selectedVehicle.id)} 
-                  alt={selectedVehicle.model}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gray-300)' }}>
-                  <ImageIcon size={48} />
-                </div>
-              )}
+              <VehicleImage vehicleId={selectedVehicle.id} brand={selectedVehicle.brand} model={selectedVehicle.model} className="w-full h-full" />
               <button 
                 onClick={() => setSelectedVehicle(null)}
                 style={{ position: 'absolute', top: '1rem', right: '1rem', backgroundColor: 'rgba(0,0,0,0.5)', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -624,6 +647,12 @@ const VehicleManagement: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
+              {formError && (
+                <div style={{ padding: '0.875rem 1.25rem', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: '12px', margin: '0 2rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                  <span>{formError}</span>
+                </div>
+              )}
               <div className="modal-content" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '3rem' }}>
                 
                 <div className="space-y-8">
@@ -640,11 +669,14 @@ const VehicleManagement: React.FC = () => {
                       </div>
                       <div className="form-group">
                         <label className="form-label">Year</label>
-                        <input type="number" required className="form-input" value={formData.year} onChange={(e) => setFormData({...formData, year: parseInt(e.target.value)})} />
+                        <input type="number" required className="form-input" value={Number.isNaN(formData.year) ? '' : formData.year} onChange={(e) => setFormData({...formData, year: e.target.value === '' ? NaN : parseInt(e.target.value)})} />
                       </div>
                       <div className="form-group">
                         <label className="form-label">License Plate</label>
-                        <input required className="form-input" value={formData.licensePlate} onChange={(e) => setFormData({...formData, licensePlate: e.target.value})} placeholder="ABC 1234" />
+                        <input required className="form-input" value={formData.licensePlate} onChange={(e) => { setFormData({...formData, licensePlate: e.target.value}); setFormError(null); }} placeholder="ABC 1234" />
+                        {formError && formError.toLowerCase().includes('license plate') && (
+                          <p style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.35rem', fontWeight: 600 }}>{formError}</p>
+                        )}
                       </div>
                       <div className="form-group">
                         <label className="form-label">Category</label>
@@ -658,7 +690,7 @@ const VehicleManagement: React.FC = () => {
                       </div>
                       <div className="form-group">
                         <label className="form-label">Capacity (Seats)</label>
-                        <input type="number" required min="1" className="form-input" value={formData.seats} onChange={(e) => setFormData({...formData, seats: parseInt(e.target.value)})} />
+                        <input type="number" required min="1" className="form-input" value={Number.isNaN(formData.seats) ? '' : formData.seats} onChange={(e) => setFormData({...formData, seats: e.target.value === '' ? NaN : parseInt(e.target.value)})} />
                       </div>
                     </div>
                   </section>
@@ -670,7 +702,7 @@ const VehicleManagement: React.FC = () => {
                         <label className="form-label">Daily Base Rate (₱)</label>
                         <div style={{ position: 'relative' }}>
                           <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--gray-400)' }}>₱</span>
-                          <input type="number" required min="1" className="form-input" style={{ paddingLeft: '2.5rem' }} value={formData.dailyRate} onChange={(e) => setFormData({...formData, dailyRate: parseFloat(e.target.value)})} />
+                          <input type="number" required min="1" className="form-input" style={{ paddingLeft: '2.5rem' }} value={Number.isNaN(formData.dailyRate) ? '' : formData.dailyRate} onChange={(e) => setFormData({...formData, dailyRate: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                         </div>
                       </div>
                       <div className="form-group">
@@ -727,15 +759,15 @@ const VehicleManagement: React.FC = () => {
                     <div className="space-y-4">
                       <div className="form-group">
                         <label className="form-label">Current Odometer (km)</label>
-                        <input type="number" required min="0" className="form-input" value={formData.currentOdometerKm} onChange={(e) => setFormData({...formData, currentOdometerKm: parseFloat(e.target.value)})} />
+                        <input type="number" required min="0" className="form-input" value={Number.isNaN(formData.currentOdometerKm) ? '' : formData.currentOdometerKm} onChange={(e) => setFormData({...formData, currentOdometerKm: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                       </div>
                       <div className="form-group">
                         <label className="form-label">Last Oil Change (km)</label>
-                        <input type="number" required min="0" className="form-input" value={formData.lastOilChangeOdometerKm} onChange={(e) => setFormData({...formData, lastOilChangeOdometerKm: parseFloat(e.target.value)})} />
+                        <input type="number" required min="0" className="form-input" value={Number.isNaN(formData.lastOilChangeOdometerKm) ? '' : formData.lastOilChangeOdometerKm} onChange={(e) => setFormData({...formData, lastOilChangeOdometerKm: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                       </div>
                       <div className="form-group">
                         <label className="form-label">Service Interval (km)</label>
-                        <input type="number" required min="100" className="form-input" value={formData.oilChangeIntervalKm} onChange={(e) => setFormData({...formData, oilChangeIntervalKm: parseFloat(e.target.value)})} />
+                        <input type="number" required min="100" className="form-input" value={Number.isNaN(formData.oilChangeIntervalKm) ? '' : formData.oilChangeIntervalKm} onChange={(e) => setFormData({...formData, oilChangeIntervalKm: e.target.value === '' ? NaN : parseFloat(e.target.value)})} />
                       </div>
                     </div>
                   </section>

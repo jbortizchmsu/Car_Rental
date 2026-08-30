@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Users, ShieldAlert, UserCheck, Search, CheckCircle2, XCircle, History } from 'lucide-react';
 import { usersApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
@@ -16,6 +17,7 @@ const AdminUserRolesPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
 
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
@@ -27,6 +29,14 @@ const AdminUserRolesPage: React.FC = () => {
     targetUser: any;
   }>({ isOpen: false, type: null, targetUser: null });
   const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'User Roles & Accounts',
+      subtitle: 'Manage user permissions and account status'
+    });
+    return () => setPageHeader({});
+  }, [setPageHeader]);
 
   useEffect(() => {
     fetchUsers();
@@ -120,11 +130,6 @@ const AdminUserRolesPage: React.FC = () => {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--black)', marginBottom: '0.5rem' }}>User Roles & Accounts</h1>
-        <p style={{ color: 'var(--gray-500)', fontWeight: 600 }}>Manage administrative access and customer account permissions.</p>
-      </header>
-
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
         <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>

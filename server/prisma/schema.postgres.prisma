@@ -1,0 +1,338 @@
+// JD Car Rental - Prisma Schema for Supabase PostgreSQL Production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Users & Roles
+model User {
+  id                      String    @id @default(uuid())
+  email                   String    @unique
+  passwordHash            String
+  fullName                String
+  phoneNumber             String?
+  address                 String?
+  role                    String    @default("customer") // "customer" or "admin"
+  avatarUrl               String?
+  isActive                Boolean   @default(true)
+  emailVerified           Boolean   @default(false)
+  verificationToken       String?
+  verificationTokenExpiry DateTime?
+  resetToken              String?
+  resetTokenExpiry        DateTime?
+  lastLoginAt             DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  bookings       Booking[]
+  verifiedDocs   BookingDocument[] @relation("VerifiedBy")
+  verifiedPays   Payment[]         @relation("VerifiedBy")
+  notifications  Notification[]
+  geofences      GeofenceZone[]
+  resolvedAlerts GeofenceAlert[]   @relation("ResolvedBy")
+}
+
+// 2. Vehicles
+model Vehicle {
+  id                      String    @id @default(uuid())
+  model                   String
+  brand                   String
+  category                String
+  year                    Int?
+  licensePlate            String    @unique
+  transmission            String? // "Manual" or "Automatic"
+  fuelType                String?
+  seats                   Int?
+  dailyRate               Decimal
+  status                  String    @default("AVAILABLE") // "AVAILABLE", "RESERVED", "RENTED", "UNDER_MAINTENANCE", "RETIRED"
+  imageUrl                String?
+  description             String?
+  features                String? // JSON string or comma-separated
+
+  // Odometer & Maintenance
+  currentOdometerKm       Float     @default(0)
+  lastOilChangeOdometerKm Float     @default(0)
+  oilChangeIntervalKm     Float     @default(5000)
+  lastServiceDate         DateTime?
+  nextServiceDate         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings        Booking[]
+  maintenanceLogs MaintenanceLog[]
+  geofenceZones   GeofenceZone[]
+  geofenceAlerts  GeofenceAlert[]
+}
+
+// 3. Bookings
+model Booking {
+  id              String    @id @default(uuid())
+  customerId      String
+  vehicleId       String
+  startDate       DateTime
+  endDate         DateTime
+  totalAmount     Decimal
+  status          String    @default("PENDING_REVIEW")
+  rejectionReason String?
+  pickupLocation  String?
+  releasedAt      DateTime?
+  returnedAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Dynamic Pricing Fields
+  baseDailyRate     Decimal?
+  pricingMultiplier Float?       @default(1.0)
+  pricingRuleName   String?
+  pricingRuleId     String?
+  pricingRule       PricingRule? @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
+
+  // Odometer tracking
+  releaseOdometerKm      Float?
+  returnOdometerKm       Float?
+  tripDistanceKm         Float?
+  estimatedGpsDistanceKm Float?
+
+  // Pickup/Release Checklist
+  agreementSignedAt         DateTime?
+  agreementSignedBy         String?
+  releaseChecklistConfirmed Boolean   @default(false)
+  remainingBalancePaidAt    DateTime?
+  pickupNotes               String?
+
+  // Customer Info at time of booking
+  fullName         String?
+  contactNumber    String?
+  address          String?
+  licenseNumber    String?
+  licenseExpiry    String?
+  emergencyContact String?
+  emergencyPhone   String?
+  notes            String?
+
+  // Destination & Geofence
+  destinationName        String?
+  destinationAddress     String?
+  destinationNotes       String?
+  destinationLatitude    Float?
+  destinationLongitude   Float?
+  approvedGeofenceZoneId String?
+  geofenceActivatedAt    DateTime?
+  geofenceEndedAt        DateTime?
+  customer               User               @relation(fields: [customerId], references: [id])
+  vehicle                Vehicle            @relation(fields: [vehicleId], references: [id])
+  documents              BookingDocument[]
+  payments               Payment[]
+  trackingSession        TrackingSession?
+  locations              VehicleLocation[]
+  geofenceZones          GeofenceZone[]
+  geofenceAlerts         GeofenceAlert[]
+  damageReports          DamageReport[]
+  maintenanceLogs        MaintenanceLog[]
+}
+
+// 4. Booking Documents
+model BookingDocument {
+  id           String    @id @default(uuid())
+  bookingId    String
+  documentType String // "valid_id", "drivers_license"
+  fileUrl      String
+  verifiedAt   DateTime?
+  verifiedById String?
+  createdAt    DateTime  @default(now())
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  verifiedBy User?   @relation("VerifiedBy", fields: [verifiedById], references: [id])
+}
+
+// 5. Payments
+model Payment {
+  id           String    @id @default(uuid())
+  bookingId    String
+  amount       Decimal
+  paymentType  String // "FULL_GCASH", "DOWNPAYMENT_GCASH", "REMAINING_CASH"
+  status       String    @default("PENDING") // "PENDING", "SUBMITTED", "VERIFIED", "REJECTED", "PAID_IN_PERSON"
+  verifiedAt   DateTime?
+  verifiedById String?
+  createdAt    DateTime  @default(now())
+
+  booking    Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  verifiedBy User?          @relation("VerifiedBy", fields: [verifiedById], references: [id])
+  proofs     PaymentProof[]
+}
+
+// 6. Payment Proofs
+model PaymentProof {
+  id              String   @id @default(uuid())
+  paymentId       String
+  proofUrl        String
+  referenceNumber String?
+  createdAt       DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+}
+
+// 7. Tracking Sessions
+model TrackingSession {
+  id        String    @id @default(uuid())
+  bookingId String    @unique
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  booking   Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  locations VehicleLocation[]
+  alerts    GeofenceAlert[]
+}
+
+// 8. Vehicle Locations
+model VehicleLocation {
+  id                String   @id @default(uuid())
+  trackingSessionId String
+  bookingId         String
+  vehicleId         String
+  customerId        String
+  latitude          Float
+  longitude         Float
+  speed             Float?
+  heading           Float?
+  accuracy          Float?
+  batteryLevel      Int?
+  recordedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  trackingSession TrackingSession @relation(fields: [trackingSessionId], references: [id], onDelete: Cascade)
+  booking         Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// 9. Geofence Zones
+model GeofenceZone {
+  id                 String    @id @default(uuid())
+  name               String
+  vehicleId          String?
+  bookingId          String?
+  polygonCoordinates String // JSON stringified array of {lat, lng}
+  // Circle-based fields — populated for auto-created zones on vehicle release
+  centerLatitude     Float?
+  centerLongitude    Float?
+  radiusKm           Float?    @default(15)
+  activatedAt        DateTime?
+  isActive           Boolean   @default(true)
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  vehicle   Vehicle?        @relation(fields: [vehicleId], references: [id])
+  booking   Booking?        @relation(fields: [bookingId], references: [id])
+  createdBy User?           @relation(fields: [createdById], references: [id])
+  alerts    GeofenceAlert[]
+}
+
+// 10. Geofence Alerts
+model GeofenceAlert {
+  id                String    @id @default(uuid())
+  bookingId         String
+  vehicleId         String
+  trackingSessionId String
+  geofenceZoneId    String?
+  alertType         String    @default("OUT_OF_ZONE")
+  severity          String    @default("WARNING")
+  latitude          Float?
+  longitude         Float?
+  message           String
+  resolved          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  resolvedAt        DateTime?
+  resolvedById      String?
+
+  booking         Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trackingSession TrackingSession @relation(fields: [trackingSessionId], references: [id], onDelete: Cascade)
+  geofenceZone    GeofenceZone?   @relation(fields: [geofenceZoneId], references: [id])
+  resolvedBy      User?           @relation("ResolvedBy", fields: [resolvedById], references: [id])
+}
+
+// 11. Maintenance Logs
+model MaintenanceLog {
+  id              String    @id @default(uuid())
+  vehicleId       String
+  bookingId       String? // Optional: link to booking that caused damage
+  serviceType     String // "ROUTINE", "REPAIR", "TIRES", "OIL_CHANGE", etc.
+  description     String
+  cost            Decimal?
+  serviceDate     DateTime  @default(now())
+  nextServiceDate DateTime?
+  odometerKm      Float?
+  completedAt     DateTime?
+  status          String    @default("COMPLETED") // "SCHEDULED", "IN_PROGRESS", "COMPLETED"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vehicle Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id])
+}
+
+// 12. Damage Reports
+model DamageReport {
+  id            String   @id @default(uuid())
+  bookingId     String
+  damageType    String? // "SCRATCH", "DENT", "ENGINE", "INTERIOR", etc.
+  severity      String? // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  description   String
+  imageUrls     String? // JSON stringified array
+  estimatedCost Decimal?
+  status        String   @default("PENDING") // "PENDING", "LOGGED", "RESOLVED"
+  reportedAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// 13. Notifications
+model Notification {
+  id            String   @id @default(uuid())
+  userId        String
+  type          String   @default("GENERAL") // BOOKING_PICKUP_DUE, PAYMENT_SUBMITTED, GEOFENCE_BREACH, etc
+  title         String
+  message       String
+  isRead        Boolean  @default(false)
+  targetRole    String   @default("admin") // "admin", "customer", or "all"
+  referenceId   String? // ID of related booking, vehicle, payment, etc
+  referenceType String? // "booking", "vehicle", "payment", "rental", etc
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 14. Dynamic Pricing Rules
+model PricingRule {
+  id                   String    @id @default(uuid())
+  name                 String
+  type                 String // "SEASONAL", "WEEKEND", "DEMAND", "CATEGORY"
+  multiplier           Float
+  startDate            DateTime?
+  endDate              DateTime?
+  vehicleCategory      String?
+  utilizationThreshold Float? // e.g., 0.8 for 80%
+  isActive             Boolean   @default(true)
+  description          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  bookings             Booking[]
+}
+
+// 15. System Settings
+model SystemSettings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

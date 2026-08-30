@@ -1,21 +1,36 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Info, AlertTriangle, X } from 'lucide-react';
+import {
+  Bell, Info, AlertTriangle, X, Clock, CreditCard,
+  AlertCircle, Wrench, Calendar, FileText
+} from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { io } from 'socket.io-client';
+import { getRelativeTime, notificationTypeColors } from '../lib/notification-types';
+
+const IconMap: Record<string, React.ReactNode> = {
+  'AlertTriangle': <AlertTriangle size={18} />,
+  'Clock': <Clock size={18} />,
+  'CreditCard': <CreditCard size={18} />,
+  'AlertCircle': <AlertCircle size={18} />,
+  'Wrench': <Wrench size={18} />,
+  'Calendar': <Calendar size={18} />,
+  'FileText': <FileText size={18} />,
+  'Info': <Info size={18} />,
+};
 
 const NotificationPanel: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showPanel, setShowPanel] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { user } = useAuth(); // Keeping for room join but removing if not used else where? Wait, let's just remove the warning.
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchNotifications();
 
     // Socket.io connection
-    const socket = io('http://localhost:4000');
-    
+    const socket = io(import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:4000');
+
     if (user) {
       socket.emit('join-room', user.id);
     }
@@ -33,8 +48,9 @@ const NotificationPanel: React.FC = () => {
   const fetchNotifications = async () => {
     try {
       const response = await notificationsApi.getNotifications();
-      setNotifications(response.data);
-      setUnreadCount(response.data.filter((n: any) => !n.isRead).length);
+      const notifList = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      setNotifications(notifList);
+      setUnreadCount(notifList.filter((n: any) => !n.isRead).length);
     } catch (error) {
       console.error('Failed to fetch notifications');
     }
@@ -60,9 +76,39 @@ const NotificationPanel: React.FC = () => {
     }
   };
 
+  const getIconForNotification = (notification: any) => {
+    const iconName = notification.type ? getIconNameForType(notification.type) : 'Info';
+    return IconMap[iconName] || <Info size={18} />;
+  };
+
+  const getIconNameForType = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      'BOOKING_RETURN_OVERDUE': 'AlertTriangle',
+      'BOOKING_PICKUP_DUE': 'Clock',
+      'PAYMENT_SUBMITTED': 'CreditCard',
+      'GEOFENCE_BREACH': 'AlertTriangle',
+      'GPS_SIGNAL_LOST': 'AlertCircle',
+      'MAINTENANCE_DUE_SOON': 'Wrench',
+      'NEW_BOOKING_REQUEST': 'Calendar',
+      'DOCUMENT_UPLOADED': 'FileText',
+      'BOOKING_EXPIRED': 'AlertTriangle',
+      'PAYMENT_REJECTED': 'AlertTriangle',
+      'MAINTENANCE_DUE_CONFLICT': 'AlertTriangle',
+      'GENERAL': 'Info',
+    };
+    return typeMap[type] || 'Info';
+  };
+
+  const getColorForNotification = (notification: any): string => {
+    if (notification.type && notificationTypeColors[notification.type]) {
+      return notificationTypeColors[notification.type];
+    }
+    return 'var(--warm-taupe)';
+  };
+
   return (
     <div className="notification-wrapper" style={{ position: 'relative' }}>
-      <button 
+      <button
         className="notification-trigger"
         onClick={() => setShowPanel(!showPanel)}
         style={{
@@ -118,7 +164,7 @@ const NotificationPanel: React.FC = () => {
           }}>
             <h3 className="card-title" style={{ margin: 0, fontSize: '1rem' }}>Notifications</h3>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
+              <button
                 onClick={markAllAsRead}
                 style={{ background: 'none', border: 'none', fontSize: '0.75rem', color: 'var(--warm-taupe)', cursor: 'pointer' }}
               >
@@ -137,9 +183,9 @@ const NotificationPanel: React.FC = () => {
                 <p style={{ fontSize: '0.875rem' }}>No notifications yet</p>
               </div>
             ) : (
-              notifications.map((n) => (
-                <div 
-                  key={n.id} 
+              notifications.slice(0, 10).map((n) => (
+                <div
+                  key={n.id}
                   onClick={() => !n.isRead && markAsRead(n.id)}
                   style={{
                     padding: '1rem 1.25rem',
@@ -150,17 +196,13 @@ const NotificationPanel: React.FC = () => {
                     gap: '12px'
                   }}
                 >
-                  <div style={{ marginTop: '3px' }}>
-                    {n.title.toLowerCase().includes('critical') || n.title.toLowerCase().includes('breach') ? (
-                      <AlertTriangle size={18} color="var(--status-rented)" />
-                    ) : (
-                      <Info size={18} color="var(--warm-taupe)" />
-                    )}
+                  <div style={{ marginTop: '3px', color: getColorForNotification(n) }}>
+                    {getIconForNotification(n)}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ 
-                      fontSize: '0.875rem', 
-                      fontWeight: n.isRead ? 500 : 700, 
+                    <p style={{
+                      fontSize: '0.875rem',
+                      fontWeight: n.isRead ? 500 : 700,
                       margin: '0 0 4px 0',
                       color: 'var(--black)'
                     }}>
@@ -170,7 +212,7 @@ const NotificationPanel: React.FC = () => {
                       {n.message}
                     </p>
                     <p style={{ fontSize: '0.7rem', color: 'var(--gray-400)', margin: 0 }}>
-                      {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {getRelativeTime(n.createdAt)}
                     </p>
                   </div>
                   {!n.isRead && <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--warm-taupe)', marginTop: '6px' }} />}
@@ -178,6 +220,23 @@ const NotificationPanel: React.FC = () => {
               ))
             )}
           </div>
+
+          {notifications.length > 10 && (
+            <div style={{
+              padding: '0.75rem 1.25rem',
+              borderTop: '1px solid var(--gray-100)',
+              textAlign: 'center'
+            }}>
+              <a href="/admin/notifications" style={{
+                fontSize: '0.875rem',
+                color: 'var(--warm-taupe)',
+                textDecoration: 'none',
+                fontWeight: 600
+              }}>
+                View all notifications
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>

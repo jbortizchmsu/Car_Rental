@@ -88,7 +88,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         msg = 'Invalid email or password.';
       }
       setError(msg);
-      throw new Error(msg);
+      // Preserve the error code (e.g. EMAIL_NOT_VERIFIED) so callers can handle specific cases
+      const thrown: any = new Error(msg);
+      thrown.code = err.response?.data?.code;
+      throw thrown;
     } finally {
       setLoading(false);
     }

@@ -13,14 +13,16 @@ async function main() {
     update: {
       passwordHash: adminPassword,
       fullName: 'JD Admin Manager',
-      phoneNumber: '09123456789'
+      phoneNumber: '09123456789',
+      emailVerified: true,
     },
     create: {
       email: 'admin@jdcarrental.com',
       passwordHash: adminPassword,
       fullName: 'JD Admin Manager',
       role: 'admin',
-      phoneNumber: '09123456789'
+      phoneNumber: '09123456789',
+      emailVerified: true,
     }
   });
 
@@ -31,7 +33,8 @@ async function main() {
       passwordHash: customerPassword,
       fullName: 'John Customer Doe',
       phoneNumber: '09987654321',
-      address: '123 Sample St, Manila'
+      address: '123 Sample St, Manila',
+      emailVerified: true,
     },
     create: {
       email: 'customer@jdcarrental.com',
@@ -39,7 +42,8 @@ async function main() {
       fullName: 'John Customer Doe',
       role: 'customer',
       phoneNumber: '09987654321',
-      address: '123 Sample St, Manila'
+      address: '123 Sample St, Manila',
+      emailVerified: true,
     }
   });
 

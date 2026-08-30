@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { bookingsApi, filesApi, paymentsApi } from '../services/api';
-import { 
-  Loader2, X, FileText, User, 
+import { bookingsApi, filesApi, paymentsApi, pricingApi } from '../services/api';
+import {
+  Loader2, X, FileText, User,
   Phone, MapPin, ExternalLink,
   Smartphone, CreditCard, Clock, Search,
   ArrowUpDown, CheckCircle2,
@@ -10,8 +10,10 @@ import {
 import FilePreviewModal from '../components/FilePreviewModal';
 import StatusBadge from '../components/StatusBadge';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
+import VehicleImage from '../components/VehicleImage';
 
 type WorkflowFilter = 'ALL_ACTIVE' | 'NEEDS_ACTION' | 'WAITING_CUSTOMER' | 'ACTIVE_RENTALS' | 'REJECTED' | 'COMPLETED';
 
@@ -58,12 +60,41 @@ const BookingRequestsPage: React.FC = () => {
 
   // Notification and Modal State
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
-    type: 'APPROVE_BOOKING' | 'REJECT_BOOKING' | 'VERIFY_PAYMENT' | 'REJECT_PAYMENT' | 'CONFIRM_CASH' | 'RELEASE_VEHICLE' | 'RETURN_VEHICLE' | 'COMPLETE_RENTAL' | null;
+    type: 'APPROVE_BOOKING' | 'REJECT_BOOKING' | 'VERIFY_PAYMENT' | 'REJECT_PAYMENT' | 'CONFIRM_CASH' | 'RELEASE_VEHICLE' | 'RETURN_VEHICLE' | 'COMPLETE_RENTAL' | 'VOID_BOOKING' | null;
     paymentId?: string;
   }>({ isOpen: false, type: null });
   const [modalError, setModalError] = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [livePricingQuote, setLivePricingQuote] = useState<any>(null);
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Bookings',
+      subtitle: 'Manage the complete rental lifecycle and customer journeys.',
+    });
+    return () => setPageHeader({});
+  }, []);
+
+  useEffect(() => {
+    const vId = selectedBooking?.vehicleId || selectedBooking?.vehicle?.id;
+    if (vId && selectedBooking?.startDate && selectedBooking?.endDate) {
+      pricingApi.getQuote({
+        vehicleId: vId,
+        startDate: selectedBooking.startDate,
+        endDate: selectedBooking.endDate,
+      })
+        .then(({ data }) => setLivePricingQuote(data))
+        .catch((err) => {
+          console.error('Failed to fetch live pricing quote for admin booking review:', err);
+          setLivePricingQuote(null);
+        });
+    } else {
+      setLivePricingQuote(null);
+    }
+  }, [selectedBooking?.id, selectedBooking?.vehicleId, selectedBooking?.vehicle?.id, selectedBooking?.startDate, selectedBooking?.endDate]);
 
   useEffect(() => {
     fetchBookings();
@@ -105,20 +136,20 @@ const BookingRequestsPage: React.FC = () => {
 
   const getStatusQuery = (filter: WorkflowFilter): string | string[] => {
     switch (filter) {
-      case 'ALL_ACTIVE': 
-        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
+      case 'ALL_ACTIVE':
+        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED', 'CANCELLED'];
       case 'NEEDS_ACTION': 
         return ['PENDING_REVIEW', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
       case 'WAITING_CUSTOMER': 
         return 'APPROVED_FOR_PAYMENT';
       case 'ACTIVE_RENTALS': 
         return 'ACTIVE';
-      case 'REJECTED': 
-        return 'REJECTED';
+      case 'REJECTED':
+        return ['REJECTED', 'CANCELLED'];
       case 'COMPLETED': 
         return 'COMPLETED';
-      default: 
-        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED'];
+      default:
+        return ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE', 'RETURNED', 'CANCELLED'];
     }
   };
 
@@ -221,8 +252,15 @@ const BookingRequestsPage: React.FC = () => {
           await bookingsApi.completeRental(selectedBooking.id, { maintenance: false });
           toast.success('Rental completed', 'The vehicle status has been updated.');
           break;
+
+        case 'VOID_BOOKING':
+          await bookingsApi.voidBooking(selectedBooking.id, voidReason);
+          toast.success('Booking voided', 'Booking voided successfully. Customer has been notified.');
+          setVoidReason('');
+          setSelectedBooking(null);
+          break;
       }
-      
+
       closeModal();
       fetchBookings();
     } catch (error: any) {
@@ -283,6 +321,8 @@ const BookingRequestsPage: React.FC = () => {
         return { label: 'Returned', actionLabel: 'Complete Rental', actionPriority: 'ACTION_REQUIRED', actionType: 'COMPLETE_RENTAL' };
       case 'REJECTED':
         return { label: 'Rejected', actionLabel: 'View Details', actionPriority: 'MUTED', actionType: 'VIEW' };
+      case 'CANCELLED':
+        return { label: 'Cancelled by Customer', actionLabel: 'View Details', actionPriority: 'MUTED', actionType: 'VIEW' };
       case 'COMPLETED':
         return { label: 'Completed', actionLabel: 'View History', actionPriority: 'MUTED', actionType: 'VIEW' };
       default:
@@ -399,6 +439,7 @@ const BookingRequestsPage: React.FC = () => {
       case 'RETURNED': return 'Returned';
       case 'COMPLETED': return 'Completed';
       case 'REJECTED': return 'Rejected';
+      case 'CANCELLED': return 'Cancelled';
       default: return status.replace(/_/g, ' ');
     }
   };
@@ -421,6 +462,32 @@ const BookingRequestsPage: React.FC = () => {
     const proof = latestPayment.proofs?.[0];
     const paidAmount = selectedBooking.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
     const balance = Number(selectedBooking.totalAmount) - paidAmount;
+
+    // Show clear rejection state — booking has been rolled back to APPROVED_FOR_PAYMENT
+    if (latestPayment.status === 'REJECTED') {
+      return (
+        <section>
+          <div className="detail-section-header">
+            <CreditCard size={18} color="var(--warm-taupe)" />
+            <h4>Payment Details</h4>
+          </div>
+          <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle size={18} color="#DC2626" />
+              <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#991B1B' }}>Payment Rejected</span>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: '#B91C1C', margin: 0 }}>
+              The customer's payment proof was rejected. The booking has been reset to <strong>Awaiting Payment</strong> — the customer can now resubmit.
+            </p>
+            {proof?.referenceNumber && (
+              <p style={{ fontSize: '0.8rem', color: '#DC2626', margin: 0 }}>
+                Rejected reference: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{proof.referenceNumber}</span>
+              </p>
+            )}
+          </div>
+        </section>
+      );
+    }
 
     return (
       <section>
@@ -530,13 +597,6 @@ const BookingRequestsPage: React.FC = () => {
 
   return (
     <div className="bookings-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '0.5rem', color: 'var(--black)' }}>Bookings</h1>
-          <p style={{ color: 'var(--gray-500)', fontWeight: 600 }}>Manage the complete rental lifecycle and customer journeys.</p>
-        </div>
-      </div>
-
       {/* Grouped Summary KPI Section */}
       <div className="bookings-summary-group">
         <div className="bookings-summary-compact">
@@ -583,7 +643,7 @@ const BookingRequestsPage: React.FC = () => {
           { id: 'NEEDS_ACTION', label: 'Needs Admin Action' },
           { id: 'WAITING_CUSTOMER', label: 'Waiting for Customer' },
           { id: 'ACTIVE_RENTALS', label: 'Active Rentals' },
-          { id: 'REJECTED', label: 'Rejected / Issues' },
+          { id: 'REJECTED', label: 'Rejected / Cancelled' },
           { id: 'COMPLETED', label: 'Completed' }
         ].map(filter => (
           <button 
@@ -657,12 +717,13 @@ const BookingRequestsPage: React.FC = () => {
                 >
                   {/* Left: Customer & ID */}
                   <div className="booking-list-main" style={{ minWidth: '220px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
-                      {booking.vehicle.imageUrl ? (
-                        <img src={booking.vehicle.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <User size={20} color="var(--gray-400)" />
-                      )}
+                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
+                      <VehicleImage
+                        vehicleId={booking.vehicle.id}
+                        brand={booking.vehicle.brand}
+                        model={booking.vehicle.model}
+                        className="w-full h-full"
+                      />
                     </div>
                     <div className="booking-list-meta">
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Customer</span>
@@ -791,8 +852,13 @@ const BookingRequestsPage: React.FC = () => {
                   <h4>Rental Specification</h4>
                 </div>
                 <div style={{ backgroundColor: 'white', border: '1px solid var(--gray-200)', borderRadius: '20px', padding: '1.5rem', display: 'flex', gap: '1.5rem' }}>
-                  <div className="booking-vehicle-thumb" style={{ width: '100px', height: '80px', flexShrink: 0 }}>
-                    {selectedBooking.vehicle.imageUrl && <img src={selectedBooking.vehicle.imageUrl} alt="" />}
+                  <div className="booking-vehicle-thumb" style={{ width: '100px', height: '80px', flexShrink: 0, overflow: 'hidden' }}>
+                    <VehicleImage
+                      vehicleId={selectedBooking.vehicle.id}
+                      brand={selectedBooking.vehicle.brand}
+                      model={selectedBooking.vehicle.model}
+                      className="w-full h-full"
+                    />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 900, fontSize: '1.1rem' }}>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</div>
@@ -882,28 +948,59 @@ const BookingRequestsPage: React.FC = () => {
                   <ArrowUpDown size={18} color="var(--warm-taupe)" />
                   <h4>Financial Summary</h4>
                 </div>
-                <div style={{ backgroundColor: 'var(--black)', color: 'white', padding: '1.75rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'relative', zIndex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                      <span>Base Daily Rate:</span>
-                      <span>₱{Number(selectedBooking.baseDailyRate).toLocaleString()}</span>
-                    </div>
-                    {selectedBooking.pricingMultiplier > 1 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                        <span>Demand Multiplier:</span>
-                        <span style={{ color: '#FCD34D' }}>{selectedBooking.pricingMultiplier}x</span>
+                {(() => {
+                  const baseRate = Number(selectedBooking.baseDailyRate || livePricingQuote?.baseDailyRate || selectedBooking.vehicle?.dailyRate || 0);
+                  const storedMultiplier = Number(selectedBooking.pricingMultiplier || 1);
+                  const liveMultiplier = Number(livePricingQuote?.multiplier || 1);
+                  const multiplier = storedMultiplier > 1 ? storedMultiplier : liveMultiplier;
+                  const ruleName = selectedBooking.pricingRule?.name || selectedBooking.pricingRuleName || livePricingQuote?.appliedRuleName;
+                  const storedTotal = Number(selectedBooking.totalAmount || 0);
+                  const liveTotal = Number(livePricingQuote?.totalPrice || 0);
+                  const totalAmount = (storedMultiplier > 1 && storedTotal > 0) ? storedTotal : (liveTotal > 0 ? liveTotal : storedTotal);
+                  const days = livePricingQuote?.rentalDays;
+
+                  return (
+                    <div style={{ backgroundColor: 'var(--black)', color: 'white', padding: '1.75rem', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                      <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                          <span>Base Daily Rate:</span>
+                          <span>₱{baseRate.toLocaleString()}</span>
+                        </div>
+                        {days ? (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                            <span>Rental Duration:</span>
+                            <span>{days} {days === 1 ? 'Day' : 'Days'}</span>
+                          </div>
+                        ) : null}
+                        {multiplier > 1 ? (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#FCD34D', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            <span>⚡ Rule Applied: {ruleName || 'Dynamic Pricing'}</span>
+                            <span>{multiplier}x multiplier</span>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.5, marginBottom: '0.5rem' }}>
+                            <span>Pricing Multiplier:</span>
+                            <span>1.0x (Standard Rate)</span>
+                          </div>
+                        )}
+                        {storedTotal > 0 && storedTotal !== totalAmount && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', opacity: 0.6, marginBottom: '0.5rem' }}>
+                            <span>Submitted Base Total:</span>
+                            <span>₱{storedTotal.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1rem 0' }}></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                          <span style={{ fontWeight: 700 }}>Grand Total</span>
+                          <span style={{ fontWeight: 900, fontSize: '1.75rem' }}>₱{totalAmount.toLocaleString()}</span>
+                        </div>
                       </div>
-                    )}
-                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1rem 0' }}></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                      <span style={{ fontWeight: 700 }}>Grand Total</span>
-                      <span style={{ fontWeight: 900, fontSize: '1.75rem' }}>₱{Number(selectedBooking.totalAmount).toLocaleString()}</span>
+                      <div style={{ position: 'absolute', right: '-20px', bottom: '-20px', opacity: 0.05 }}>
+                        <ShieldCheck size={120} />
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ position: 'absolute', right: '-20px', bottom: '-20px', opacity: 0.05 }}>
-                    <ShieldCheck size={120} />
-                  </div>
-                </div>
+                  );
+                })()}
               </section>
 
               {renderPaymentSection()}
@@ -960,9 +1057,59 @@ const BookingRequestsPage: React.FC = () => {
                         <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-500)', marginBottom: '0.25rem', display: 'block' }}>Release Odometer (km)</label>
                         <input type="number" className="input" placeholder="e.g., 15200" value={releaseOdometer} onChange={(e) => setReleaseOdometer(e.target.value)} style={{ width: '100%', borderRadius: '12px' }} />
                       </div>
-                      <button onClick={handleReleaseVehicle} disabled={actionLoading || !checklistConfirmed || (!agreementSigned && !selectedBooking.agreementSignedAt) || !releaseOdometer} className="btn-brand" style={{ width: '100%', padding: '1rem', marginTop: '0.5rem', backgroundColor: '#10B981' }}>
+                      {selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate) && (
+                        <div style={{ padding: '0.75rem 1rem', backgroundColor: '#FEF3C7', borderRadius: '10px', border: '1px solid #FCD34D', fontSize: '0.85rem', color: '#92400E', fontWeight: 600 }}>
+                          🗓 Release available from {new Date(selectedBooking.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleReleaseVehicle}
+                        disabled={
+                          actionLoading ||
+                          !checklistConfirmed ||
+                          (!agreementSigned && !selectedBooking.agreementSignedAt) ||
+                          !releaseOdometer ||
+                          (!!selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate))
+                        }
+                        className="btn-brand"
+                        style={{
+                          width: '100%',
+                          padding: '1rem',
+                          marginTop: '0.5rem',
+                          backgroundColor: (selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate)) ? '#94A3B8' : '#10B981',
+                          cursor: (selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate)) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
                         Release Vehicle & Start GPS Tracking
                       </button>
+
+                      {/* Void Booking — secondary destructive action */}
+                      <div style={{ borderTop: '1px solid #E2E8F0', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
+                        <button
+                          onClick={() => { setVoidReason(''); openModal('VOID_BOOKING'); }}
+                          disabled={actionLoading}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            background: 'none',
+                            border: '1.5px solid #DC2626',
+                            color: '#DC2626',
+                            borderRadius: '12px',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem'
+                          }}
+                        >
+                          Void Booking
+                        </button>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--gray-400)', textAlign: 'center', marginTop: '0.4rem' }}>
+                          Cancels the booking and reverts vehicle to Available.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : selectedBooking.status === 'ACTIVE' ? (
@@ -1049,7 +1196,9 @@ const BookingRequestsPage: React.FC = () => {
         let message: React.ReactNode = '';
         let variant: 'default' | 'danger' | 'warning' | 'success' = 'default';
         let confirmLabel = 'Confirm';
+        let cancelLabel = 'Cancel';
         let details: React.ReactNode = null;
+        let reasonInputConfig: { label: string; placeholder?: string; minLength?: number; value: string; onChange: (v: string) => void } | undefined = undefined;
 
         switch (modalConfig.type) {
           case 'APPROVE_BOOKING':
@@ -1094,14 +1243,15 @@ const BookingRequestsPage: React.FC = () => {
             break;
           case 'RELEASE_VEHICLE':
             title = 'Release Vehicle?';
-            message = 'You are about to release the vehicle to the customer. GPS tracking will begin immediately.';
+            message = `Are you sure you want to release this vehicle to ${selectedBooking.customer?.fullName}? This will activate GPS tracking and begin the rental period.`;
             confirmLabel = 'Release Vehicle';
             variant = 'success';
             details = (
               <ul>
                 <li><strong>Customer:</strong> <span>{selectedBooking.customer?.fullName}</span></li>
                 <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
-                <li><strong>Plate Number:</strong> <span>{selectedBooking.vehicle.plateNumber}</span></li>
+                <li><strong>Plate Number:</strong> <span>{selectedBooking.vehicle.licensePlate}</span></li>
+                <li><strong>Scheduled Pickup:</strong> <span>{selectedBooking.startDate ? new Date(selectedBooking.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}</span></li>
                 <li><strong>Release Odometer:</strong> <span>{releaseOdometer} km</span></li>
               </ul>
             );
@@ -1128,6 +1278,21 @@ const BookingRequestsPage: React.FC = () => {
             confirmLabel = 'Complete Rental';
             variant = 'success';
             break;
+
+          case 'VOID_BOOKING':
+            title = 'Void This Booking';
+            message = 'This will cancel the booking and notify the customer. The vehicle will be returned to Available status. A refund must be handled manually. This action cannot be undone.';
+            confirmLabel = 'Void Booking';
+            cancelLabel = 'Keep Booking';
+            variant = 'danger';
+            reasonInputConfig = {
+              label: 'Reason for voiding (required)',
+              placeholder: 'Describe why this booking is being voided and what will happen with the refund...',
+              minLength: 10,
+              value: voidReason,
+              onChange: setVoidReason
+            };
+            break;
         }
 
         return (
@@ -1138,10 +1303,12 @@ const BookingRequestsPage: React.FC = () => {
             details={details}
             variant={variant}
             confirmLabel={confirmLabel}
+            cancelLabel={cancelLabel}
             loading={actionLoading}
             error={modalError}
             onConfirm={executeModalAction}
             onCancel={closeModal}
+            reasonInput={reasonInputConfig}
           />
         );
       })()}

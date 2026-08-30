@@ -13,14 +13,16 @@ web-build/
 
 # Environment Files (CRITICAL)
 .env
+.env*
+*.env
 .env.local
 .env.*.local
+.env.postgres
 supabase/.env
 scripts/.env
 scripts/*.env
 mobile/.env
 web/.env
-*.env
 
 # Keep examples
 !.env.example

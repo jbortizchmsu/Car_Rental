@@ -1,0 +1,2250 @@
+ TABLE OF CONTENTS
+CHAPTER I 4
+  INTRODUCTION                                                                                               4
+  Background of the Study 6
+  Objectives of the Study 7
+  Scope and Limitations 8
+  Significance of the Study10
+  Definition of Terms12
+CHAPTER II15
+Foreign Literature                                                                                              15                                                        
+   Local Literature                                                                                              17
+   Foreign Systems                                                                                              19   
+   Local Systems                                                                                              22
+   Synthesis                                                                                                          24
+CHAPTER III                                                                                                   31
+   Systems Development Method                                                                       31
+   Operational Framework                                                                                36
+   Data Flow Diagram                                                                                     37
+   Context Diagram                                                                                        37
+      Level 1 Data Flow Diagram                                                                            38
+      Level 2 Data Flow Diagrams                                                                    40
+      Level 3 Data Flow Diagrams                                                                    51
+   Entity Relationship Diagram                                                                       58
+   Use Case Diagram                                                                                               60
+   Use Case Scenario                                                                                               61
+   Data Dictionary                                                                                               77
+    Hardware and Software Requirements                                                           117
+    Project Timeline                                                                                              119
+    System Evaluation Tools                                                                                  120
+    Ethical Consideration                                                                                  122
+REFERENCES                                                                                              124
+LIST OF FIGURES
+ FIGURES       PAGE
+Figure 1 Agile Methodology Model                                                             32
+Figure 2 Operational Framework of Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping                        36
+Figure 3 Context Diagram (Level 0) of Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping                        37
+Figure 4 Level 1 Data Flow Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental38                                                                                                                                                
+Figure 5 Level 2 Data Flow Diagram of Process 1: User Authentication and Management                                                                                                           40
+Figure 6 Level 2 Data Flow Diagram of Process 2: Booking and Rental Management                                                                                                                       41
+Figure 7 Level 2 Data Flow Diagram of Process 3: Dynamic Pricing             43
+Figure 8 Level 2 Data Flow Diagram of Process 4: Real-Time Tracking and Monitoring                                                                                                           44
+Figure 9 Level 2 Data Flow Diagram of Process 5: Geomapping                         46
+Figure 10 Level 2 Data Flow Diagram of Process 6: Asset and Maintenance Management                                                                                                            47
+Figure 11 Level 2 Data Flow Diagram of Process 7: Secure Payment              48
+Figure 12 Level 2 Data Flow Diagram of Process 8: Analytics and Reporting Dashboard                                                                                                            50
+Figure 13 Level 3 Data Flow Diagram of Process 2.4: Booking Status              51
+Figure 14 Level 3 Data Flow Diagram of Process 2.5: Close Rental              53
+Figure 15 Level 3 Data Flow Diagram of Process 7.1: Close Rental              54
+Figure 16 Level 3 Data Flow Diagram of Process 8.1: Aggregate Data              56
+Figure 17 Entity Relationship Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping                         58
+Figure 18 UML Use Case Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental  60
+LIST OF TABLES
+TABLE                                                                  PAGE
+Table 1 Synthesis of Related Literatures`24
+Table 2 Synthesis of Related Systems27
+Table 3 User Management and Authentication Module61
+Table 4 Booking and Reservation Module64
+Table 5 Dynamic Pricing Module67
+Table 6 Secure Payment Module69
+Table 7 Real-Time Tracking and Monitoring Module70
+Table 8 Geomapping and Security Module72
+Table 9 Asset and Maintenance Management Module73
+Table 10 Analytics and Reporting Dashboard Module75
+Table 11 USERS78
+Table 12 VEHICLES80
+Table 13 BOOKINGS84
+Table 14 PAYMENTS                                                                                     89
+Table 15 PAYMENT_PROOFS                                                                       91
+Table 16 BOOKING_DOCUMENTS                                                                       93
+Table 17 TRACKING_SESSIONS                                                                 94
+Table 18 VEHICLE_LOCATIONS                                                                       96
+Table 19 GEOFENCES                                                                                   98
+Table 20 GEOFENCE_ALERTS                                                                              100
+Table 21 MAINTENANCE_LOGS                                                                            101
+Table 22 DAMAGE_REPORTS                                                                      104
+Table 23 PRICING_RULES                                                                                  106
+Table 24 SYSTEM_SETTINGS                                                                      107
+Table 25 NOTIFICATIONS                                                                                  109 Table 26 VEHICLE_UTILIZATION_STATS111
+Table 27 REPORT_SNAPSHOTS113
+Table 28 REVENUE_ANALYTICS115
+CHAPTER I
+INTRODUCTION
+In today’s business environment, customer expectations continue to change as digital services become more common across different industries (Mordor Intelligence, 2025). Customers in the car rental sector increasingly prefer fast transactions, convenient booking processes, and accessible platforms that allow them to reserve vehicles more efficiently (IMARC Group, 2025). The growing use of smartphones and digital wallets in the Philippines has also contributed to the shift toward digital-first rental transactions (Mordor Intelligence, 2025). Because of this, car rental businesses are encouraged to adopt more responsive and technology-based systems to improve service quality and meet changing customer needs (IMARC Group, 2025).
+Despite these developments, many car rental businesses still encounter operational difficulties because of manual processes and limited digital integration (USTP, 2024). Common challenges include disorganized record-keeping, delayed reservation confirmation, and difficulty in monitoring vehicle availability (USTP, 2024). Businesses may also experience problems in tracking rented vehicles in real time, which can affect supervision, service reliability, and vehicle security (IARJSET, 2024). The absence of organized maintenance monitoring may further create difficulty in managing the condition and readiness of rental units (RentSyst, 2026). In addition, manually fixed rental rates may limit the ability of a business to respond to demand, rental duration, and vehicle availability more effectively (Kannan and Kumar, 2026). These issues create operational gaps that may affect both the business and its customers, especially when faster, more accurate, and more flexible services are needed (Nomora, 2026).
+To address these concerns, several studies and related systems emphasize the importance of integrating digital booking, real-time tracking, maintenance monitoring, geomapping, and dynamic pricing into rental operations (Kannan and Kumar, 2026). Research shows that real-time tracking and geofence-based monitoring can improve vehicle visibility, boundary control, and fleet security (IARJSET, 2024). Mobile-first booking platforms also help make rental services more accessible and organized for customers (Rent Centric, 2025). Systems with GPS-enabled fleet tracking and maintenance monitoring provide better administrative control over rental assets and vehicle conditions (RentSyst, 2026). Local systems with live GPS tracking further show that geomapping can improve customer confidence and vehicle security in real operational settings (Anis Transport Real-Time Tracking, 2025).
+In response to these conditions, the researchers propose the development of a Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. The proposed system aims to improve booking and rental management, payment recording, vehicle monitoring, and maintenance scheduling through a centralized digital platform. It also seeks to provide dynamic pricing and geomapping features that may help improve operational efficiency, vehicle security, and service quality. Through this study, the researchers aim to provide a more organized, modernized, and reliable system that will support the business operations of the beneficiary.
+1.1 Background of the Study
+Jennifer Morales, the proprietor of JD Car Rental, which opened for business on June 10, 2024, will benefit from this study. Customers that require short-term transportation for travel, personal, or other reasons can rent cars from the company. Currently, JD Car Rental manages its day-to-day operations manually. Customers who wish to rent a car manually submit questions, and available units are listed on the company’s Facebook page. Logbooks are also used to record business transactions and rental information. For a small business, this approach is still feasible, but as the number of clients and transactions rises, it can become less successful.
+Manual processing in car rental operations may create several challenges for the business. Since booking details, customer records, and rental schedules are not stored in one centralized digital system, it may become difficult to organize transactions properly and monitor the status of each unit. The business may also encounter delays in responding to customer inquiries and confirming reservations. This suggests that a more structured and technology-based system may better support the operational needs of JD Car Rental.
+Another important concern in car rental businesses is vehicle monitoring and security. Without a digital tracking system, the owner may have limited ability to monitor the real-time location and movement of rented cars. This may affect the security of the vehicles and reduce the business’s ability to respond quickly in case of emergencies, misuse, or delays in return. In the same way, integrating geomapping and real-time tracking in the proposed system may help JD Car Rental manage its units more effectively.
+Another feature explored in this study is dynamic pricing. In most traditional rental businesses, prices are fixed and set manually by the owner, which works but is not always the most efficient approach. Pricing becomes smarter and more responsive when it takes into account factors like demand, usage patterns, and other conditions that influence rental decisions. Dynamic pricing is not just a technical upgrade but a practical way to make rental services more competitive and adaptable to real-world conditions.
+Because of these existing conditions, the researchers propose the development of a Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. The proposed system is intended to improve booking and rental management, payment recording, vehicle monitoring, maintenance scheduling, and security through mobile and web access. By integrating these features into one system, the study hopes to provide a more organized, efficient, and reliable solution for the business.
+1.2 Objectives of the Study
+The general objective of this study is to design and develop a Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental.
+Specifically, this study aims to:
+1.   Design and develop a Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental with the following technical features:
+1.1Booking and Rental Management;
+1.2Dynamic Pricing;
+1.3Real-Time Tracking and Monitoring;
+1.4Asset and Maintenance Management;
+1.5Geomapping;
+1.6Payment Method;
+1.7Mobile and Web Access;
+1.8Security; and
+1.9Generation of Reports.
+2.   Test the functionality of the developed system.
+3.   Evaluate the quality of the system using the ISO 25010:2011 Criteria.
+4.   Develop a User’s Guide of the developed system.
+1.3 Scope and Limitations
+This study focuses on the design and development of a Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. The system is a web and mobile-based platform intended for the business’s internal rental operations and authorized users. The Booking and Rental Management feature allows customers to reserve vehicles with or without a driver provided by JD Car Rental, and enables the owner to process rentals, assign drivers when requested, monitor vehicle availability, and manage rental schedules in a more organized and centralized manner. The Dynamic Pricing feature provides flexible rental rates that adjust based on selected factors such as vehicle demand, rental duration, and unit availability, allowing the business to respond more effectively to varying rental conditions. The Real-Time Tracking and Monitoring feature enables the owner to track the live location and movement of rented vehicles, improving supervision, operational control, and the ability to respond to incidents during the rental period. The Asset and Maintenance Management feature allows the owner to record vehicle details and monitor maintenance schedules, repair status, and overall unit condition to ensure that rental units remain ready and properly maintained. The Geomapping feature displays vehicle locations on a map interface and applies geofence-based boundary monitoring to strengthen vehicle security and alert the owner when a vehicle moves outside a defined area. The Payment Method feature allows the recording and management of payment transactions related to rentals, providing a more organized and traceable record of customer payments. The Mobile and Web Access feature enables the system to be accessed through both mobile devices and web browsers, making it more convenient for the owner and authorized users to manage operations at any time. The Security feature ensures that system access is restricted to authorized users only, protecting rental records, customer information, and system data from unauthorized access. The Generation of Reports feature produces summaries of booking transactions, rental records, payment history, vehicle status, and maintenance schedules to support business monitoring and informed decision-making.
+While the system offers several helpful features, there are some limitations to consider. The system does not cover other business functions such as accounting, payroll, and full financial management, as these fall outside the scope of rental operations management. The real-time tracking and geomapping features are dependent on GPS access, stable internet connection, and device compatibility, and the study does not aim to resolve connectivity or hardware limitations that may affect tracking performance during actual use. The dynamic pricing feature is based only on the pricing rules defined within the system, and the study does not aim to develop advanced predictive models or artificial intelligence-based pricing algorithms. The system does not include route optimization, traffic-based navigation, or fuel consumption analysis, as the tracking feature is limited to location monitoring and geofence-based alerts only. The system is specifically designed for JD Car Rental based on its existing operations and specific business needs, and it does not aim to provide a solution applicable to other car rental businesses without further modification.
+1.4 Significance of the Study
+This study is significant as it proposes the development of a Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. The study will be beneficial to the following:
+JD Car Rental. The business will benefit from a centralized digital platform that organizes booking transactions, rental records, vehicle monitoring, maintenance schedules, and payment management. Through the Generation of Reports feature, the owner can access summarized operational data that supports informed decision-making and more effective management of rental operations.
+Owner/Management. The system will reduce the owner’s reliance on manual and paper-based processes by digitizing booking management, dynamic pricing, real-time vehicle tracking, asset monitoring, and payment recording. The owner can retrieve information, update records, and monitor vehicle and rental statuses more efficiently, reducing administrative workload and minimizing errors caused by unorganized record-keeping.
+Customers. The system will improve the convenience and transparency of the rental booking process. By ensuring that vehicle availability, booking status, and payment transactions are properly recorded and monitored, the business can respond to customer inquiries more efficiently, thereby improving the overall rental experience.
+Researchers. The study will enable the researchers to apply their knowledge and skills in systems analysis, database design, web and mobile development, and system implementation in a real business environment. It will also enhance their ability to design technology-driven solutions for actual business problems.
+Future Researchers. The findings of this study may serve as a reference for researchers who intend to develop or improve systems related to car rental management, dynamic pricing, real-time vehicle tracking, geomapping, and web and mobile-based transaction systems.
+1.5 Definition of Terms
+The following key terms have been operationally defined in relation to their specific usage in this study. These definitions aim to provide clarity and ensure a consistent understanding of concepts central to the study.
+Asset and Maintenance Management. In this study, it refers to a system feature that records vehicle information and monitors maintenance schedules, repair status, and overall unit condition to ensure that rental vehicles remain ready and properly maintained.
+Booking. In this study, it refers to the process by which a customer reserves a vehicle for rental on a specified date and time through the system.
+Car Rental Management System. In this study, it refers to the web and mobile-based platform developed for JD Car Rental that integrates booking and rental management, dynamic pricing, real-time tracking, asset and maintenance monitoring, geomapping, payment management, and report generation into a single centralized system.
+Dynamic Pricing. In this study, it refers to a pricing feature of the system in which rental rates adjust based on selected factors such as vehicle demand, rental duration, and unit availability to allow the business to respond more effectively to varying rental conditions.
+Generation of Reports. In this study, it refers to a system feature that produces summaries of booking transactions, rental records, payment history, vehicle status, and maintenance schedules to support business monitoring and decision-making.
+Geofencing. In this study, it refers to a location-based security feature of the system that establishes a virtual boundary and alerts the owner when a rented vehicle moves outside the defined area.
+Geomapping. In this study, it refers to a system feature that displays the real-time location of rented vehicles on a map interface to support location-based monitoring and vehicle security.
+Maintenance Schedule. In this study, it refers to the planned schedule recorded in the system for checking, servicing, or repairing a rental vehicle.
+Mobile and Web Access. In this study, it refers to the capability of the system to be accessed and used through both mobile devices and web browsers, allowing authorized users to manage rental operations at any time and from any compatible device.
+Payment Method. In this study, it refers to a system feature that records and manages payment transactions made by customers in relation to their rental agreements.
+Real-Time Tracking. In this study, it refers to a system feature that monitors the live location and movement of rented vehicles to improve supervision and operational control during the rental period.
+Rental Transaction. In this study, it refers to the complete process of renting a vehicle as recorded in the system, including booking, approval, payment, vehicle use, and return.
+Security. In this study, it refers to a system feature that restricts access to authorized users only and protects rental records, customer information, and system data from unauthorized access.
+Vehicle Availability. In this study, it refers to the current status of a vehicle as recorded in the system, which may be classified as available, reserved, rented, or under maintenance.
+Web-Based System. In this study, it refers to the component of the proposed system that can be accessed using a web browser through an internet connection, intended primarily for the owner and authorized administrative users 
+CHAPTER II
+Review of Related Literature/Studies/System
+This chapter presents a review of related literature, studies, and existing systems relevant to the development of the proposed Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. The purpose of this review is to examine existing research and technological solutions that address challenges in vehicle rental management, digital booking, real-time fleet tracking, dynamic pricing, and geomapping in both foreign and local contexts. The reviewed literature provides theoretical and practical foundations that guide the design and development of the proposed system.
+2.1 Foreign Literature
+Integrating Pricing and Capacity Decisions in Car Rental
+Oliveira et al. (2025) studied how car rental profitability depends on the integration of fleet capacity and pricing strategies. Their research, published in ResearchGate, proposed a mathematical optimization model that treats demand as price-sensitive. The study highlights that by adjusting prices based on the return of capacity — where a vehicle becoming available immediately triggers a price recalibration — companies can solve the idle fleet problem and increase revenue per available car (RevPAC) without relying on complex predictive models. This study is relevant to the proposed system as it supports the concept of a capacity-aware dynamic pricing engine that adjusts rental rates based on real-time vehicle availability.
+Origin-Based Differentiated Pricing for Vehicle Sharing
+A 2024 research paper from EconStor explores origin-based pricing as a practical solution for vehicle sharing systems. Instead of complex forecasting, the system uses discrete price sets based on the location and time a rental starts. This approach incentivizes users to rent from low-demand zones by offering lower rates, effectively using pricing as a tool for user-based relocation to balance fleet distribution across geographic areas. This study supports the location-aware pricing module of the proposed system, which adjusts rental rates based on vehicle availability and demand.
+Geofence-Based Vehicle Tracking and Security Systems
+Research published in the International Academic Journal of Science and Engineering (IARJSET, 2024) emphasizes that ensuring vehicle safety through real-time location tracking has become a priority in fleet management. The study demonstrated a system using hardware modules to provide continuous vehicle monitoring and immediate alerts when a vehicle exits a predefined geographic boundary. The prototype achieved 95% precision in location tracking, proving its reliability for commercial theft prevention and boundary enforcement. This research is directly relevant to the geofence-based alert and boundary monitoring feature of the proposed system.
+Rule-Based Dynamic Pricing and Secure Booking Platforms
+Kannan and Kumar (2026), in a study published in the International Journal of Innovative Research in Technology, introduced a dual-layer pricing engine that uses rule-based guardrails combined with real-time data from external events such as weather and local news. This ensures that while prices remain dynamic, they always stay within a defined floor and ceiling, providing operational stability and transparency for rental administrators. This study provides the foundation for the rule-based pricing engine of the proposed system, which maintains defined minimum and maximum rate limits.
+Revenue Management and Surge Pricing Metrics
+According to Nomora (2026), modern rental pricing is shifting toward tiered rate structures that reflect actual demand. The study suggests that implementing a 20–30% weekend premium and weather-triggered price adjustments can boost revenue by 5–10%. The research emphasizes that the goal of dynamic pricing is not just to predict, but to manage utilization rates, keeping 70–85% of the fleet active at any given time. This study supports the demand-based tiered pricing system that maintains optimal fleet utilization through surge pricing metrics in the proposed system.
+2.2 Local Literature
+Philippines Car Rental and Leasing Market Outlook 2030
+According to Mordor Intelligence (2025), the Philippine car rental market is valued at approximately USD 682.27 million and is projected to grow through 2030. The growth is heavily driven by a rapid shift to digital-first super-app bookings. The report notes that online bookings are forecast to advance rapidly as smartphone penetration and digital wallet usage, such as GCash and Maya, continue to normalize across the country. This literature reinforces the importance of developing a mobile-first booking platform with integrated digital payment options for local users, as implemented in the proposed system.
+Digital Transformation and User Satisfaction in Local Rentals
+The IMARC Group (2025) reports that the Philippine car rental market is increasingly adopting digital channels to improve customer satisfaction. In 2025, the adoption of digital car rental sites gained traction as users moved away from traditional counter-based transactions. This shift allows local operators to implement dynamic pricing models based on local usage patterns, ensuring rates remain competitive during peak local travel seasons. These findings support the digital booking interface with dynamic pricing features in the proposed system, tailored to local seasonal demand patterns.
+Tourism-Driven Demand for Flexible Mobility
+Data from the Department of Tourism (2024) indicates that the tourism sector accounts for a significant portion of the Philippine GDP. The record-high international arrivals in 2024 have reinforced the demand for flexible mobility. This trend necessitates systems that can handle varied road conditions and provide tourists with flexible, reliable transportation options through mobile-first interfaces. This literature supports the development of a mobile-first rental system in the proposed study, designed to accommodate flexible and multi-point transportation needs.
+Operational Challenges in Local Fleet Management
+A 2024 study from the University of Science and Technology of Southern Philippines (USTP) identified key operational challenges for local businesses, including vehicle availability imbalance and reservation errors. The researchers emphasized the need for real-time tracking to enhance security and reporting analytics to help owners optimize fleet utilization, especially for small-to-medium enterprises. These findings reinforce the development of a real-time fleet availability system with analytics reporting to reduce reservation errors and improve fleet utilization in the proposed system.
+National Transportation Modernization and Fleet Safety
+According to IMARC (2024), national agencies in the Philippines have reinforced safety and standardization across all transportation sectors. While car rentals are private, this initiative influences private sector choices by encouraging the introduction of safer and more standardized mobility solutions, pushing local operators to adopt advanced GPS and maintenance scheduling features. This literature supports the GPS-integrated maintenance scheduling module of the proposed system, aligned with national safety and fleet standardization standards.
+2.3 Foreign Systems
+Anolla 
+Anolla is a foreign rental booking software that utilizes AI-powered automation and demand-based yield management. It supports dynamic pricing variations based on the day of the week and fleet availability and provides a data-driven rental flow that increases asset utilization. Anolla demonstrates how automated pricing adjustments can be integrated into a reservation platform. However, the system relies heavily on AI-based prediction models rather than rule-based configurations. In contrast, the proposed system adopts a rule-based dynamic pricing engine that gives administrators direct control over pricing parameters, making it more practical for small car rental businesses like JD Car Rental.
+Nomora 
+Nomora is a fleet integration platform that focuses on real-time visibility and advanced tracking. It integrates GPS modules with mobile-first fleet tools to provide administrators with immediate data on vehicle location and status. Nomora serves as a primary reference for integrating geomapping directly into a reservation dashboard. While Nomora is designed for large-scale fleet operations, the proposed system adapts these tracking and geomapping features to suit the operational scale of a local car rental business, allowing both the admin and customers to view vehicle locations in real time.
+Rent Centric 
+Rent Centric is a cloud-based solution designed specifically for car-sharing services and independent rental agencies. It features a robust customer self-service booking portal and mobile app support, providing the architectural basis for integrating mobile-based bookings with automated billing and invoicing systems. While Rent Centric is primarily built for car-sharing networks, the proposed system applies similar self-service booking and automated billing principles to a business-specific rental management platform, incorporating additional features such as dynamic pricing and geomapping.
+RentSyst 
+RentSyst is a car rental management platform known for its heavy integration of IoT technology. It provides GPS-enabled fleet tracking that gives owners full control over their assets and includes an analytics engine that helps small agencies automate document management and track maintenance. RentSyst serves as a model for the security and maintenance features of the proposed system. However, unlike RentSyst which is an off-the-shelf solution, the proposed system is specifically designed and configured around the existing operations and requirements of JD Car Rental.
+Fleetio 
+Fleetio is a specialized fleet management system that excels in maintenance tracking and predictive analytics. By using telematics data, it forecasts when vehicle components might fail, allowing repairs to be scheduled proactively. Fleetio provides a basis for the maintenance management module of the proposed system. While Fleetio focuses on predictive maintenance for large fleet organizations, the proposed system adapts these concepts into a simpler maintenance scheduling and monitoring module that suits the operational scale of a local small-to-medium car rental business.
+2.4 Local Systems
+Carbnb 
+Carbnb is a prominent local peer-to-peer car rental marketplace in the Philippines. It facilitates bookings across major cities like Manila and Cebu and features integrated local payment methods, including GCash and credit cards. Carbnb demonstrates the successful implementation of a mobile-first interface tailored to the preferences of Filipino renters. However, Carbnb operates as a peer-to-peer marketplace and does not include features for internal fleet maintenance monitoring, geofencing, or dynamic pricing configuration. The proposed system extends these functions by integrating fleet monitoring, geomapping, and a rule-based pricing engine designed specifically for a single business operator.
+DOON PH 
+DOON is a local car-sharing marketplace that provides fully insured rentals through an app-based ecosystem and features in-app messaging for direct communication between the vehicle owner and the renter. This system provides insights into how local rental platforms can support user communication and coordinate rental logistics digitally. While DOON focuses on a broad marketplace model, the proposed system applies similar in-app notification and communication features to a focused business management platform designed for JD Car Rental's specific operational needs.
+Toyota RentaCar x JoyRide 
+This local system is a partnership between Toyota Motor Philippines and the JoyRide super-app, allowing users to book various vehicle types for self-driven use. It utilizes Fleet 360 GPS technology for real-time location monitoring and offers a local benchmark for integrating high-level security features into a consumer-facing app. While this system benefits from the resources of large corporate organizations, the proposed system adopts comparable real-time GPS tracking and geomapping features, adapted to the operational scale and budget of a small local car rental business.
+Saferide Local Booking System 
+Saferide is a local online rental booking system that utilizes a Book Early, Pay Less pricing logic to manage demand. It allows users to view real-time availability and select specific vehicle models, serving as a basis for the dynamic pricing engine in the proposed study. While Saferide focuses primarily on demand-based early-booking incentives, the proposed system incorporates a more comprehensive pricing engine that accounts for vehicle demand, rental duration, and availability, alongside booking management and fleet monitoring features.
+Anis Transport Real-Time Tracking 
+Anis Transport is a local rental provider that has integrated a 24/7 web-based booking portal with live GPS tracking, allowing both the administrator and the customer to view vehicle locations in real-time. This provides a practical local example of how geomapping improves customer confidence and vehicle security in real operational settings. The proposed system applies this same dual-view real-time geomapping concept while extending it further with geofence-based boundary monitoring, violation detection, and automated alert notifications for the admin.
+2.5 Synthesis
+Table 1 
+Synthesis of Related Literatures 
+Related Studies
+Features and Functionalities
+Developed System
+Oliveira et al. (2025). Integrating Pricing and Capacity Decisions in Car Rental.
+Uses a mathematical optimization model that treats demand as price-sensitive; adjusts rental prices based on vehicle availability to solve the idle fleet problem and maximize revenue per available car (RevPAC).
+Supports the development of a capacity-aware dynamic pricing engine that recalibrates rates in real-time based on current vehicle availability and demand.
+EconStor (2024). Origin-Based Differentiated Pricing for Vehicle Sharing.
+Uses discrete price sets based on the pickup location and time a rental starts; incentivizes users to rent from low-demand zones through lower rates to balance fleet distribution.
+Reinforces the location-aware pricing module of the proposed system that assigns rental rates based on vehicle availability and demand across service areas.
+IARJSET (2024). Geofence-Based Vehicle Tracking and Security Systems.
+Uses hardware modules for continuous vehicle monitoring and immediate alerts when a vehicle exits a predefined geographic boundary; achieved 95% precision in location tracking.
+Supports the geofence-based alert and boundary enforcement feature integrated into the real-time fleet tracking module of the proposed system.
+Kannan & Kumar (2026). Rule-Based Dynamic Pricing and Secure Booking Platforms.
+Uses rule-based guardrails combined with real-time external event data such as weather and local news; ensures prices stay within defined floor and ceiling limits for operational stability.
+Provides the foundation for the rule-based pricing engine with defined minimum and maximum rate limits for stable and transparent pricing management.
+Nomora (2026). Revenue Management and Surge Pricing Metrics.
+Implements tiered rate structures reflecting actual demand; recommends 20–30% weekend premium and weather-triggered adjustments to maintain 70–85% fleet utilization rates.
+Supports the demand-based tiered pricing system that maintains optimal fleet utilization through surge pricing metrics in the proposed system.
+Mordor Intelligence (2025). Philippines Car Rental and Leasing Market Outlook 2030.
+Highlights digital-first super-app bookings as the primary growth driver; notes rapid advancement of online bookings driven by smartphone penetration and digital wallet usage such as GCash and Maya.
+Supports the development of a mobile-first booking platform with integrated digital payment options designed for local Filipino users.
+IMARC Group (2025). Digital Transformation and User Satisfaction in Local Rentals.
+Reports growing adoption of digital car rental channels replacing counter-based transactions; supports dynamic pricing based on local usage patterns during peak travel seasons.
+Reinforces the digital booking interface with dynamic pricing features tailored to local seasonal demand patterns in the proposed system.
+Department of Tourism (2024). Tourism-Driven Demand for Flexible Mobility.
+Record-high international arrivals in 2024 reinforce demand for flexible mobility; necessitates mobile-first interfaces that handle varied road conditions for tourists.
+Supports the development of a mobile-first rental system designed to accommodate flexible, multi-point transportation needs for both local and visiting users.
+USTP (2024). Operational Challenges in Local Fleet Management.
+Identifies vehicle availability imbalance and reservation errors as key challenges; emphasizes real-time tracking and reporting analytics for fleet utilization optimization in SMEs.
+Reinforces the need for a real-time fleet availability system with analytics reporting to reduce reservation errors and optimize fleet utilization in the proposed system.
+IMARC (2024). National Transportation Modernization and Fleet Safety.
+National agencies push private operators to adopt advanced GPS and maintenance scheduling features to meet safety and standardization standards across transportation sectors.
+Supports the GPS-integrated maintenance scheduling module of the proposed system, aligned with national safety and fleet standardization standards.
+Table 1 above presents the synthesis of foreign and local literature related to car rental management, dynamic pricing, and geomapping. The studies discussed various challenges such as idle fleet problems, inefficient pricing strategies, poor real-time visibility, and limited digital adoption in the local market. Several technologies and approaches were introduced to address these issues, including mathematical optimization models, rule-based pricing engines, GPS-based geofencing, and mobile-first digital platforms, which enable demand-responsive pricing, real-time tracking, and improved fleet utilization.
+The table also highlights that dynamic pricing models — whether origin-based, rule-based, or revenue-management-driven — are increasingly recognized as essential for competitive car rental operations. Local literature further supports these findings by presenting the rapid shift to digital bookings in the Philippines, the impact of tourism on rental demand, and the operational challenges faced by local fleet operators, particularly small-to-medium enterprises.
+Overall, the reviewed literature indicates the need for an integrated system that combines dynamic pricing, real-time geomapping, and fleet management to improve operational efficiency, revenue generation, and customer service for local car rental businesses such as JD Car Rental.
+ 
+Table 2
+Synthesis of Related Systems
+Related Studies
+Features and Functionalities
+Developed System
+Anolla (2026)
+AI-powered automation and demand-based yield management; supports dynamic pricing variations based on the day of the week and fleet availability.
+The proposed system extends this by incorporating a rule-based dynamic pricing module that adjusts rates based on fleet availability and demand, without relying solely on AI-based prediction models.
+Nomora (2026)
+Real-time visibility and advanced fleet tracking; integrates GPS modules with mobile-first fleet tools for immediate data on vehicle location and status.
+The proposed system applies a similar approach by integrating geomapping and real-time fleet tracking directly into the reservation dashboard for administrative control.
+Rent Centric (2025)
+Cloud-based solution with a customer self-service booking portal and mobile app support; features automated billing and invoicing for car-sharing and independent agencies.
+The proposed system incorporates a mobile-based self-service booking portal integrated with automated billing and payment recording for JD Car Rental.
+RentSyst (2026)
+Heavy IoT integration with GPS-enabled fleet tracking; includes an analytics engine for automated document management and maintenance tracking for small agencies.
+The proposed system adopts similar IoT-based fleet tracking and maintenance monitoring features suited for the scale of a local small-to-medium car rental business.
+Fleetio (2026)
+Specialized in maintenance tracking and predictive analytics; uses telematics data to forecast component failures and schedule proactive vehicle repairs.
+The proposed system incorporates a maintenance management module that records maintenance schedules and monitors vehicle condition, supporting proactive fleet maintenance.
+Carbnb (2026)
+Peer-to-peer car rental marketplace across major Philippine cities; features integrated local payment methods including GCash and credit cards with a mobile-first interface.
+The proposed system adopts a mobile-first booking interface integrated with local payment methods, tailored to the preferences and payment habits of Filipino renters.
+DOON PH (2025)
+App-based car-sharing with fully insured rentals; features in-app messaging for direct communication between vehicle owner and renter, and digitizes local insurance requirements.
+The proposed system incorporates in-app communication and notification features that support direct coordination between the admin and customers during the rental process.
+Toyota RentaCar x JoyRide (2024)
+Partnership using Fleet 360 GPS technology for real-time location monitoring of various vehicle types; allows users to book self-driven rentals through a super-app.
+The proposed system integrates GPS-based real-time vehicle location monitoring into the admin dashboard, providing a local benchmark for security and fleet oversight.
+Saferide Local Booking System (2026)
+Uses Book Early, Pay Less logic to manage demand; allows users to view real-time vehicle availability and select specific vehicle models.
+The proposed system adopts an early-reservation-aware dynamic pricing engine and real-time vehicle availability display to improve booking efficiency and demand management.
+Anis Transport Real-Time Tracking (2025)
+24/7 web-based booking portal with live GPS tracking; allows both the administrator and the customer to view vehicle location in real-time to improve confidence and security.
+The proposed system applies dual-view real-time geomapping for both admin and customer access, improving vehicle security and enhancing customer trust during active rentals.
+ 
+Table 2 above presents the synthesis of foreign and local systems related to car rental management, fleet tracking, and dynamic pricing operations. The systems focus on improving vehicle monitoring, reservation handling, and pricing transparency through the use of modern technologies such as AI-powered yield management, GPS geomapping, IoT integration, and cloud-based booking platforms. These technologies enable real-time fleet visibility, automated pricing adjustments, and better administrative control of rental operations.
+The table also shows that several systems incorporate mobile-first interfaces and integrated local payment solutions to accommodate the preferences of Filipino renters. These systems help organizations manage fleet availability, improve customer communication, and enforce security through live tracking. Local systems further emphasize the importance of real-time geomapping, early-reservation pricing logic, and in-app features that comply with local insurance and transportation regulations.
+Overall, the reviewed systems demonstrate the importance of integrating dynamic pricing, geomapping, and mobile-based booking in developing an effective car rental management system. These insights serve as a primary basis for designing the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental, ensuring that the proposed system addresses both operational efficiency and customer satisfaction.
+CHAPTER III
+Design and Methodology
+This chapter presents the design and methodology used to develop the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. The study adopts the Agile Software Development approach, which provides an iterative and flexible process for planning, designing, developing, and testing the system. The chapter outlines the operational framework that guided the project and presents key modeling tools including the Context Diagram and Data Flow Diagrams to illustrate system processes, the Entity Relationship Diagram to define data structures, and the UML Use Case Diagram and scenarios to describe user interactions. A complete Data Dictionary was also prepared to define all data elements used in the system. In addition, the chapter specifies the necessary hardware and software requirements for the system.
+3.1 Systems Development Method
+The research methodology used in this study was the developmental and descriptive research method that utilized an iterative process of systems development. This approach is appropriate for the study because the proposed system was developed, designed, and evaluated based on the operational needs and processes of JD Car Rental.
+The researchers used the developmental research design to develop, design, and evaluate the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping to produce a functional and reliable system. The descriptive method was also applied in this study because it allows the researchers to gather and analyze data about the current operations of JD Car Rental, identify the existing problems, and determine the system requirements needed to address those problems.
+To guide the development process, the researchers adopted the Agile Software Development Life Cycle (SDLC) model. The Agile model was selected because it supports incremental and iterative development, allowing the researchers to refine system features based on continuous feedback and changing requirements throughout the development process. Its flexibility makes it well-suited for a system with multiple integrated features such as booking management, dynamic pricing, real-time tracking, geomapping, asset monitoring, and payment recording.
+ 
+Figure 1 
+Agile Methodology Model 
+The figure above illustrates the Agile development model used in this study. The model consists of six iterative phases: Requirements, Design, Development, Testing, Deployment, and Review. Each phase was applied cyclically to ensure that the developed system met the functional and operational requirements of JD Car Rental.
+Planning Phase
+In this phase, the researchers gathered data to understand the current business operations of JD Car Rental and identify the system requirements. An online and face-to-face interview was conducted with Jennifer Morales, the proprietor of JD Car Rental, to examine how the business currently manages bookings, customer transactions, rental records, and vehicle monitoring. Since JD Car Rental currently relies on manual logbooks, Facebook-based inquiries, and informal communication to manage its operations, the interview provided the researchers with a clear understanding of the existing challenges and the functional requirements needed for the proposed system.
+Based on the gathered data, the researchers identified the following key functional requirements for the proposed system: Booking and Rental Management, Dynamic Pricing, Real-Time Tracking and Monitoring, Asset and Maintenance Management, Geomapping, Payment Method, Mobile and Web Access, Security, and Generation of Reports. System diagrams including Context Diagrams, Data Flow Diagrams, Entity Relationship Diagrams, and Use Case Diagrams were also prepared during this phase to visually represent the system’s structure and data flow.
+Design Phase
+This phase focused on designing the overall structure and interface of the system based on the requirements gathered in the previous phase. The system has two main access interfaces — a web-based interface for the owner and administrator, and a mobile-based interface for customers. Figma was used to create the user interface mockups and wireframes. The system architecture follows a client-server model where the Flutter mobile app and React web client communicate with a centralized Laravel backend through RESTful APIs. The database structure was also planned using an Entity Relationship Diagram to define the data structures for customers, vehicles, bookings, payments, maintenance records, and pricing configurations stored in PostgreSQL.
+Development Phase
+This phase involved the development of the system following an iterative approach. For the web-based component, Laravel was used as the backend framework for its MVC architecture and built-in authentication, React was used for the frontend admin panel, and PostgreSQL served as the database for storing all system records. For the mobile component, Flutter was used to build a cross-platform application compatible with both Android and iOS. The Geomapping and Real-Time Tracking features were implemented using the Google Maps API and GPS-based location services, while the Dynamic Pricing feature was built using a rule-based pricing engine. Firebase Cloud Messaging was also integrated for real-time push notifications on geofence alerts and booking updates.
+Testing Phase
+The researchers are currently in this phase, conducting system testing iteratively to verify that all features function correctly and meet the defined requirements. Functional testing is being performed across all modules including Booking and Rental Management, Dynamic Pricing, Real-Time Tracking and Monitoring, Asset and Maintenance Management, Geomapping, Payment Method, Mobile and Web Access, Security, and Generation of Reports. The system is being evaluated by selected respondents representing both administrative and customer-level users, using a structured evaluation instrument based on the ISO 25010:2011 Software Quality Evaluation Criteria to assess the overall quality and usability of the system.
+Deployment Phase
+This phase covers the final implementation of the system following testing and approval. The Laravel backend will be deployed to a web server, the React web client will be made accessible to the admin and owner, and the Flutter mobile application will be distributed to customers on Android and iOS. A user orientation will be conducted to familiarize all users with the system’s key features, accompanied by documentation and user guides to support the transition from manual operations. Post-deployment monitoring and support will also be provided to address any issues that arise. This phase will be carried out after the system’s approval during the final defense.
+3.2 Operational Framework
+Figure 2 
+Operational Framework of Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping
+Figure 2 above shows the Context Diagram (Level 0) of the Car Rental Management System, which presents the overall flow of data between the system and its two external entities: User and Owner/s. The User sends registration data, login credentials, booking requests, and payment details to the system, while receiving payment receipts, booking confirmations, price quotes, login status, and authentication responses in return. The Owner/s provides configuration input, maintenance input, geofence setup, and approval decisions to the system, while receiving dashboard data, reports, and tracking alerts in return. Overall, the diagram shows how the system serves as the central platform for managing user bookings, vehicle tracking, payment processing, fleet maintenance, geofence security, and analytics reporting for the Owner/s.
+3.3 Data Flow Diagram
+Figure 3
+Context Diagram (Level 0) of Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping
+Figure 3 above shows the Context Diagram (Level 0) of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping, which presents the overall flow of data between the system and its two external entities: Customer and Owner/s. The Customer sends registration data, login credentials, booking requests, and payment details to the system, while receiving payment receipts, booking confirmations, price quotes, login status, and authentication responses in return. The Owner/s provides configuration input, maintenance input, geofence setup, and approval decisions to the system, while receiving dashboard data, reports, and tracking alerts in return. Overall, the diagram shows how the system serves as the central platform for managing user bookings, vehicle tracking, payment processing, fleet maintenance, geofence security, and analytics reporting for the Owner/s.
+Figure 4
+Level 1 Data Flow Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental
+Figure 4 above shows the Level 1 Data Flow Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping, which decomposes the system into its eight major processes and illustrates how data flows between them, the two external entities, and the internal data stores. The eight core processes are: User Authentication (1), Booking and Rental Management (2), Dynamic Pricing (3), Tracking and Monitoring (4), Geomapping and Security (5), Asset and Maintenance Management (6), Payment (7), and Analytics and Reporting Dashboard (8). The Customer interacts primarily with User Authentication by submitting login credentials and registration data, receiving session tokens and login status in return. Booking and Rental Management receives booking requests from the Customer and communicates with Dynamic Pricing to obtain final computed rental prices based on rental parameters. The Tracking and Monitoring process monitors vehicle location and sends violation alerts and live tracking data to the Owner/s. Asset and Maintenance Management receives maintenance schedule inputs and vehicle registration data from the Owner/s and logs maintenance records to the Maintenance Records data store. The Payment process receives payment details from the Customer and final rental charges from Booking and Rental Management, storing validated transaction records in the Payment Records data store. Analytics and Reporting aggregates data from multiple data stores and sends dashboard displays and exported report files to the Owner/s. The system interacts with the following data stores: User Database (D1), Vehicle Database (D2), Booking Database (D3), Rental Records (D4), Pricing Log (D5), Location Log (D6), Maintenance Records (D7), Geofence Data (D8), Payment Records (D9), Session Data (D10), and Analytics DB (D11).
+Figure 5
+Level 2 Data Flow Diagram of Process 1: User Authentication and Management
+Figure 5 shows the Level 2 Data Flow Diagram for Module 1: User Management and Authentication Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses and data flows involved in managing user registration, identity verification, session creation, and account maintenance. The diagram shows four major subprocesses: Register User (1.0), Validate Identity (2.0), Assign Role and Create Session (3.0), and Update User Account (4.0). The Customer submits registration data and login credentials to initiate account creation and authentication, while the Owner/s similarly provide login credentials and account management requests. The Register User subprocess sends new user records and duplicate account queries to the User DB (D1) and returns duplicate check results and registration status. The Validate Identity subprocess queries the User DB for user records and failed attempt logs, returning the user record for identity verification. Upon successful verification, the Assign Role and Create Session subprocess queries the User DB for role and permissions, stores a session token in the Session DB (D10), and returns a login success token or login failed error to both the Customer and Owner/s. The Update User Account subprocess retrieves user records from the User DB, processes manage user account requests from Owner/s, and writes updated user records back to the User DB. This Level 2 DFD serves as the detailed blueprint for managing secure user registration, identity validation, role-based access control, session management, and account administration within the system. 
+Figure 6
+Level 2 Data Flow Diagram of Process 2: Booking and Rental Management
+Figure 6 shows the Level 2 Data Flow Diagram for Module 2: Booking and Reservation Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses and data flows involved in managing the complete lifecycle of a vehicle booking, from customer validation through rental closure. The diagram shows five major subprocesses: Validate Customer (2.1), Check Availability (2.2), Generate Booking (2.3), Booking Status (2.4), and Close Rental (2.5). The Customer submits a booking request to the Validate Customer subprocess, which queries the User DB (D1) for the customer account record and returns an eligibility status. The Check Availability subprocess sends vehicle availability queries to the Vehicle DB (D2) and returns vehicle records and an available vehicles list to the Customer. The Generate Booking subprocess records a pending booking record to the Booking DB (D3), updates vehicle status in the Vehicle DB, and sends a booking notification to the Owner/s. The Booking Status subprocess queries the Booking DB for pending booking records and returns booking status, pending booking details, and booking confirmation or rejection notice to both the Customer and Owner/s. The Close Rental subprocess queries the Rental Records (D4) using an active rental record query, retrieves the rental record, updates the completed rental status, and processes the vehicle return confirmation from the Owner/s. This Level 2 DFD serves as the detailed blueprint for managing vehicle booking validation, availability checking, booking generation, status monitoring, and rental closure within the system. 
+Figure 7
+Level 2 Data Flow Diagram of Process 3: Dynamic Pricing
+Figure 7 above shows the Level 2 Data Flow Diagram for Module 3: Dynamic Pricing Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses and data flows involved in computing the final rental price based on multiple pricing factors. The diagram shows six major subprocesses: Compute Base Total (3.1), Apply Demand Multiplier (3.2), Apply Duration Discount (3.3), Apply Season Surcharge (3.4), Finalize Price (3.5), and Manage Pricing Rules (3.6). The Compute Base Total subprocess sends a base rate query to the Vehicle DB (D2) and retrieves the base rate and mileage rate, producing a base computed total that flows into the Apply Demand Multiplier subprocess. The resulting demand-adjusted total passes into Apply Duration Discount, which produces a duration-adjusted total, followed by Apply Season Surcharge, which produces a season-adjusted total. The Finalize Price subprocess receives the season-adjusted total and writes it to the Pricing DB (D5) as the confirmed final price. Separately, the Manage Pricing Rules subprocess receives updated pricing rules from the Owner/s and writes an updated pricing configuration back to the Pricing DB, allowing dynamic adjustments to pricing parameters, before returning a pricing rules updated confirmation to the Owner/s. This Level 2 DFD serves as the detailed blueprint for managing base rate retrieval, demand-based pricing, duration discounting, seasonal surcharges, final price storage, and owner-controlled pricing rule management within the system. 
+Figure 8
+Level 2 Data Flow Diagram of Process 4: Real-Time Tracking and Monitoring
+Figure 8 above shows the Level 2 Data Flow Diagram for Module 4: Real-Time Tracking and Monitoring Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses and data flows involved in receiving, validating, storing, and analyzing GPS location data transmitted by active rental vehicles. The diagram shows four major subprocesses: Receive GPS Data (4.1), Validate GPS Data (4.2), Store Location Record (4.3), and Detect Violations (4.4). The GPS Device transmits a raw GPS packet to the Receive GPS Data subprocess, which forwards the raw packet to the Validate GPS Data subprocess. This subprocess sends a device-to-vehicle query to the Vehicle DB (D2) to retrieve the vehicle ID and rental ID, and writes any error or anomaly log to the Location DB (D6). Upon successful validation, a validated GPS record is forwarded to both the Store Location Record subprocess and the Detect Violations subprocess. The Store Location Record subprocess writes the validated GPS record to the Location DB. The Detect Violations subprocess queries the Location DB for location records and stored location confirmation, compares vehicle coordinates against permitted boundaries, and sends violation alerts and a live vehicle map to the Owner/s. The Owner/s may also submit a live map request directly to the Detect Violations subprocess. This Level 2 DFD serves as the detailed blueprint for managing GPS data ingestion, vehicle identity validation, location record storage, boundary violation detection, and real-time fleet monitoring within the system. 
+Figure 9
+Level 2 Data Flow Diagram of Process 5: Geomapping 
+Figure 9 above shows the Level 2 Data Flow Diagram for Module 5: Geomapping and Security Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses and data flows involved in managing geofence boundaries and verifying vehicle position against defined geographic zones. The diagram shows three major subprocesses: Manage Geofence (5.1), Load Geofence Boundary (5.2), and Check Position (5.3). The Owner/s submit geofence setup data and deactivate geofence requests to the Manage Geofence subprocess, which stores a geofence definition and updated geofence status to the Geofence DB (D8) and returns a geofence confirmation to the Owner/s. The Load Geofence Boundary subprocess queries the Geofence DB for geofence polygon data and retrieves the polygon vertices. These polygon vertices, together with the current vehicle coordinates received from the tracking pipeline, are passed as vehicle coordinates and polygon vertices to the Check Position subprocess. The Check Position subprocess evaluates whether a vehicle is operating within the defined geofence boundaries and produces a boundary check result that feeds back into the real-time monitoring flow. This Level 2 DFD serves as the detailed blueprint for managing geofence creation and deactivation, boundary polygon retrieval, and real-time vehicle position verification within the system. 
+Figure 10
+Level 2 Data Flow Diagram of Process 6: Asset and Maintenance
+Figure 10 above shows the Level 1 Data Flow Diagram for Module 6: Asset and Maintenance Monitoring Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the major processes and data flows involved in managing vehicle registration, maintenance scheduling, and maintenance task completion. The diagram centers on a single high-level process, Asset and Maintenance Monitoring (6.1), which interacts with external entities and data stores to coordinate fleet maintenance operations. The Owner/s submit a Maintenance Completion Report, Maintenance Schedule Input, and New Vehicle Registration Data to the process, and in return receive a Task Assignment Notification and Maintenance Completed Alert. The process writes Updated Vehicle Status, Updated Maintenance Status, and New Vehicle Records to the Vehicle DB (D2), ensuring fleet records are kept current. Additionally, the process records a Maintenance Schedule and Updated Maintenance Record to the Booking DB (D7) to coordinate maintenance activities with active rental schedules and ensure vehicle availability is accurately reflected. This Level 1 DFD serves as the blueprint for managing vehicle asset registration, maintenance scheduling, maintenance completion tracking, and fleet status updates within the system. 
+Figure 11
+Level 2 Data Flow Diagram of Process 7: Secure Payment
+Figure 11 above shows the Level 2 Data Flow Diagram for Module 7: Secure Payment Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses and data flows involved in validating, processing, and confirming rental payments through a secure payment channel. The diagram shows three major subprocesses: Validate Payment (7.1), Send to Payment Channel (7.2), and Record and Confirm Payment (7.3). The Customer submits payment details to the Validate Payment subprocess, which queries the Rental DB (D4) for the rental total price using a rental total query and queries the Payment DB (D9) for a duplicate reference check. Upon successful validation, the subprocess forwards validated payment details to the Send to Payment Channel subprocess. This subprocess transmits a payment request to the Payment Gateway and receives a payment response in return. In case of failure, a payment failed notice is sent to the Customer. Upon successful payment, a payment confirmation and channel reference are passed to the Record and Confirm Payment subprocess, which records the confirmed transaction to the Payment DB and updates the rental payment status in the Rental DB. A digital receipt is then issued to the Customer. This Level 2 DFD serves as the detailed blueprint for managing payment input validation, duplicate payment detection, gateway communication, transaction recording, and digital receipt generation within the system. 
+Figure 12
+ Level 2 Data Flow Diagram of Process 8: Analytics and Reporting Dashboard
+Figure 12 above shows the Level 2 Data Flow Diagram for Module 8: Analytics and Reporting Dashboard Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses and data flows involved in aggregating data from multiple sources, computing performance indicators, and generating exportable reports for system owners. The diagram shows three major subprocesses: Aggregate Data (8.1), Compute KPIs (8.2), and Generate and Export Report (8.3). The Owner/s submit report filter parameters to the Aggregate Data subprocess, which queries six data stores: Booking DB (D3), Rental Records (D4), Price DB (D5), Location DB (D6), Maintenance DB (D7), and Payment DB (D9). The raw combined dataset retrieved from these stores is passed to the Compute KPIs subprocess, which calculates key performance indicators and produces computed KPI results. These results flow into the Generate and Export Report subprocess, which also receives an export request from the Owner/s. The subprocess queries a KPI snapshot from the Data Store (D11) and writes new snapshot data back to it, before producing and returning a dashboard and report to the Owner/s. This Level 2 DFD serves as the detailed blueprint for managing multi-source data aggregation, KPI computation, snapshot storage, report generation, and dashboard delivery within the system. 
+Figure 13
+Level 3 Data Flow Diagram of Process 2.4: Booking Status
+Figure 13 above shows the Level 2 Data Flow Diagram for the Booking Status subprocess (P2.4.0) within Module 2: Booking and Reservation Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses involved in loading, reviewing, and processing pending booking requests submitted by customers. The diagram shows three major subprocesses: Load Pending Bookings (2.4.1), Process Approval (2.4.2), and Process Rejection (2.4.3). The Load Pending Bookings subprocess queries the Booking DB (D3) for pending bookings and retrieves pending booking records, which are then forwarded as pending booking details to the Process Approval subprocess. The Process Approval subprocess receives an approval decision from the Owner/s and sends an approved booking status back to the Booking DB, updates vehicle status in the Vehicle DB (D2), creates a new active rental record in the Rental Records (D4), and sends a booking confirmation to the Customer. The Process Rejection subprocess receives pending booking details from the Process Approval subprocess and a rejection decision from the Owner/s, then sends a rejected booking status to the Booking DB and a rejection notice to the Customer. This sub-level DFD serves as the detailed blueprint for managing the complete booking approval and rejection workflow, including data store updates and user notifications, within the system. 
+Figure 14
+Level 3 Data Flow Diagram of Process 2.5: Close Rental
+Figure 14 above shows the Level 2 Data Flow Diagram for the Close Rental subprocess (P2.5.0) within Module 2: Booking and Reservation Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses involved in finalizing a vehicle rental once the vehicle has been returned. The diagram shows three major subprocesses: Confirm Vehicle Return (2.5.1), Compute Final Charges (2.5.2), and Finalize Rental Closure (2.5.3). The Confirm Vehicle Return subprocess receives a vehicle return confirmation from the Owner/s, queries the Rental Records (D4) for the active rental record, retrieves the rental record, and forwards it to the Compute Final Charges subprocess. The Compute Final Charges subprocess processes the rental record to calculate the total outstanding amount, passing payment confirmation and an updated rental status to the Rental Records. The Finalize Rental Closure subprocess receives payment confirmation, writes an updated vehicle status to the Vehicle DB (D2), and marks the rental as fully closed in the Rental Records by recording the completed rental status. This sub-level DFD serves as the detailed blueprint for managing the vehicle return confirmation, final charge computation, and rental closure finalization processes within the system. 
+Figure 15
+Level 3 Data Flow Diagram of Process 7.1: Close Rental
+Figure 15 above shows the Level 2 Data Flow Diagram for the Validate Payment subprocess (P7.1.0) within Module 7: Secure Payment Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses involved in verifying the correctness and uniqueness of a customer's payment submission before it is forwarded to the payment channel. The diagram shows three major subprocesses: Check Payment Format (7.1.1), Check Duplicate Reference (7.1.2), and Check Payment Amount (7.1.3). The Customer submits payment details to the Check Payment Format subprocess, which validates the structure and completeness of the payment data and returns a format error to the Customer if the data is malformed. Valid payment details are forwarded as format-validated payment details to the Check Duplicate Reference subprocess, which sends a duplicate reference query to the Payment DB (D9) and receives a duplicate check result. If a duplicate is found, a duplicate reference error is returned to the Customer. Cleared payment details are then passed to the Check Payment Amount subprocess, which sends a rental total query to the Rental Records (D4), retrieves the rental total price, and compares it against the submitted payment amount. An amount mismatch error is returned to the Customer if there is a discrepancy. Successfully validated payment details are forwarded to the Send to Payment Channel subprocess (2.0) for further processing. This sub-level DFD serves as the detailed blueprint for managing multi-step payment validation including format checking, duplicate detection, and amount verification within the system.
+Figure 16
+Level 3 Data Flow Diagram of Process 8.1: Aggregate Data 
+Figure 16 above shows the Level 2 Data Flow Diagram for the Aggregate Data subprocess (P8.1.0) within Module 8: Analytics and Reporting Dashboard Module of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. It illustrates the detailed subprocesses involved in querying, normalizing, and preparing data from multiple data stores for downstream KPI computation and report generation. The diagram shows three major subprocesses: Query Data Stores (8.1.1), Normalize Data (8.1.2), and Merge and Deduplicate (8.1.3). The Owner/s submit report filter parameters to the Query Data Stores subprocess, which simultaneously issues queries to six data stores: Booking DB (D3), Rental DB (D4), Price DB (D5), Location DB (D6), Maintenance DB (D7), and Payment DB (D9), retrieving booking data, rental data, pricing data, location data, maintenance data, and payment data respectively. The combined raw dataset is forwarded as a raw combined dataset to the Normalize Data subprocess, which standardizes data formats and structures to produce a unified aggregated dataset. The normalized dataset is then passed to the Merge and Deduplicate subprocess, which consolidates records from overlapping data sources and removes duplicate entries to produce a clean, analysis-ready dataset for the Compute KPIs stage. This sub-level DFD serves as the detailed blueprint for managing multi-store data querying, data normalization, record merging, and deduplication within the analytics pipeline of the system. 
+3.4 Entity Relationship Diagram 
+Figure 17 
+Entity Relationship Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping
+The figure 17 shows the Entity Relationship Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. The diagram illustrates the database structure of the system and the relationships among the entities used to support booking management, vehicle management, payment processing, GPS tracking, geofence monitoring, maintenance logging, and report generation. The ERD consists of the Users, Vehicles, Bookings, Payments, Payment_Proofs, Booking_Documents, Tracking_Sessions, Vehicle_Locations, Geofences, Geofence_Alerts, Maintenance_Logs, Damage_Reports, Pricing_Rules, System_Settings, Notifications, Vehicle_Utilization_Stats, Report_Snapshots, and Revenue_Analytics entities, which are connected through one-to-many relationships to ensure organized data storage and transaction processing. These relationships enable the system to manage user accounts, rental bookings, payment records, uploaded documents, real-time vehicle location tracking, geofence boundary alerts, vehicle maintenance schedules, and financial analytics efficiently. Furthermore, the ERD serves as the foundation of the system database by defining how data is stored, retrieved, and maintained to support accurate record management, operational monitoring, and report generation within the car rental operations of the system. 
+3.5 USE CASE DIAGRAM
+Figure 18
+UML Use Case Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental.
+Figure 18 presents the UML Use Case Diagram of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. The diagram shows the interaction of the two main actors of the system, namely the Owner and the Customer, with the different functional modules of the system. These modules include User Management and Authentication, Booking and Reservation, Dynamic Pricing, Secure Payment, Real-Time Tracking and Monitoring, Geomapping and Security, Asset and Maintenance Management, and Analytics and Reporting Dashboard. The diagram also shows the specific functions and activities that can be performed by each actor based on their assigned roles and responsibilities within the system. Through these interactions, the system supports the management of user accounts, vehicle bookings, rental pricing computation, GCash-based payment processing, GPS-based vehicle tracking, geofence zone configuration, fleet and maintenance records, and data-driven analytics and reporting. Furthermore, the use case diagram illustrates how the major system functions are integrated to support efficient, transparent, and organized car rental operations for both the owner and the customer. Additionally, three background system processes — namely Compute Rental Price, Track Vehicle Location, and Detect and Handle Violation — operate automatically without direct actor involvement, demonstrating the system's capacity for intelligent and automated decision-making during active rentals.
+3.6 Use Case Scenario
+Table 1
+User Management and Authentication Module
+Use Case 1: Create an Account
+Use Case Goal: To allow a new Customer to register and create a personal account in the car rental management system.
+Scenario 1: Successful account registration.
+Actor: Customer
+Pre-condition: The system is running and accessible. The Customer does not have an existing account.
+Main Flow:
+Step 1: The Customer opens the registration page.
+Step 2: The Customer fills in the registration form by entering their full name, email address, phone number, and password.
+Step 3: The system validates the entered registration details for completeness and correct format.
+Step 4: The system checks if the email address is not yet registered in the database.
+Step 5: The system securely stores the user credentials including the hashed password.
+Step 6: The system sends a registration confirmation to the Customer's email address.
+Step 7: The Customer's account is successfully created and ready for use.
+User Action: Fills in the registration form and submits the required details.
+System Response: Validates the registration details, checks for duplicate email, stores the credentials securely, and sends a registration confirmation.
+Use Case 2: Login
+Use Case Goal: To allow a registered Customer or Owner to securely access the system using their credentials.
+Scenario 1: Successful login and access to the assigned dashboard.
+Actor: Customer / Owner
+Pre-condition: The system is running and accessible. The user has an active registered account.
+Main Flow:
+Step 1: The user opens the login page.
+Step 2: The user enters their registered email address and password.
+Step 3: The system validates the entered credentials against the user records in the database.
+Step 4: The system authenticates the user and determines the assigned role.
+Step 5: The system starts a user session and generates an authentication token.
+Step 6: The system redirects the user to the appropriate dashboard based on their assigned role.
+User Action: Enters registered email and password, then clicks the Login button.
+System Response: Validates the credentials, authenticates the user, starts the session, and redirects to the assigned dashboard.
+Scenario 2: Account locked after failed login attempts.
+Actor: Customer / Owner
+Pre-condition: The system is running and accessible. The user has an active registered account.
+Main Flow:
+Step 1: The user opens the login page and enters incorrect credentials.
+Step 2: The system validates the credentials and finds them incorrect.
+Step 3: The system displays an invalid credentials error message.
+Step 4: The user attempts to login again and fails for the third consecutive time.
+Step 5: The system locks the account and notifies the user of the account lock.
+User Action: Enters incorrect credentials and attempts to log in.
+System Response: Validates the credentials, displays an error message, and locks the account after three consecutive failed attempts.
+Use Case 3: Log Out
+Use Case Goal: To allow a logged-in Customer or Owner to securely end their session and exit the system.
+Scenario 1: Successful logout and session termination.
+Actor: Customer / Owner
+Pre-condition: The user is currently logged in and has an active session.
+Main Flow:
+Step 1: The user clicks the Logout button from the navigation bar.
+Step 2: The system terminates the active user session.
+Step 3: The system invalidates the authentication token.
+Step 4: The system redirects the user to the login page.
+User Action: Clicks the Logout button from the navigation bar.
+System Response: Terminates the active session, invalidates the authentication token, and redirects the user to the login page.
+Use Case 4: Manage User Accounts
+Use Case Goal: To allow the Customer to update their personal profile and the Owner to manage all registered user accounts in the system.
+Scenario 1: Customer successfully updates personal profile.
+Actor: Customer
+Pre-condition: The Customer is logged in and has an active session.
+Main Flow:
+Step 1: The Customer navigates to the profile settings page.
+Step 2: The system displays the current profile information.
+Step 3: The Customer edits personal details such as name, contact number, and address.
+Step 4: The Customer uploads a profile picture if desired.
+Step 5: The system validates the updated profile information.
+Step 6: The system saves the updated profile record.
+Step 7: The system displays a profile update confirmation.
+User Action: Edits personal details and saves the changes.
+System Response: Validates the updated details and saves the updated profile record.
+Scenario 2: Owner manages registered user accounts.
+Actor: Owner
+Pre-condition: The Owner is logged in and has navigated to the User Roles management page.
+Main Flow:
+Step 1: The Owner navigates to the User Roles page in the admin panel.
+Step 2: The system displays the list of all registered user accounts.
+Step 3: The Owner selects a user account to suspend or reactivate.
+Step 4: The system updates the account status.
+Step 5: The system displays an account status update confirmation.
+User Action: Selects a user account and performs the desired action such as suspend or reactivate.
+System Response: Updates the account status and displays a confirmation message.
+Table 2
+Booking and Reservation Module
+Use Case 5: Browse Available Vehicles
+Use Case Goal: To allow the Customer to view and explore the list of vehicles available for rental.
+Scenario 1: Customer successfully views available vehicles.
+Actor: Customer
+Pre-condition: The Customer is logged in and has navigated to the Vehicles page.
+Main Flow:
+Step 1: The Customer navigates to the Vehicles page.
+Step 2: The system retrieves and displays the list of available vehicles from the database.
+Step 3: The Customer views vehicle details such as vehicle name, type, seat capacity, and rental rate per day.
+Step 4: The Customer selects a vehicle to proceed with booking.
+User Action: Navigates to the Vehicles page and browses the available vehicle listings.
+System Response: Retrieves and displays all available vehicles with their details from the database.
+Use Case 6: Book a Vehicle
+Use Case Goal: To allow the Customer to submit a booking request for a selected vehicle by completing all required booking steps.
+Scenario 1: Customer successfully submits a booking request.
+Actor: Customer
+Pre-condition: The Customer is logged in and has selected a vehicle from the available listings.
+Main Flow:
+Step 1: The Customer opens the Request Booking modal for the selected vehicle.
+Step 2: Step 1 — Schedule: The Customer selects the pickup date and time and return date and time.
+Step 3: The Customer enters the intended travel area and destination address.
+Step 4: The Customer optionally adds travel notes.
+Step 5: The system calculates the price estimate based on the selected dates and active pricing rules.
+Step 6: Step 2 — Information: The Customer enters full name as per ID, contact number, driver’s license number, license expiry date, current address, emergency contact name, and emergency contact phone number.
+Step 7: Step 3 — Documents: The Customer uploads a valid ID and driver’s license.
+Step 8: Step 4 — Review: The Customer reviews the booking summary, customer details, and uploaded documents.
+Step 9: The Customer confirms the accuracy of the information and submitted documents.
+Step 10: The Customer clicks Submit Booking Request.
+Step 11: The system saves the booking record with the computed final price and sets the status to Pending Review.
+User Action: Completes all four booking steps and submits the booking request.
+System Response: Calculates the price estimate, validates the submitted information and documents, saves the booking record, and sets the booking status to Pending Review.
+Use Case 7: Approve Booking
+Use Case Goal: To allow the Owner to review and approve a submitted booking request.
+Scenario 1: Owner successfully approves a pending booking request.
+Actor: Owner
+Pre-condition: The Owner is logged in. A Customer has submitted a booking request with a Pending Review status.
+Main Flow:
+Step 1: The Owner navigates to the Bookings page and opens the Needs Admin Action tab.
+Step 2: The Owner selects a pending booking request to review.
+Step 3: The Owner reviews the booking details including customer information, uploaded documents, vehicle, schedule, and total price.
+Step 4: The Owner verifies the driver’s license validity and submitted documents.
+Step 5: The Owner clicks the Approve button.
+Step 6: The system updates the booking status to Approved.
+Step 7: The system notifies the Customer of the booking approval.
+Step 8: The system marks the booking as Waiting for Payment.
+User Action: Reviews the booking details and clicks the Approve button.
+System Response: Updates the booking status to Approved, notifies the Customer, and marks the booking as Waiting for Payment.
+Use Case 8: Reject Booking
+Use Case Goal: To allow the Owner to reject a submitted booking request with a stated reason.
+Scenario 1: Owner successfully rejects a pending booking request.
+Actor: Owner
+Pre-condition: The Owner is logged in. A Customer has submitted a booking request with a Pending Review status.
+Main Flow:
+Step 1: The Owner navigates to the Bookings page and opens the Needs Admin Action tab.
+Step 2: The Owner selects a pending booking request to review.
+Step 3: The Owner reviews the submitted booking details and documents.
+Step 4: The Owner clicks the Reject button and enters the rejection reason.
+Step 5: The system marks the booking status as Rejected.
+Step 6: The system notifies the Customer with the rejection reason.
+User Action: Reviews the booking details, enters the rejection reason, and clicks the Reject button.
+System Response: Marks the booking as Rejected and notifies the Customer with the stated rejection reason.
+Use Case 9: Cancel a Booking
+Use Case Goal: To allow the Customer to cancel an existing pending booking request.
+Scenario 1: Customer successfully cancels a pending booking.
+Actor: Customer
+Pre-condition: The Customer is logged in and has an existing booking with a Pending Review status.
+Main Flow:
+Step 1: The Customer navigates to the My Bookings page.
+Step 2: The Customer selects the pending booking to be cancelled.
+Step 3: The Customer clicks the Cancel Booking button.
+Step 4: The system updates the booking status to Cancelled.
+Step 5: The system notifies the Customer that the booking has been successfully cancelled.
+User Action: Selects the pending booking and clicks the Cancel Booking button.
+System Response: Updates the booking status to Cancelled and notifies the Customer of the successful cancellation.
+Use Case 10: Release Vehicle
+Use Case Goal: To allow the Owner to release the vehicle to the Customer after payment has been verified, including generating the rental contract as PDF.
+Scenario 1: Owner successfully releases the vehicle and generates the rental contract.
+Actor: Owner
+Pre-condition: The Owner is logged in. The booking has been approved and the Customer’s payment has been verified.
+Main Flow:
+Step 1: The Owner navigates to the Bookings page and opens the Waiting for Customer tab.
+Step 2: The Owner selects the booking with verified payment.
+Step 3: The Owner verifies that the payment has been confirmed.
+Step 4: The system generates the rental contract as a PDF document.
+Step 5: The system sends the rental contract to the Customer.
+Step 6: The Owner marks the vehicle as released.
+Step 7: The system updates the booking status to Active Rental.
+User Action: Verifies the payment and marks the vehicle as released.
+System Response: Generates and sends the rental contract as PDF, marks the vehicle as released, and updates the booking status to Active Rental.
+Use Case 11: Close Rental
+Use Case Goal: To allow the Owner to close a rental after the Customer has returned the vehicle.
+Scenario 1: Owner successfully closes the rental after vehicle return.
+Actor: Owner
+Pre-condition: The Owner is logged in. The rental is active and the Customer has returned the vehicle.
+Main Flow:
+Step 1: The Owner navigates to the Bookings page and opens the Active Rentals tab.
+Step 2: The Owner selects the active rental to be closed.
+Step 3: The Owner confirms the vehicle return.
+Step 4: The system checks if any violation fees are outstanding.
+Step 5: If a violation fee exists, the Customer is required to settle the violation fee before the rental can be closed.
+Step 6: The Owner completes the rental closure.
+Step 7: The system updates the booking status to Completed.
+Step 8: The system marks the vehicle as available for new bookings.
+User Action: Confirms the vehicle return and completes the rental closure.
+System Response: Checks for outstanding violation fees, updates the booking status to Completed, and marks the vehicle as available.
+Table 3
+Dynamic Pricing Module
+Use Case 12: Compute Rental Price
+Use Case Goal: To allow the system to automatically calculate the rental price when a booking is submitted based on the vehicle base rate and active pricing rules.
+Scenario 1: System successfully computes the rental price during booking.
+Actor: System (automated process)
+Pre-condition: A Customer has initiated a booking and selected rental dates. Active pricing rules have been configured by the Owner.
+Main Flow:
+Step 1: The system retrieves the base rate from the vehicle record.
+Step 2: The system matches the active pricing rules to the selected booking dates.
+Step 3: The system applies the pricing multiplier to the base rate.
+Step 4: The system validates the final computed price within the defined limits.
+Step 5: The system logs the full price breakdown.
+Step 6: The computed final price is embedded in the booking record.
+User Action: Selects the rental dates and submits the booking request.
+System Response: Retrieves the base rate, applies active pricing rules and multipliers, validates the final price, and embeds the computed price in the booking record.
+Use Case 13: Create Pricing Rule
+Use Case Goal: To allow the Owner to create a new pricing rule that will be applied during the rental price computation.
+Scenario 1: Owner successfully creates a new pricing rule.
+Actor: Owner
+Pre-condition: The Owner is logged in and has navigated to the Dynamic Pricing page.
+Main Flow:
+Step 1: The Owner clicks the Create Pricing Rule button.
+Step 2: The Owner enters the internal rule name.
+Step 3: The Owner selects the rule type such as seasonal, demand, or weekend.
+Step 4: The Owner sets the pricing multiplier value.
+Step 5: The Owner sets the start date and end date for the rule.
+Step 6: The Owner optionally adds internal notes about the rule.
+Step 7: The Owner clicks Save Pricing Rule.
+Step 8: The system saves the new pricing rule and makes it available for rental price computation.
+User Action: Fills in the pricing rule details and clicks Save Pricing Rule.
+System Response: Validates the entered rule details and saves the new pricing rule to the system.
+Use Case 14: Manage Pricing Rules
+Use Case Goal: To allow the Owner to view, edit, enable, disable, or delete existing pricing rules.
+Scenario 1: Owner successfully edits an existing pricing rule.
+Actor: Owner
+Pre-condition: The Owner is logged in. At least one pricing rule has been created in the system.
+Main Flow:
+Step 1: The Owner navigates to the Dynamic Pricing page.
+Step 2: The system displays the list of all existing pricing rules.
+Step 3: The Owner selects a pricing rule to edit.
+Step 4: The Owner updates the rule details.
+Step 5: The system validates and saves the updated rule.
+Step 6: The system displays an update confirmation.
+User Action: Selects a pricing rule and updates the rule details.
+System Response: Validates the updated details and saves the changes to the pricing rule.
+Scenario 2: Owner enables or disables a pricing rule.
+Actor: Owner
+Pre-condition: The Owner is logged in. At least one pricing rule exists in the system.
+Main Flow:
+Step 1: The Owner navigates to the Dynamic Pricing page.
+Step 2: The system displays the list of all existing pricing rules.
+Step 3: The Owner toggles the enable or disable status of the selected pricing rule.
+Step 4: The system updates the pricing rule status.
+Step 5: The system reflects the updated status in the pricing rules list.
+User Action: Toggles the enable or disable status of the selected pricing rule.
+System Response: Updates the pricing rule status and reflects the changes in the pricing rules list.
+Table 4
+Secure Payment Module
+Use Case 15: Process Payment
+Use Case Goal: To allow the Customer to submit payment for an approved booking through GCash.
+Scenario 1: Customer successfully submits full payment.
+Actor: Customer
+Pre-condition: The Customer is logged in. The booking has been approved by the Owner and is waiting for payment.
+Main Flow:
+Step 1: The Customer navigates to the GCash Payment page for the approved booking.
+Step 2: The Customer selects Full Payment as the payment option.
+Step 3: The Customer sends the full payment amount to the GCash merchant number provided.
+Step 4: The Customer enters the GCash reference number.
+Step 5: The Customer uploads the GCash receipt as proof of payment.
+Step 6: The Customer clicks Submit Payment Proof.
+Step 7: The system verifies the submitted payment proof.
+Step 8: The system records the successful transaction.
+Step 9: The system updates the booking status to Payment Submitted.
+User Action: Selects the payment option, enters the GCash reference number, uploads the receipt, and submits the payment proof.
+System Response: Verifies the submitted payment proof, records the successful transaction, and updates the booking status to Payment Submitted.
+Scenario 2: Customer successfully submits downpayment to reserve.
+Actor: Customer
+Pre-condition: The Customer is logged in. The booking has been approved and is waiting for payment.
+Main Flow:
+Step 1: The Customer navigates to the GCash Payment page for the approved booking.
+Step 2: The Customer selects Downpayment as the payment option.
+Step 3: The Customer sends the downpayment amount to the GCash merchant number provided.
+Step 4: The Customer enters the GCash reference number.
+Step 5: The Customer uploads the GCash receipt as proof of payment.
+Step 6: The Customer clicks Submit Payment Proof.
+Step 7: The system verifies the submitted payment proof.
+Step 8: The system records the downpayment transaction.
+Step 9: The system displays the remaining balance due at pickup.
+User Action: Selects Downpayment, enters the GCash reference number, uploads the receipt, and submits the payment proof.
+System Response: Verifies the payment proof, records the downpayment transaction, and displays the remaining balance due at pickup.
+Table 5
+Real-Time Tracking and Monitoring Module
+Use Case 16: Track Vehicle Location
+Use Case Goal: To allow the system to automatically track and record the real-time location of a vehicle during an active rental.
+Scenario 1: System successfully receives and records the vehicle location.
+Actor: System (automated process)
+Pre-condition: The rental is active and the vehicle has been released. A GPS device is installed and transmitting data.
+Main Flow:
+Step 1: The GPS device transmits the vehicle coordinates to the system.
+Step 2: The system receives the GPS coordinates from the device.
+Step 3: The system validates the GPS coordinate range for accuracy.
+Step 4: The system records the vehicle location to the location log with a timestamp.
+Step 5: The system checks if the vehicle is within the allowed geofence zone.
+Step 6: If the vehicle is within the zone, the system continues normal tracking.
+Step 7: If the vehicle is outside the zone, the system triggers the violation detection process.
+User Action: No direct user action. The GPS device automatically transmits coordinates during the active rental.
+System Response: Receives and validates GPS coordinates, records the vehicle location to the log, and checks the vehicle position against the geofence zone.
+Use Case 17: Detect and Handle Violation
+Use Case Goal: To allow the system to automatically detect a geofence violation and notify the Owner and Customer.
+Scenario 1: System detects a geofence violation and sends alerts.
+Actor: System (automated process)
+Pre-condition: The rental is active. The vehicle tracking system has detected that the vehicle is outside the allowed geofence zone.
+Main Flow:
+Step 1: The system detects that the vehicle has exited the allowed geofence zone.
+Step 2: The system classifies the type of violation.
+Step 3: The system determines the severity of the violation.
+Step 4: The system calculates the violation fee based on the severity.
+Step 5: The system logs the violation record with the timestamp and location.
+Step 6: The system sends a real-time alert to the Owner.
+Step 7: The system notifies the Customer of the detected violation and the corresponding fee.
+User Action: No direct user action. The system automatically detects and processes the violation.
+System Response: Classifies and logs the violation, calculates the fee, and sends real-time alerts to both the Owner and the Customer.
+Use Case 18: View Live Vehicle Map
+Use Case Goal: To allow the Owner to monitor the real-time location of all active rental vehicles through the map dashboard.
+Scenario 1: Owner successfully views live vehicle locations on the map dashboard.
+Actor: Owner
+Pre-condition: The Owner is logged in. At least one rental is currently active and GPS tracking is running.
+Main Flow:
+Step 1: The Owner navigates to the Map Dashboard page.
+Step 2: The system loads the map interface.
+Step 3: The system displays live vehicle location pins on the map.
+Step 4: The map auto-refreshes with new GPS data at regular intervals.
+Step 5: The Owner clicks on a vehicle pin to view individual vehicle details.
+User Action: Opens the Map Dashboard and clicks on vehicle pins to view details.
+System Response: Loads the map interface, displays live vehicle pins, auto-refreshes with new GPS data, and shows individual vehicle details when selected.
+Table 6
+Geomapping and Security Module
+Use Case 19: Set Allowed Zone
+Use Case Goal: To allow the Owner to configure a geofence boundary for a specific vehicle to monitor its movement during active rentals.
+Scenario 1: Owner successfully sets an allowed geofence zone for a vehicle.
+Actor: Owner
+Pre-condition: The Owner is logged in. GPS tracking is active and at least one vehicle is registered in the system.
+Main Flow:
+Step 1: The Owner navigates to the Map Dashboard or GPS Tracking page.
+Step 2: The Owner selects the vehicle to assign the geofence zone.
+Step 3: The Owner draws the boundary polygon on the map by selecting boundary points.
+Step 4: The system validates the boundary points for accuracy and completeness.
+Step 5: The Owner saves the geofence zone.
+Step 6: The system activates the geofence zone for the selected vehicle.
+User Action: Selects a vehicle, draws the boundary polygon on the map, and saves the geofence zone.
+System Response: Validates the boundary points and activates the geofence zone for the selected vehicle.
+Use Case 20: Remove Allowed Zone
+Use Case Goal: To allow the Owner to deactivate and remove an existing geofence zone assigned to a vehicle.
+Scenario 1: Owner successfully removes an existing geofence zone.
+Actor: Owner
+Pre-condition: The Owner is logged in. An active geofence zone exists for at least one vehicle.
+Main Flow:
+Step 1: The Owner navigates to the Map Dashboard or GPS Tracking page.
+Step 2: The Owner views the active geofence zones on the map.
+Step 3: The Owner selects the zone to be deactivated.
+Step 4: The Owner confirms the zone removal.
+Step 5: The system deactivates the selected geofence zone.
+Step 6: The system removes the boundary from the map display.
+User Action: Selects the geofence zone to be removed and confirms the removal.
+System Response: Deactivates the selected geofence zone and removes the boundary from the map.
+Table 7
+Asset and Maintenance Management Module
+Use Case 21: Add New Vehicle to the Fleet
+Use Case Goal: To allow the Owner to register a new vehicle and add it to the rental fleet.
+Scenario 1: Owner successfully adds a new vehicle to the fleet.
+Actor: Owner
+Pre-condition: The Owner is logged in and has navigated to the Fleet Management page.
+Main Flow:
+Step 1: The Owner clicks the Add New Vehicle button.
+Step 2: The Owner enters the vehicle details including plate number, model, year, type, seat capacity, and rental rate per day.
+Step 3: The system validates the entered vehicle details.
+Step 4: The system saves the vehicle record.
+Step 5: The system sets the vehicle status to Available.
+Step 6: The vehicle is now listed in the fleet and available for customer bookings.
+User Action: Enters the vehicle details and saves the new vehicle record.
+System Response: Validates the vehicle details, saves the vehicle record, and sets the vehicle status to Available.
+Use Case 22: Send Vehicle to Maintenance
+Use Case Goal: To allow the Owner to mark a vehicle as under maintenance and remove it from available rentals.
+Scenario 1: Owner successfully sends a vehicle to maintenance.
+Actor: Owner
+Pre-condition: The Owner is logged in. The vehicle is registered in the system with an Available status.
+Main Flow:
+Step 1: The Owner navigates to the Maintenance page.
+Step 2: The system displays the Vehicle Maintenance Status dashboard.
+Step 3: The Owner checks the current odometer reading, last oil change, and next service due for the selected vehicle.
+Step 4: The Owner clicks the Send to Shop button for the selected vehicle.
+Step 5: The system displays a confirmation dialog.
+Step 6: The Owner confirms the send to shop action.
+Step 7: The system marks the vehicle status as Under Maintenance.
+Step 8: The system removes the vehicle from the available rentals listing.
+User Action: Clicks the Send to Shop button for the selected vehicle and confirms the action.
+System Response: Marks the vehicle status as Under Maintenance and removes it from the available rentals listing.
+Use Case 23: Log Maintenance Entry
+Use Case Goal: To allow the Owner to record a maintenance service activity for a vehicle.
+Scenario 1: Owner successfully logs a maintenance entry.
+Actor: Owner
+Pre-condition: The Owner is logged in. The vehicle has been sent to maintenance.
+Main Flow:
+Step 1: The Owner clicks the Log button for the selected vehicle on the Maintenance page.
+Step 2: The system opens the General Maintenance Entry modal.
+Step 3: The Owner selects the target vehicle from the fleet.
+Step 4: The Owner selects the type of service performed.
+Step 5: The Owner enters the service cost.
+Step 6: The Owner enters the service odometer reading.
+Step 7: The Owner sets the service status.
+Step 8: The Owner enters the date performed and the next due date.
+Step 9: The Owner enters a detailed description of the work performed.
+Step 10: The Owner clicks Save Maintenance Entry.
+Step 11: The system saves the maintenance log record.
+User Action: Fills in the maintenance entry details and clicks Save Maintenance Entry.
+System Response: Validates the entered details and saves the maintenance log record to the system.
+Use Case 24: Mark Vehicle as Available
+Use Case Goal: To allow the Owner to restore a vehicle to available status after maintenance has been completed.
+Scenario 1: Owner successfully marks a vehicle as available after maintenance.
+Actor: Owner
+Pre-condition: The Owner is logged in. The vehicle has been sent to maintenance and a maintenance entry has been logged.
+Main Flow:
+Step 1: The Owner navigates to the Maintenance page.
+Step 2: The Owner reviews the completed maintenance log for the vehicle.
+Step 3: The Owner confirms that the maintenance has been completed.
+Step 4: The Owner marks the vehicle as available.
+Step 5: The system updates the vehicle status to Available.
+Step 6: The system restores the vehicle to the available rentals listing.
+User Action: Reviews the maintenance log and marks the vehicle as available.
+System Response: Updates the vehicle status to Available and restores it to the available rentals listing for customer bookings.
+Table 8
+Analytics and Reporting Dashboard Module
+Use Case 25: View Analytics Dashboard
+Use Case Goal: To allow the Owner to access the analytics dashboard showing key metrics and operational data from all system modules.
+Scenario 1: Owner successfully views the analytics dashboard.
+Actor: Owner
+Pre-condition: The Owner is logged in and has navigated to the Reports and Analytics page.
+Main Flow:
+Step 1: The Owner navigates to the Reports and Analytics page.
+Step 2: The system collects data from all modules including bookings, payments, fleet, violations, and maintenance.
+Step 3: The system merges and cleans the collected data.
+Step 4: The system computes the key metrics and performance indicators.
+Step 5: The system caches the results for fast loading.
+Step 6: The system displays the analytics dashboard with charts, summaries, and key metrics.
+User Action: Navigates to the Reports and Analytics page.
+System Response: Collects, merges, and processes data from all modules, computes key metrics, caches the results, and displays the analytics dashboard.
+Use Case 26: View Reports
+Use Case Goal: To allow the Owner and Customer to view specific operational reports within the system.
+Scenario 1: Owner views all operational reports.
+Actor: Owner
+Pre-condition: The Owner is logged in and has navigated to the Reports and Analytics page.
+Main Flow:
+Step 1: The Owner navigates to the Reports and Analytics page.
+Step 2: The Owner selects the report type to view such as all bookings, payment transactions, fleet status, violation reports, maintenance logs, or rental summary.
+Step 3: The system retrieves the relevant data from the database.
+Step 4: The system displays the report in a structured and readable format.
+User Action: Selects the desired report type.
+System Response: Retrieves and displays the requested report data in a structured and readable format.
+Scenario 2: Customer views own booking and payment history.
+Actor: Customer
+Pre-condition: The Customer is logged in and has navigated to the My Bookings or My Payments page.
+Main Flow:
+Step 1: The Customer navigates to the My Bookings or My Payments page.
+Step 2: The system retrieves the Customer’s booking history or payment history from the database.
+Step 3: The system displays the records in a structured and readable format.
+User Action: Navigates to the My Bookings or My Payments page.
+System Response: Retrieves and displays the Customer’s booking history or payment history.
+Use Case 27: Export Report
+Use Case Goal: To allow the Owner to export a generated report as a downloadable file.
+Scenario 1: Owner successfully exports a report as a downloadable file.
+Actor: Owner
+Pre-condition: The Owner is logged in and has navigated to the Reports and Analytics page.
+Main Flow:
+Step 1: The Owner navigates to the Reports and Analytics page.
+Step 2: The Owner selects the date range for the report.
+Step 3: The Owner selects the export format.
+Step 4: The Owner clicks the Export Report button.
+Step 5: The system retrieves the cached results for the selected date range.
+Step 6: The system generates the report file in the selected format.
+Step 7: The system delivers the report file for download.
+User Action: Selects the date range and export format, then clicks the Export Report button.
+System Response: Retrieves the cached data, generates the report file in the selected format, and delivers it as a downloadable file.
+ 
+3.7 Data Dictionary
+The Data Dictionary presents the structure and details of the database used in the Car Rental Management System. It serves as a reference guide for identifying the tables, fields, data types, field sizes, descriptions, and sample values used in the system database. The data dictionary also shows the data elements utilized by the different modules and processes of the system, including booking management, vehicle management, payment processing, GPS tracking, geofencing, maintenance logging, and report generation. Furthermore, it helps ensure the consistency, accuracy, integrity, and proper organization of data stored and managed within the system.
+ 
+Table 1
+USERS
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+email
+VARCHAR
+Alphanumeric
+50
+Stores the email address.
+juan@gmail.com
+passwordHash
+VARCHAR
+Alphanumeric
+50
+Stores the encrypted password hash.
+********
+fullName
+VARCHAR
+Alphanumeric
+50
+Stores the full name.
+Juan Dela Cruz
+phoneNumber
+VARCHAR
+Alphanumeric
+50
+Stores the phone number.
+09916862345
+role
+VARCHAR
+Alphanumeric
+50
+Defines the role (e.g., admin, customer, staff).
+customer
+isActive
+BOOLEAN
+True/False
+1
+Indicates whether the record is currently active.
+true
+lastLoginAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp of the last login.
+2024-01-15 10:30:00
+profilePhoto
+VARCHAR
+Alphanumeric
+50
+Stores the profile photo URL.
+/uploads/photo.jpg
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+deletedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was soft-deleted.
+NULL
+ 
+Table 2
+VEHICLES
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+licensePlate
+VARCHAR
+Alphanumeric
+50
+Unique license plate number of the vehicle.
+ABC 1234
+model
+VARCHAR
+Alphanumeric
+50
+Model name of the vehicle.
+Civic
+brand
+VARCHAR
+Alphanumeric
+50
+Brand/manufacturer of the vehicle.
+Honda
+category
+VARCHAR
+Alphanumeric
+50
+Category or type classification.
+Sedan
+dailyRate
+DECIMAL
+Numeric
+10,2
+Daily rental rate of the vehicle.
+2500.00
+status
+VARCHAR
+Alphanumeric
+50
+Current status of the record.
+available
+year
+INT
+Numeric
+-
+Year of manufacture of the vehicle.
+2022
+transmission
+VARCHAR
+Alphanumeric
+50
+Transmission type (e.g., automatic, manual).
+Automatic
+fuelType
+VARCHAR
+Alphanumeric
+50
+Type of fuel used by the vehicle.
+Gasoline
+seats
+INT
+Numeric
+-
+Number of seats available.
+5
+currentOdometerKm
+FLOAT
+Numeric
+-
+Current odometer reading in kilometers.
+12500.5
+isRetired
+BOOLEAN
+True/False
+1
+Indicates if the vehicle is retired from service.
+false
+color
+VARCHAR
+Alphanumeric
+50
+Color of the vehicle.
+White
+imageUrls
+VARCHAR
+Alphanumeric
+50
+Stores URLs of associated images.
+/uploads/car1.jpg
+description
+VARCHAR
+Alphanumeric
+50
+Textual description of the record.
+Well-maintained sedan.
+lastMaintenanceAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Date and time of the last maintenance.
+2024-01-01 09:00:00
+nextMaintenanceKm
+FLOAT
+Numeric
+-
+Odometer reading for the next scheduled maintenance.
+15000.0
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+deletedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was soft-deleted.
+NULL
+ 
+Table 3
+BOOKINGS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+customerId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing the customer in USERS.
+cuid_user123
+vehicleId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a vehicle in VEHICLES.
+cuid_veh456
+pricingRuleId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a pricing rule in PRICING_RULES.
+cuid_rule789
+startDate
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Start date of the booking or period.
+2024-02-01 08:00:00
+endDate
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+End date of the booking or period.
+2024-02-05 08:00:00
+totalAmount
+DECIMAL
+Numeric
+10,2
+Total amount charged for the booking.
+12500.00
+status
+VARCHAR
+Alphanumeric
+50
+Current status of the record.
+pending
+rejectionReason
+VARCHAR
+Alphanumeric
+50
+Reason for rejection of the record.
+NULL
+pickupLocation
+VARCHAR
+Alphanumeric
+50
+Location where the vehicle is picked up.
+Bacolod City Hall
+releasedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the vehicle was released.
+2024-02-01 09:00:00
+returnedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the vehicle was returned.
+2024-02-05 09:00:00
+releaseOdometerKm
+FLOAT
+Numeric
+-
+Odometer reading at vehicle release.
+12500.0
+returnOdometerKm
+FLOAT
+Numeric
+-
+Odometer reading at vehicle return.
+12900.0
+destinationLatitude
+FLOAT
+Numeric
+-
+Latitude coordinate of the destination.
+10.6407
+destinationLongitude
+FLOAT
+Numeric
+-
+Longitude coordinate of the destination.
+122.9688
+destinationRadius
+FLOAT
+Numeric
+-
+Allowed radius from the destination in kilometers.
+50.0
+approvedById
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing the user who approved the booking.
+cuid_admin001
+approvedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the booking was approved.
+2024-01-30 14:00:00
+releasedById
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing the user who released the vehicle.
+cuid_staff01
+returnedById
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing the user who processed the return.
+cuid_staff01
+notes
+VARCHAR
+Alphanumeric
+50
+Additional notes or remarks.
+Handle with care.
+adminNotes
+VARCHAR
+Alphanumeric
+50
+Internal admin notes for the record.
+VIP customer.
+baseAmount
+DECIMAL
+Numeric
+10,2
+Base rental amount before adjustments.
+10000.00
+rentalDays
+INT
+Numeric
+-
+Total number of rental days.
+4
+fullName
+VARCHAR
+Alphanumeric
+50
+Stores the full name.
+Juan Dela Cruz
+contactNumber
+VARCHAR
+Alphanumeric
+50
+Contact number of the person.
+09916862345
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 4
+PAYMENTS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+bookingId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a booking in BOOKINGS.
+cuid_book001
+amount
+DECIMAL
+Numeric
+10,2
+Amount of the payment.
+5000.00
+paymentType
+VARCHAR
+Alphanumeric
+50
+Type of payment (e.g., cash, GCash, bank transfer).
+GCash
+status
+VARCHAR
+Alphanumeric
+50
+Current status of the record.
+completed
+referenceNumber
+VARCHAR
+Alphanumeric
+50
+Reference number for the payment transaction.
+REF20240201
+verifiedById
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing the user who verified the payment.
+cuid_admin001
+verifiedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the payment was verified.
+2024-02-01 10:00:00
+rejectionReason
+VARCHAR
+Alphanumeric
+50
+Reason for rejection of the record.
+NULL
+notes
+VARCHAR
+Alphanumeric
+50
+Additional notes or remarks.
+Handle with care.
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 5
+PAYMENT_PROOFS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+paymentId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a payment in PAYMENTS.
+cuid_pay001
+fileUrl
+VARCHAR
+Alphanumeric
+50
+URL path to the uploaded file.
+/uploads/proof.jpg
+fileName
+VARCHAR
+Alphanumeric
+50
+Original file name of the uploaded document.
+gcash_proof.jpg
+fileType
+VARCHAR
+Alphanumeric
+50
+MIME type or file extension of the document.
+image/jpeg
+uploadedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the file was uploaded.
+2024-02-01 09:30:00
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+ 
+Table 6
+BOOKING_DOCUMENTS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+bookingId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a booking in BOOKINGS.
+cuid_book001
+documentType
+VARCHAR
+Alphanumeric
+50
+Type/category of the document (e.g., license, ID).
+Driver's License
+fileUrl
+VARCHAR
+Alphanumeric
+50
+URL path to the uploaded file.
+/uploads/proof.jpg
+originalName
+VARCHAR
+Alphanumeric
+50
+Original file name before upload.
+license.pdf
+uploadedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the file was uploaded.
+2024-02-01 09:30:00
+ 
+Table 7
+TRACKING_SESSIONS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+bookingId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a booking in BOOKINGS.
+cuid_book001
+vehicleId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a vehicle in VEHICLES.
+cuid_veh456
+status
+VARCHAR
+Alphanumeric
+50
+Current status of the record.
+active
+startedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the session started.
+2024-02-01 09:00:00
+endedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the session ended.
+2024-02-05 09:00:00
+totalPoints
+INT
+Numeric
+-
+Total GPS data points recorded in the session.
+240
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 8
+VEHICLE_LOCATIONS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+sessionId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a tracking session.
+cuid_sess001
+latitude
+FLOAT
+Numeric
+-
+Latitude coordinate of the location.
+10.6407
+longitude
+FLOAT
+Numeric
+-
+Longitude coordinate of the location.
+122.9688
+speed
+FLOAT
+Numeric
+-
+Speed of the vehicle at the recorded point.
+60.5
+heading
+FLOAT
+Numeric
+-
+Compass heading of the vehicle.
+180.0
+recordedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the location was recorded.
+2024-02-02 10:00:00
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+deletedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was soft-deleted.
+NULL
+ 
+Table 9
+GEOFENCES
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+bookingId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a booking in BOOKINGS.
+cuid_book001
+vehicleId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a vehicle in VEHICLES.
+cuid_veh456
+centerLatitude
+FLOAT
+Numeric
+-
+Latitude of the geofence center point.
+10.6407
+centerLongitude
+FLOAT
+Numeric
+-
+Longitude of the geofence center point.
+122.9688
+radiusKm
+FLOAT
+Numeric
+-
+Radius of the geofence area in kilometers.
+50.0
+isActive
+BOOLEAN
+True/False
+1
+Indicates whether the record is currently active.
+true
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 10
+GEOFENCE_ALERTS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+geofenceId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a geofence record.
+cuid_geo001
+bookingId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a booking in BOOKINGS.
+cuid_book001
+alertType
+VARCHAR
+Alphanumeric
+50
+Type of geofence alert (e.g., entry, exit).
+exit
+latitude
+FLOAT
+Numeric
+-
+Latitude coordinate of the location.
+10.6407
+longitude
+FLOAT
+Numeric
+-
+Longitude coordinate of the location.
+122.9688
+triggeredAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the alert was triggered.
+2024-02-02 15:00:00
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+ 
+Table 11
+MAINTENANCE_LOGS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+vehicleId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a vehicle in VEHICLES.
+cuid_veh456
+bookingId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a booking in BOOKINGS.
+cuid_book001
+type
+VARCHAR
+Alphanumeric
+50
+Type classification of the record.
+routine
+description
+VARCHAR
+Alphanumeric
+50
+Textual description of the record.
+Well-maintained sedan.
+cost
+DECIMAL
+Numeric
+10,2
+Cost associated with the maintenance.
+3000.00
+status
+VARCHAR
+Alphanumeric
+50
+Current status of the record.
+completed
+odometerKm
+FLOAT
+Numeric
+-
+Odometer reading at time of maintenance.
+12500.0
+scheduledAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the maintenance is scheduled.
+2024-03-01 08:00:00
+completedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the maintenance was completed.
+2024-03-01 12:00:00
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 12
+DAMAGE_REPORTS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+bookingId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a booking in BOOKINGS.
+cuid_book001
+vehicleId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a vehicle in VEHICLES.
+cuid_veh456
+description
+VARCHAR
+Alphanumeric
+50
+Textual description of the record.
+Well-maintained sedan.
+severity
+VARCHAR
+Alphanumeric
+50
+Severity level of the damage.
+minor
+imageUrls
+VARCHAR
+Alphanumeric
+50
+Stores URLs of associated images.
+/uploads/car1.jpg
+estimatedCost
+DECIMAL
+Numeric
+10,2
+Estimated cost of damage repair.
+5000.00
+reportedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the damage was reported.
+2024-02-05 10:00:00
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+ 
+Table 13
+PRICING_RULES
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+name
+VARCHAR
+Alphanumeric
+50
+Name/label of the record.
+Weekend Surge
+type
+VARCHAR
+Alphanumeric
+50
+Type classification of the record.
+seasonal
+multiplier
+FLOAT
+Numeric
+-
+Rate multiplier applied to the base price.
+1.25
+startDate
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Start date of the booking or period.
+2024-02-01 08:00:00
+endDate
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+End date of the booking or period.
+2024-02-05 08:00:00
+isActive
+BOOLEAN
+True/False
+1
+Indicates whether the record is currently active.
+true
+description
+VARCHAR
+Alphanumeric
+50
+Textual description of the record.
+Weekend rate increase.
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 14
+SYSTEM_SETTINGS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+key
+VARCHAR
+Alphanumeric
+50
+Unique setting key identifier.
+app_name
+value
+VARCHAR
+Alphanumeric
+50
+Value associated with the setting key.
+Car Rental System
+description
+VARCHAR
+Alphanumeric
+50
+Textual description of the record.
+Application name setting.
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 15
+NOTIFICATIONS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+userId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a user in USERS.
+cuid_user001
+type
+VARCHAR
+Alphanumeric
+50
+Type classification of the record.
+booking
+title
+VARCHAR
+Alphanumeric
+50
+Title of the notification.
+Booking Confirmed
+message
+VARCHAR
+Alphanumeric
+50
+Content/body of the notification.
+Your booking has been confirmed.
+isRead
+BOOLEAN
+True/False
+1
+Indicates whether the notification has been read.
+false
+targetRole
+VARCHAR
+Alphanumeric
+50
+Target role for the notification broadcast.
+customer
+referenceId
+VARCHAR
+Alphanumeric
+50
+Reference ID linking to the related entity.
+cuid_book001
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 16
+VEHICLE_UTILIZATION_STATS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+vehicleId
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing a vehicle in VEHICLES.
+cuid_veh456
+periodStart
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Start of the reporting or analysis period.
+2024-01-01 00:00:00
+periodEnd
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+End of the reporting or analysis period.
+2024-01-31 23:59:59
+totalRentalDays
+INT
+Numeric
+-
+Total number of rental days in the period.
+45
+totalRevenue
+DECIMAL
+Numeric
+10,2
+Total revenue generated in the period.
+112500.00
+utilizationRate
+FLOAT
+Numeric
+-
+Vehicle utilization rate as a percentage.
+0.75
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 17
+REPORT_SNAPSHOTS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+generatedById
+VARCHAR
+Alphanumeric
+50
+Foreign key referencing the user who generated the report.
+cuid_admin001
+reportType
+VARCHAR
+Alphanumeric
+50
+Type/category of the report snapshot.
+monthly
+periodStart
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Start of the reporting or analysis period.
+2024-01-01 00:00:00
+periodEnd
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+End of the reporting or analysis period.
+2024-01-31 23:59:59
+totalRevenue
+DECIMAL
+Numeric
+10,2
+Total revenue generated in the period.
+112500.00
+totalBookings
+INT
+Numeric
+-
+Total number of bookings in the period.
+15
+generatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the report was generated.
+2024-02-01 08:00:00
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+Table 18
+REVENUE_ANALYTICS
+ 
+FIELD NAME
+DATA TYPE
+DATA FORMAT
+FIELD SIZE
+DESCRIPTION
+EXAMPLE
+id
+VARCHAR
+Alphanumeric
+50
+Unique identifier of the record.
+cuid_abc123xyz
+period
+VARCHAR
+Alphanumeric
+50
+Period label (e.g., monthly, weekly).
+monthly
+totalRevenue
+DECIMAL
+Numeric
+10,2
+Total revenue generated in the period.
+112500.00
+bookingRevenue
+DECIMAL
+Numeric
+10,2
+Revenue generated from bookings.
+112500.00
+maintenanceCost
+DECIMAL
+Numeric
+10,2
+Total cost spent on maintenance.
+15000.00
+netProfit
+DECIMAL
+Numeric
+10,2
+Net profit after deducting maintenance costs.
+97500.00
+periodStart
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Start of the reporting or analysis period.
+2024-01-01 00:00:00
+periodEnd
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+End of the reporting or analysis period.
+2024-01-31 23:59:59
+createdAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was created.
+2024-01-01 08:00:00
+updatedAt
+DATETIME
+YYYY-MM-DD HH:MM:SS
+-
+Timestamp when the record was last updated.
+2024-01-15 10:30:00
+ 
+ 
+3.8 Hardware and Software Requirements
+ 
+The Hardware and Software Requirements present the minimum specifications needed for the development and operation of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. These requirements ensure that the system can support booking and rental management, dynamic pricing computation, real-time vehicle tracking, geomapping, asset and maintenance monitoring, payment recording, and report generation while maintaining reliable system performance and accessibility for users.
+ 
+Recommended Minimum Hardware Requirements 
+For Development (Researchers)
+●      Computer: Desktop or Laptop Computer
+●      Processor: Quad-core 2.5 GHz or higher (Intel Core i5/i7 or AMD Ryzen 5/7 recommended)
+●   RAM: Minimum 8GB (16GB recommended)
+●   Storage: 10GB of available space (SSD highly recommended)
+● GPU: Integrated graphics sufficient; dedicated GPU recommended for Flutter emulator
+●      Network: Stable internet connection
+ 
+For Web Interface Users (Owner and Admin)
+●      Device: Desktop or Laptop Computer
+●      Browser: Chrome 110+, Firefox 110+, Safari 16+, or Edge
+●      Network: Stable internet connection of at least 5 Mbps for smooth map rendering
+For Mobile Application Users (Customers)
+●      Device: Smartphone
+●      Android: Android 8.0 (API level 26) or higher
+●      iOS: iOS 14.0 or higher
+●      GPS: Built-in GPS functionality required for real-time tracking features
+●      Network: Stable mobile data or Wi-Fi connection
+Recommended Software Requirements
+●      Operating System: Windows 10 or Windows 11
+●      Mobile Operating System: Android 8.0+ or iOS 14.0+
+●      Database Management PostgreSQL for production; SQLite for local development
+●      Backend Framework: Node.js with Express and TypeScript
+ORM: Prisma
+●      Frontend Framework:React with Vite and TypeScript
+●      Mobile Framework:React Native with Expo and TypeScript
+●      Mapping Service: Google Maps API
+●      Push Notifications: Firebase Cloud Messaging
+●      Web Browser: Google Chrome 110+ or equivalent modern browser
+●      Integrated Development Environment (IDE): Visual Studio Code
+3.9 Project Timeline
+The Project Timeline presents the sequence of phases involved in the development of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental, beginning with project planning and requirements gathering and continuing through system design, development, testing, deployment, and documentation. The timeline shows the major activities, tasks, and milestones to be completed in each phase of the study and serves as a guide for monitoring project progress, managing resources, organizing development activities, and ensuring the timely completion of the proposed system. It also illustrates the logical sequence and dependency of project tasks, wherein the completion of planning and requirements analysis precedes system design, while system design activities are completed before system development, testing, deployment, and final documentation.
+ 
+3.10 System Evaluation Tools
+ White Box Testing
+White Box Testing will be used to evaluate the internal structure, functionality, and quality of the source code of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. The researchers will use SonarQube as the static code analysis tool to identify possible bugs, vulnerabilities, code smells, and maintainability issues that may affect system performance and reliability. According to SonarSource (2024), SonarQube analyzes source code without executing the program to help ensure compliance with coding standards, software quality, and system security. Through this evaluation process, the researchers aim to ensure that the developed system is reliable, maintainable, secure, and properly structured before final implementation and evaluation.
+ 
+Black Box Testing
+Black Box Testing will be used to evaluate the functionality of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping from the users’ perspective without examining the internal structure of the source code. The testing process will focus on evaluating system inputs, processes, outputs, and expected responses to determine whether the developed system performs according to the specified requirements. Cypress will be used as the automated testing tool to simulate user interactions, validate system responses, and test major system features such as user authentication, booking and rental management, dynamic pricing computation, real-time vehicle tracking, geomapping and geofence boundary monitoring, payment processing, asset and maintenance management, and report generation. Through this testing process, the researchers aim to identify functional errors, inconsistencies, and usability issues before the final implementation of the system.
+System Usability Instrument
+The ISO/IEC 25010:2011 Software Quality Model will be used as the system evaluation instrument for assessing the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping. The evaluation will focus on the quality characteristics relevant to the developed system, particularly functional suitability, usability, reliability, performance efficiency, and security. The researchers will use the ISO/IEC 25010:2011 criteria to determine whether the system satisfies the operational requirements and expectations of JD Car Rental in managing booking and rental operations, vehicle tracking, dynamic pricing, payment processing, fleet maintenance, and report generation. The results of the evaluation will serve as the basis for identifying areas that may require further improvements and refinements before the final implementation of the system.
+3.11 Ethical Consideration
+The researchers will observe proper ethical standards throughout the development and evaluation of the Mobile and Web-Based Car Rental Management System with Dynamic Pricing and Geomapping for JD Car Rental. The privacy, confidentiality, and security of information gathered from the proprietor, authorized staff, and customers of JD Car Rental will be protected during the conduct of the study. Participation in interviews, consultations, and system evaluation activities will be voluntary, and informed consent will be obtained from the respondents before collecting the necessary data, opinions, and feedback. All information collected during the study will be used solely for academic and system development purposes and will not be disclosed to unauthorized individuals. The researchers will ensure that all electronic records, documents, and evaluation results are properly secured and managed to maintain data privacy, confidentiality, integrity, and protection throughout the duration of the study. Furthermore, the researchers will respect the rights of all participants and ensure that the information collected is handled responsibly and ethically in accordance with accepted research practices.
+REFERENCES
+Anis Transport. (2025). Anis Transport real-time tracking: 24/7 web-based booking portal with live GPS vehicle location monitoring. https://www.anistransport.com
+Anolla. (2026). Anolla rental management platform: AI-powered automation and demand-based yield management. https://www.anolla.com
+Carbnb. (2026). Carbnb peer-to-peer car rental marketplace: Mobile-first interface with integrated local payment methods. https://www.carbnb.ph
+Department of Tourism, Philippines. (2024). Tourism statistics: International visitor arrivals and tourism-driven demand for flexible mobility. https://www.tourism.gov.ph/tourism-statistics
+DOON PH. (2025). DOON car-sharing marketplace: App-based fully insured rentals with in-app messaging. https://www.doon.ph
+EconStor. (2024). Origin-based differentiated pricing for vehicle sharing. EconStor. https://www.econstor.eu/origin-based-differentiated-pricing-vehicle-sharing
+Fleetio. (2026). Fleetio fleet management system: Maintenance tracking and predictive analytics using telematics data. https://www.fleetio.com
+IMARC Group. (2024). National transportation modernization and fleet safety in the Philippines. https://www.imarcgroup.com/philippines-transportation-modernization
+IMARC Group. (2025). Digital transformation and user satisfaction in local car rentals: Philippines market report. https://www.imarcgroup.com/philippines-car-rental-market
+International Academic Journal of Science and Engineering. (2024). Geofence-based vehicle tracking and security systems. International Academic Journal of Science and Engineering (IARJSET), 11(4), 1–8. https://iarjset.com/geofence-based-vehicle-tracking
+Kannan, R., & Kumar, S. (2026). Rule-based dynamic pricing and secure booking platforms. International Journal of Innovative Research in Technology, 12(3), 45–53. https://ijirt.org/rule-based-dynamic-pricing-secure-booking
+Mordor Intelligence. (2025). Philippines car rental and leasing market outlook 2030. https://www.mordorintelligence.com/industry-reports/philippines-car-rental-market
+Nomora. (2026a). Revenue management and surge pricing metrics for fleet operations. https://www.nomora.com/revenue-management-surge-pricing
+Nomora. (2026b). Nomora fleet integration platform: Real-time visibility and GPS-enabled fleet tracking. https://www.nomora.com
+Oliveira, R. C., Silva, D. F., & Costa, M. J. (2025). Integrating pricing and capacity decisions in car rental. ResearchGate. https://www.researchgate.net/publication/integrating-pricing-capacity-car-rental
+Rent Centric. (2025). Rent Centric cloud-based car rental management system: Customer self-service booking and mobile app support. https://www.rentcentric.com
+RentSyst. (2026). RentSyst car rental management platform: IoT integration, GPS fleet tracking, and maintenance analytics. https://www.rentsyst.com
+Saferide. (2026). Saferide local booking system: Book early, pay less demand management with real-time vehicle availability. https://www.saferide.ph
+Toyota Motor Philippines Corporation, & JoyRide. (2024). Toyota RentaCar x JoyRide: Fleet 360 GPS technology for real-time vehicle location monitoring. https://www.joyride.com.ph/toyota-rentacar
+University of Science and Technology of Southern Philippines. (2024). Operational challenges in local fleet management for small-to-medium enterprises. USTP Research Publications. https://www.ustp.edu.ph/research/operational-challenges-fleet-management

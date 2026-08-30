@@ -22,13 +22,18 @@ import AdminUserRolesPage from './pages/AdminUserRolesPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import { ToastProvider } from './components/ToastProvider';
+import { PageHeaderProvider } from './contexts/PageHeaderContext';
 
 function App() {
   return (
-    <ToastProvider>
-      <Router>
+    <PageHeaderProvider>
+      <ToastProvider>
+        <Router>
         <Routes>
           {/* Public Routes with Navbar/Footer */}
           <Route element={<PublicLayout><Outlet /></PublicLayout>}>
@@ -36,6 +41,9 @@ function App() {
             <Route path="/vehicles" element={<VehiclesPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             
             {/* Customer Routes (also use PublicLayout) */}
             <Route 
@@ -92,6 +100,7 @@ function App() {
         </Routes>
       </Router>
     </ToastProvider>
+    </PageHeaderProvider>
   );
 }
 

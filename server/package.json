@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
+    "dev": "prisma generate --schema=prisma/schema.prisma && ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "prisma generate --schema=prisma/schema.postgres.prisma && tsc",
+    "postinstall": "prisma generate --schema=prisma/schema.postgres.prisma",
     "start": "node dist/index.js",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+    "prisma:generate:postgres": "prisma generate --schema=prisma/schema.postgres.prisma",
     "prisma:push": "prisma db push",
     "prisma:seed": "ts-node prisma/seed.ts",
     "seed:demo": "ts-node src/seed-demo.ts"
@@ -18,8 +20,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "nodemailer": "^8.0.10",
+    "resend": "^6.25.0",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
@@ -29,6 +35,7 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.11.24",
+    "@types/nodemailer": "^8.0.0",
     "prisma": "^5.10.2",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

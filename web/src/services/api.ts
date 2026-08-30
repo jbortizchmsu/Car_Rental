@@ -39,6 +39,11 @@ export const authApi = {
   login: (credentials: any) => api.post('/auth/login', credentials),
   register: (data: any) => api.post('/auth/register', data),
   getMe: () => api.get('/auth/me'),
+  verifyEmail: (token: string) => api.post('/auth/verify-email', { token }),
+  resendVerification: (email: string) => api.post('/auth/resend-verification', { email }),
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) => api.post('/auth/reset-password', { token, password }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) => api.post('/auth/change-password', data),
 };
 
 // Vehicles API
@@ -50,9 +55,13 @@ export const vehiclesApi = {
     if (returnDate) params.append('returnDate', returnDate);
     return api.get(`/vehicles/available${params.toString() ? `?${params.toString()}` : ''}`);
   },
+<<<<<<< HEAD
   create: (data: any) => api.post('/vehicles', data, {
     headers: { 'Content-Type': undefined } // let browser set multipart/form-data + boundary automatically
   }),
+=======
+  create: (data: any) => api.post('/vehicles', data),
+>>>>>>> 185c3c2e3d5a2beffc3d8a10e0d8441d2065ab90
   update: (id: string, data: any) => api.put(`/vehicles/${id}`, data, {
     headers: { 'Content-Type': undefined } // let browser set multipart/form-data + boundary automatically
   }),
@@ -90,6 +99,9 @@ export const bookingsApi = {
   markReturned: (id: string, data: any) => api.post(`/customer/bookings/${id}/return`, data),
   completeRental: (id: string, data: any) => api.post(`/customer/bookings/${id}/complete`, data),
   getDetails: (id: string) => api.get(`/customer/bookings/${id}`),
+  cancel: (id: string) => api.patch(`/customer/bookings/${id}/cancel`),
+  voidBooking: (id: string, voidReason: string) => api.patch(`/customer/bookings/${id}/void`, { voidReason }),
+  getVehicleBookedDates: (vehicleId: string) => api.get(`/customer/bookings/vehicle/${vehicleId}/booked-dates`),
   signAgreement: (id: string, signerName: string) => api.post(`/customer/bookings/${id}/sign-agreement`, { signerName }),
   confirmCashPayment: (id: string, amount: number) => api.post(`/payments/booking/${id}/confirm-cash`, { amount }),
 };
@@ -100,13 +112,15 @@ export const paymentsApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   getSubmitted: () => api.get('/payments/list?status=SUBMITTED'),
-  getPaymentsByStatus: (status: string) => api.get(`/payments/list?status=${status}`),
-  getCashAtPickup: () => api.get('/payments/cash-at-pickup'),
+  getPaymentsByStatus: (status?: string, params?: Record<string, any>) => api.get('/payments/list', { params: { status, ...params } }),
+  getCashAtPickup: (params?: Record<string, any>) => api.get('/payments/cash-at-pickup', { params }),
   confirmCash: (bookingId: string, amount: number) => api.post(`/payments/booking/${bookingId}/confirm-cash`, { amount }),
   verify: (id: string) => api.post(`/payments/${id}/verify`),
   reject: (id: string, reason: string) => api.post(`/payments/${id}/reject`, { reason }),
   getBookingForPayment: (id: string) => api.get(`/payments/booking/${id}`),
   getPaymentSummary: () => api.get('/payments/summary'),
+  getAggregates: (params?: Record<string, any>) => api.get('/payments/admin/aggregates', { params }),
+  exportCSV: (status?: string, params?: Record<string, any>) => api.get('/payments/export', { params: { status, ...params }, responseType: 'blob' }),
 };
 
 // Admin Reports API
@@ -120,10 +134,14 @@ export const adminApi = {
   getGeofenceAlertReport: (params?: any) => api.get('/admin/reports/geofence-alerts', { params }),
   getLiveLocations: () => api.get('/gps/live'),
   resolveGeofenceAlert: (id: string) => api.post(`/gps/alerts/${id}/resolve`),
+  getGpsStats: () => api.get('/gps/stats'),
+  getGpsSession: (bookingId: string) => api.get(`/gps/session/${bookingId}`),
+  exportGpsSession: (bookingId: string) => api.get(`/gps/session/${bookingId}/export`, { responseType: 'blob' }),
   getGeofences: () => api.get('/gps/geofences'),
   saveGeofence: (data: any) => api.post('/gps/geofences', data),
   deleteGeofence: (id: string) => api.delete(`/gps/geofences/${id}`),
   toggleGeofence: (id: string, active: boolean) => api.patch(`/gps/geofences/${id}/toggle`, { active }),
+  getActiveGeofenceZones: () => api.get('/gps/active-geofence-zones'),
 };
 
 // Notifications API
@@ -173,6 +191,14 @@ export const usersApi = {
   getById: (id: string) => api.get(`/admin/users/${id}`),
   updateStatus: (id: string, isActive: boolean) => api.patch(`/admin/users/${id}/status`, { isActive }),
   updateRole: (id: string, role: string) => api.patch(`/admin/users/${id}/role`, { role }),
+};
+
+// Settings API
+export const settingsApi = {
+  getAll: () => api.get('/admin/settings'),
+  getSetting: (key: string) => api.get(`/admin/settings/${key}`),
+  updateSettings: (settings: Array<{ key: string; value: any }>) =>
+    api.put('/admin/settings', { settings }),
 };
 
 export const getApiErrorMessage = (error: any, defaultMessage = 'An unexpected error occurred.'): string => {

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { adminApi, vehiclesApi } from '../services/api';
-import { 
-  Shield, Plus, Trash2, 
+import {
+  Shield, Trash2,
   Car, Info, Loader2,
   X
 } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
+import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
 
@@ -23,7 +24,7 @@ const AdminGeofencePage: React.FC = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   // Form state
   const [name, setName] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState('');
@@ -31,10 +32,19 @@ const AdminGeofencePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const toast = useToast();
+  const { setPageHeader } = usePageHeader();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPageHeader({
+      title: 'Geofence Management',
+      subtitle: 'Define operational zones and location boundaries'
+    });
+    return () => setPageHeader({});
+  }, [setPageHeader]);
 
   useEffect(() => {
     fetchData();
@@ -130,16 +140,6 @@ const AdminGeofencePage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 800 }}>Geofence Management</h1>
-          <p style={{ color: '#6B7280' }}>Define allowed operational zones for your fleet.</p>
-        </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Plus size={20} /> Create New Zone
-        </button>
-      </div>
-
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
           <Loader2 className="animate-spin" size={48} color="var(--warm-taupe)" />

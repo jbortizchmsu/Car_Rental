@@ -6,6 +6,8 @@ export interface PricingBreakdown {
   rentalDays: number;
   subtotal: number;
   appliedRuleName: string | null;
+  appliedRuleDescription: string | null;
+  pricingRuleId: string | null;
   multiplier: number;
   totalPrice: number;
 }
@@ -56,6 +58,8 @@ export async function calculateBookingPrice(
 
   let bestMultiplier = 1.0;
   let bestRuleName: string | null = null;
+  let bestRuleId: string | null = null;
+  let bestRuleDescription: string | null = null;
 
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -69,6 +73,8 @@ export async function calculateBookingPrice(
       if (rule.startDate && rule.endDate) {
         const ruleStart = new Date(rule.startDate);
         const ruleEnd = new Date(rule.endDate);
+        ruleStart.setHours(0, 0, 0, 0);
+        ruleEnd.setHours(23, 59, 59, 999);
         
         // Overlap logic: (StartA <= EndB) and (EndA >= StartB)
         if (start <= ruleEnd && end >= ruleStart) {
@@ -78,7 +84,11 @@ export async function calculateBookingPrice(
     } else if (rule.type === 'WEEKEND') {
       // Check if any day in the range is a weekend
       let tempDate = new Date(start);
-      while (tempDate <= end) {
+      tempDate.setHours(0, 0, 0, 0);
+      const tempEnd = new Date(end);
+      tempEnd.setHours(23, 59, 59, 999);
+
+      while (tempDate <= tempEnd) {
         const day = tempDate.getDay();
         if (day === 0 || day === 6) { // 0 = Sunday, 6 = Saturday
           applies = true;
@@ -87,7 +97,13 @@ export async function calculateBookingPrice(
         tempDate.setDate(tempDate.getDate() + 1);
       }
     } else if (rule.type === 'CATEGORY') {
-      if (rule.vehicleCategory === vehicle.category) {
+      const cat = rule.vehicleCategory ? rule.vehicleCategory.trim().toLowerCase() : '';
+      if (
+        !cat || 
+        cat === 'all' || 
+        cat === 'any' || 
+        (vehicle.category && cat === vehicle.category.trim().toLowerCase())
+      ) {
         applies = true;
       }
     } else if (rule.type === 'DEMAND') {
@@ -97,7 +113,7 @@ export async function calculateBookingPrice(
           where: { status: { not: 'RETIRED' } }
         });
         const occupiedVehicles = await prisma.vehicle.count({
-          where: { status: { in: ['RENTED', 'RESERVED'] } }
+          where: { status: { in: ['RENTED', 'RESERVED', 'ACTIVE', 'READY_FOR_PICKUP'] } }
         });
         
         const utilization = totalVehicles > 0 ? occupiedVehicles / totalVehicles : 0;
@@ -112,6 +128,8 @@ export async function calculateBookingPrice(
       if (rule.multiplier > bestMultiplier) {
         bestMultiplier = rule.multiplier;
         bestRuleName = rule.name;
+        bestRuleId = rule.id;
+        bestRuleDescription = rule.description ?? null;
       }
     }
   }
@@ -123,6 +141,8 @@ export async function calculateBookingPrice(
     rentalDays: days,
     subtotal: subtotal,
     appliedRuleName: bestRuleName,
+    appliedRuleDescription: bestRuleDescription,
+    pricingRuleId: bestRuleId,
     multiplier: bestMultiplier,
     totalPrice: Math.round(totalPrice * 100) / 100 // Round to 2 decimal places
   };

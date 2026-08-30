@@ -10,12 +10,13 @@ async function main() {
   const adminPassword = await bcrypt.hash('Admin123!', 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@jdcarrental.com' },
-    update: {},
+    update: { emailVerified: true },
     create: {
       email: 'admin@jdcarrental.com',
-      password: adminPassword,
+      passwordHash: adminPassword,
       fullName: 'Sample Admin',
-      role: 'admin'
+      role: 'admin',
+      emailVerified: true,
     }
   });
   console.log('✅ Admin user seeded');
@@ -24,12 +25,13 @@ async function main() {
   const customerPassword = await bcrypt.hash('Customer123!', 10);
   const customer = await prisma.user.upsert({
     where: { email: 'customer@jdcarrental.com' },
-    update: {},
+    update: { emailVerified: true },
     create: {
       email: 'customer@jdcarrental.com',
-      password: customerPassword,
+      passwordHash: customerPassword,
       fullName: 'Sample Customer',
-      role: 'customer'
+      role: 'customer',
+      emailVerified: true,
     }
   });
   console.log('✅ Customer user seeded');
