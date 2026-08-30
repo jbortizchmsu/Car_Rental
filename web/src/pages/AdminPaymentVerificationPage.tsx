@@ -20,6 +20,8 @@ const AdminPaymentVerificationPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
   const [paymentTypeFilter, setPaymentTypeFilter] = useState('ALL');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Cash recording modal state
   const [showCashModal, setShowCashModal] = useState(false);
@@ -54,12 +56,24 @@ const AdminPaymentVerificationPage: React.FC = () => {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       return { startDate: monthStart.toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
     }
+    if (filter === 'custom') {
+      const params: { startDate?: string; endDate?: string } = {};
+      if (customStartDate) params.startDate = customStartDate;
+      if (customEndDate) params.endDate = customEndDate;
+      return params;
+    }
     return {};
   };
 
   useEffect(() => {
-    fetchPayments();
-  }, [activeTab, searchQuery, dateRangeFilter, paymentTypeFilter]);
+    if (dateRangeFilter === 'custom') {
+      if ((customStartDate && customEndDate) || (!customStartDate && !customEndDate)) {
+        fetchPayments();
+      }
+    } else {
+      fetchPayments();
+    }
+  }, [activeTab, searchQuery, dateRangeFilter, paymentTypeFilter, customStartDate, customEndDate]);
 
   const fetchPayments = async () => {
     try {
@@ -242,7 +256,7 @@ const AdminPaymentVerificationPage: React.FC = () => {
       {/* FILTER BAR - Single clean row */}
       <div style={{
         display: 'flex',
-        gap: '1rem',
+        gap: '0.75rem',
         alignItems: 'center',
         padding: '1rem',
         backgroundColor: 'white',
@@ -251,7 +265,7 @@ const AdminPaymentVerificationPage: React.FC = () => {
         flexWrap: 'wrap'
       }}>
         {/* Search - grows to fill available space */}
-        <div style={{ position: 'relative', flex: '1 1 250px', minWidth: '250px' }}>
+        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '180px' }}>
           <Search size={18} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} />
           <input
             type="text"
@@ -312,49 +326,87 @@ const AdminPaymentVerificationPage: React.FC = () => {
           <option value="custom">Custom Range</option>
         </select>
 
-        {/* Reset Filters Button */}
-        <button
-          onClick={() => { setSearchQuery(''); setPaymentTypeFilter('ALL'); setDateRangeFilter('all'); }}
-          style={{
-            height: '40px',
-            padding: '0 1rem',
-            borderRadius: '8px',
-            border: '1px solid var(--gray-300)',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '0.95rem',
-            fontWeight: 500,
-            color: 'var(--gray-700)',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          Reset
-        </button>
+        {/* Custom Date Range Inputs */}
+        {dateRangeFilter === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              style={{
+                height: '40px',
+                padding: '0.5rem 0.5rem',
+                borderRadius: '8px',
+                border: '1px solid var(--gray-200)',
+                backgroundColor: 'white',
+                fontSize: '0.9rem'
+              }}
+            />
+            <span style={{ color: 'var(--gray-500)', fontSize: '0.85rem' }}>to</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              style={{
+                height: '40px',
+                padding: '0.5rem 0.5rem',
+                borderRadius: '8px',
+                border: '1px solid var(--gray-200)',
+                backgroundColor: 'white',
+                fontSize: '0.9rem'
+              }}
+            />
+          </div>
+        )}
 
-        {/* Export CSV Button */}
-        <button
-          onClick={handleExportCSV}
-          disabled={exporting}
-          style={{
-            height: '40px',
-            padding: '0 1rem',
-            borderRadius: '8px',
-            border: '1px solid var(--gray-300)',
-            backgroundColor: exporting ? 'var(--gray-100)' : 'white',
-            cursor: exporting ? 'not-allowed' : 'pointer',
-            fontSize: '0.95rem',
-            fontWeight: 500,
-            color: 'var(--gray-700)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            whiteSpace: 'nowrap',
-            opacity: exporting ? 0.6 : 1
-          }}
-        >
-          {exporting ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={18} />}
-          {exporting ? 'Exporting...' : 'Export CSV'}
-        </button>
+        {/* Actions Group (Reset + Export CSV grouped together) */}
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginLeft: 'auto' }}>
+          {/* Reset Filters Button */}
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setPaymentTypeFilter('ALL'); setDateRangeFilter('all'); setCustomStartDate(''); setCustomEndDate(''); }}
+            style={{
+              height: '40px',
+              padding: '0 1rem',
+              borderRadius: '8px',
+              border: '1px solid var(--gray-300)',
+              backgroundColor: 'white',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              color: 'var(--gray-700)',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Reset
+          </button>
+
+          {/* Export CSV Button */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            disabled={exporting}
+            style={{
+              height: '40px',
+              padding: '0 1rem',
+              borderRadius: '8px',
+              border: '1px solid var(--gray-300)',
+              backgroundColor: exporting ? 'var(--gray-100)' : 'white',
+              cursor: exporting ? 'not-allowed' : 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              color: 'var(--gray-700)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              whiteSpace: 'nowrap',
+              opacity: exporting ? 0.6 : 1
+            }}
+          >
+            {exporting ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={18} />}
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </button>
+        </div>
       </div>
 
       {/* STATUS SUMMARY CARDS - 4 columns */}

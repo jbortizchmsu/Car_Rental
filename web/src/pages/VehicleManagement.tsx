@@ -63,6 +63,7 @@ const VehicleManagement: React.FC = () => {
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   // Toolbar State
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,6 +162,7 @@ const VehicleManagement: React.FC = () => {
 
   const handleOpenModal = (vehicle?: Vehicle) => {
     setSelectedFile(null);
+    setFormError(null);
     if (vehicle) {
       setEditingVehicle(vehicle);
       setFormData({
@@ -267,9 +269,10 @@ const VehicleManagement: React.FC = () => {
       setShowModal(false);
       fetchVehicles();
     } catch (error: any) {
-      console.error('Vehicle Update Error:', error);
-      const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to update vehicle';
-      toast.error('Update Failed', message);
+      console.error('Vehicle Creation/Update Error:', error);
+      const message = getApiErrorMessage(error, editingVehicle ? 'Failed to update vehicle' : 'Failed to create vehicle');
+      setFormError(message);
+      toast.error(editingVehicle ? 'Update Failed' : 'Creation Failed', message);
     } finally {
       setSubmitting(false);
     }
@@ -644,6 +647,12 @@ const VehicleManagement: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
+              {formError && (
+                <div style={{ padding: '0.875rem 1.25rem', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: '12px', margin: '0 2rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                  <span>{formError}</span>
+                </div>
+              )}
               <div className="modal-content" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '3rem' }}>
                 
                 <div className="space-y-8">
@@ -664,7 +673,10 @@ const VehicleManagement: React.FC = () => {
                       </div>
                       <div className="form-group">
                         <label className="form-label">License Plate</label>
-                        <input required className="form-input" value={formData.licensePlate} onChange={(e) => setFormData({...formData, licensePlate: e.target.value})} placeholder="ABC 1234" />
+                        <input required className="form-input" value={formData.licensePlate} onChange={(e) => { setFormData({...formData, licensePlate: e.target.value}); setFormError(null); }} placeholder="ABC 1234" />
+                        {formError && formError.toLowerCase().includes('license plate') && (
+                          <p style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.35rem', fontWeight: 600 }}>{formError}</p>
+                        )}
                       </div>
                       <div className="form-group">
                         <label className="form-label">Category</label>

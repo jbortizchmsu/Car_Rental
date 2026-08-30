@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { authenticate, authorizeAdmin } from '../middleware/auth';
 import { vehicleImageUpload } from '../middleware/upload';
 import path from 'path';
@@ -191,7 +192,19 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
       }
     });
     res.status(201).json(vehicle);
-  } catch (error) {
+  } catch (error: any) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = error.meta?.target;
+      const isLicensePlate = Array.isArray(target)
+        ? target.includes('licensePlate')
+        : typeof target === 'string'
+          ? target.includes('licensePlate')
+          : false;
+
+      if (isLicensePlate) {
+        return res.status(400).json({ error: 'A vehicle with this license plate already exists.' });
+      }
+    }
     console.error('Vehicle creation error:', error);
     res.status(500).json({ error: 'Failed to create vehicle' });
   }
