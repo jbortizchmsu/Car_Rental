@@ -55,6 +55,32 @@ interface Vehicle {
   oilChangeIntervalKm: number;
 }
 
+const formatLicensePlateInput = (input: string): string => {
+  const upper = input.toUpperCase();
+  const clean = upper.replace(/[^A-Z0-9]/g, '');
+  if (clean.length === 0) return '';
+
+  let letters = '';
+  let digits = '';
+
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    if (letters.length < 3 && /[A-Z]/.test(char)) {
+      letters += char;
+    } else if (letters.length === 3 && /[0-9]/.test(char) && digits.length < 4) {
+      digits += char;
+    }
+  }
+
+  if (digits.length > 0) {
+    return `${letters}-${digits}`;
+  } else if (input.endsWith('-') && letters.length === 3) {
+    return `${letters}-`;
+  } else {
+    return letters;
+  }
+};
+
 const VehicleManagement: React.FC = () => {
   const { setPageHeader } = usePageHeader();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -227,6 +253,16 @@ const VehicleManagement: React.FC = () => {
     // Defensive frontend validation
     if (!formData.brand?.trim() || !formData.model?.trim() || !formData.licensePlate?.trim()) {
       return toast.warning('Missing required fields', 'Brand, Model, and License Plate are required.');
+    }
+    
+    // License Plate format validation (ABC-1234) for new or edited plates
+    const isPlateEditedOrNew = !editingVehicle || formData.licensePlate !== editingVehicle.licensePlate;
+    const PLATE_PATTERN = /^[A-Z]{3}-[0-9]{4}$/;
+    
+    if (isPlateEditedOrNew && !PLATE_PATTERN.test(formData.licensePlate.trim())) {
+      const msg = 'License Plate must follow the format ABC-1234 (3 letters, dash, 4 digits).';
+      setFormError(msg);
+      return toast.warning('Invalid License Plate', msg);
     }
     
     if ((formData.dailyRate ?? 0) <= 0) {
@@ -673,7 +709,17 @@ const VehicleManagement: React.FC = () => {
                       </div>
                       <div className="form-group">
                         <label className="form-label">License Plate</label>
-                        <input required className="form-input" value={formData.licensePlate} onChange={(e) => { setFormData({...formData, licensePlate: e.target.value}); setFormError(null); }} placeholder="ABC 1234" />
+                        <input 
+                          required 
+                          className="form-input" 
+                          value={formData.licensePlate} 
+                          onChange={(e) => { 
+                            const formatted = formatLicensePlateInput(e.target.value);
+                            setFormData({ ...formData, licensePlate: formatted }); 
+                            setFormError(null); 
+                          }} 
+                          placeholder="ABC-1234" 
+                        />
                         {formError && formError.toLowerCase().includes('license plate') && (
                           <p style={{ color: '#DC2626', fontSize: '0.75rem', marginTop: '0.35rem', fontWeight: 600 }}>{formError}</p>
                         )}
