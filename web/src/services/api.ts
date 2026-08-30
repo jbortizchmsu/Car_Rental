@@ -50,8 +50,12 @@ export const vehiclesApi = {
     if (returnDate) params.append('returnDate', returnDate);
     return api.get(`/vehicles/available${params.toString() ? `?${params.toString()}` : ''}`);
   },
-  create: (data: any) => api.post('/vehicles', data),
-  update: (id: string, data: any) => api.put(`/vehicles/${id}`, data),
+  create: (data: any) => api.post('/vehicles', data, {
+    headers: { 'Content-Type': undefined } // let browser set multipart/form-data + boundary automatically
+  }),
+  update: (id: string, data: any) => api.put(`/vehicles/${id}`, data, {
+    headers: { 'Content-Type': undefined } // let browser set multipart/form-data + boundary automatically
+  }),
   retire: (id: string) => api.post(`/vehicles/${id}/retire`),
   getImageUrl: (id: string) => `${API_BASE_URL}/vehicles/${id}/image`,
 };
