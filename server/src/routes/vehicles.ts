@@ -21,6 +21,16 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/vehicles/:id/image - Publicly serve vehicle image
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon'
+};
+
 router.get('/:id/image', async (req, res) => {
   try {
     console.log('=== IMAGE REQUEST ===');
@@ -73,6 +83,10 @@ router.get('/:id/image', async (req, res) => {
     }
 
     console.log('Serving file:', filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = IMAGE_MIME_TYPES[ext] || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     return res.sendFile(filePath);
 
   } catch (err: any) {
