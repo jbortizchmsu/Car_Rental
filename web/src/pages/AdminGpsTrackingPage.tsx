@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { History, Clock, FileText, Download, Loader2, MapPin, AlertCircle } from 'lucide-react';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { adminApi, bookingsApi } from '../services/api';
+import { adminApi, bookingsApi, settingsApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { GoogleMap, Marker, Polyline } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
@@ -49,6 +49,21 @@ const AdminGpsTrackingPage: React.FC = () => {
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
 
   const { isLoaded, loadError } = useGoogleMaps();
+  const [defaultCenter, setDefaultCenter] = useState(DEFAULT_CENTER);
+
+  useEffect(() => {
+    settingsApi.getAll()
+      .then((res) => {
+        const lat = parseFloat(res.data?.map?.centerLat);
+        const lng = parseFloat(res.data?.map?.centerLng);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          setDefaultCenter({ lat, lng });
+        }
+      })
+      .catch(() => {
+        // Fall back to DEFAULT_CENTER
+      });
+  }, []);
 
   useEffect(() => {
     setPageHeader({
@@ -421,7 +436,7 @@ const AdminGpsTrackingPage: React.FC = () => {
                   center={
                     startPoint
                       ? { lat: startPoint.latitude, lng: startPoint.longitude }
-                      : DEFAULT_CENTER
+                      : defaultCenter
                   }
                   zoom={13}
                   onLoad={onMapLoad}

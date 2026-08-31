@@ -8,7 +8,7 @@ import {
   Zap, Info, MoreHorizontal, Download, User, X, Map as MapIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { adminApi } from '../services/api';
+import { adminApi, settingsApi } from '../services/api';
 import { io } from 'socket.io-client';
 import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
@@ -79,6 +79,21 @@ const AdminLiveMapPage: React.FC = () => {
   const [geofenceZones, setGeofenceZones] = useState<ActiveGeofenceZone[]>([]);
 
   const { isLoaded, loadError } = useGoogleMaps();
+  const [defaultCenter, setDefaultCenter] = useState(NEGROS_DEFAULT_CENTER);
+
+  useEffect(() => {
+    settingsApi.getAll()
+      .then((res) => {
+        const lat = parseFloat(res.data?.map?.centerLat);
+        const lng = parseFloat(res.data?.map?.centerLng);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          setDefaultCenter({ lat, lng });
+        }
+      })
+      .catch(() => {
+        // Fall back to NEGROS_DEFAULT_CENTER
+      });
+  }, []);
 
   const mapCenter = useMemo(() => {
     if (selectedRental?.locations?.[0]) {
@@ -88,8 +103,8 @@ const AdminLiveMapPage: React.FC = () => {
     if (firstWithLoc?.locations?.[0]) {
       return { lat: firstWithLoc.locations[0].latitude, lng: firstWithLoc.locations[0].longitude };
     }
-    return NEGROS_DEFAULT_CENTER;
-  }, [selectedRental, activeRentals]);
+    return defaultCenter;
+  }, [selectedRental, activeRentals, defaultCenter]);
 
   const mapZoom = useMemo(() => {
     if (selectedRental?.locations?.[0]) return 16;
