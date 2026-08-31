@@ -60,7 +60,7 @@ router.post('/:id/submit', authenticate, upload.single('proof'), async (req: Aut
     let proofUrl = '';
     if (req.file) {
       const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
-      const filePath = `payment-proofs/${req.user!.id}/${bookingId}/proof-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+      const filePath = `${req.user!.id}/${bookingId}/proof-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
       try {
         proofUrl = await uploadToSupabaseStorage(
           BUCKETS.PAYMENT_PROOFS,

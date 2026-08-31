@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { createSignedUrlInSupabaseStorage, BUCKETS } from '../lib/supabase';
 import path from 'path';
 import fs from 'fs';
 
@@ -34,7 +35,17 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
       }
 
       if (doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')) {
-        return res.redirect(doc.fileUrl);
+        const signedUrl = await createSignedUrlInSupabaseStorage(
+          BUCKETS.BOOKING_DOCUMENTS,
+          doc.fileUrl,
+          60
+        );
+
+        if (!signedUrl) {
+          return res.status(404).json({ error: 'Document file not found' });
+        }
+
+        return res.redirect(signedUrl);
       }
 
       const filePath = path.resolve(__dirname, '..', '..', doc.fileUrl);
@@ -60,7 +71,17 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
 
       let url = proof.proofUrl;
       if (url.startsWith('http://') || url.startsWith('https://')) {
-        return res.redirect(url);
+        const signedUrl = await createSignedUrlInSupabaseStorage(
+          BUCKETS.PAYMENT_PROOFS,
+          url,
+          60
+        );
+
+        if (!signedUrl) {
+          return res.status(404).json({ error: 'Payment proof file not found' });
+        }
+
+        return res.redirect(signedUrl);
       }
 
       if (url.startsWith('/uploads/.uploads/')) url = url.replace('/uploads/.uploads/', '.uploads/');

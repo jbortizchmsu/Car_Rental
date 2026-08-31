@@ -122,3 +122,32 @@ export function extractSupabaseFilePath(fileUrl: string, bucketName: string): st
   }
   return fileUrl.replace(/^[/\\]+/, '');
 }
+
+/**
+ * Generates a temporary signed URL for a private object in Supabase Storage.
+ * Returns null if signed URL generation fails (e.g. object missing or storage error).
+ */
+export async function createSignedUrlInSupabaseStorage(
+  bucketName: string,
+  filePath: string,
+  expiresInSeconds: number = 60
+): Promise<string | null> {
+  try {
+    const client = getSupabaseClient();
+    const cleanPath = extractSupabaseFilePath(filePath, bucketName);
+    const { data, error } = await client.storage
+      .from(bucketName)
+      .createSignedUrl(cleanPath, expiresInSeconds);
+
+    if (error || !data?.signedUrl) {
+      console.error(`[SIGNED_URL_FAILURE] Bucket "${bucketName}", Path "${cleanPath}":`, error?.message || 'Failed to create signed URL');
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (err: any) {
+    const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+    console.error(`[SIGNED_URL_FAILURE] Bucket "${bucketName}", Path "${filePath}":`, msg);
+    return null;
+  }
+}

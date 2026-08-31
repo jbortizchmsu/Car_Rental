@@ -144,7 +144,7 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
     const existingDoc = booking.documents.find(d => d.documentType === type);
 
     const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
-    const filePath = `booking-documents/${req.user!.id}/${id}/${type}/doc-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+    const filePath = `${req.user!.id}/${id}/${type}/doc-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
     let publicUrl = '';
     try {
       publicUrl = await uploadToSupabaseStorage(
