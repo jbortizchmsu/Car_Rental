@@ -163,6 +163,7 @@ const AdminLiveMapPage: React.FC = () => {
       const zones: ActiveGeofenceZone[] = (zonesRes.data?.zones ?? []).filter(
         (z: any) => z.centerLatitude !== null && z.centerLongitude !== null && z.radiusKm !== null
       );
+      console.log('fetchMonitoringData completed — geofence zones count:', zones.length);
       setGeofenceZones(zones);
 
       setLastUpdated(new Date());
@@ -252,8 +253,15 @@ const AdminLiveMapPage: React.FC = () => {
     ), [activeRentals, searchQuery]
   );
 
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    setMap(map);
+  const onMapLoad = useCallback((mapInstance: google.maps.Map) => {
+    console.log('onMapLoad fired! Initial map center:', mapInstance.getCenter()?.toJSON());
+    setMap(mapInstance);
+    mapInstance.addListener('center_changed', () => {
+      console.log('Map center_changed event fired -> New map center:', mapInstance.getCenter()?.toJSON());
+    });
+    mapInstance.addListener('zoom_changed', () => {
+      console.log('Map zoom_changed event fired -> New map zoom:', mapInstance.getZoom());
+    });
   }, []);
 
   const onMapUnmount = useCallback(() => {
