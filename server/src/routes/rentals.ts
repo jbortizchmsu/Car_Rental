@@ -287,4 +287,21 @@ router.post('/backfill-geofences', authenticate, authorizeAdmin, async (req: Aut
   }
 });
 
+// Admin: Temporary Cleanup Endpoint for Synthetic Test Bookings
+router.post('/cleanup-test-booking', authenticate, authorizeAdmin, async (req: AuthRequest, res) => {
+  const { bookingId, vehicleId } = req.body;
+  if (!bookingId) return res.status(400).json({ error: 'bookingId required' });
+  try {
+    const delZones = await prisma.geofenceZone.deleteMany({ where: { bookingId } });
+    const delTrack = await prisma.trackingSession.deleteMany({ where: { bookingId } });
+    const delBook = await prisma.booking.deleteMany({ where: { id: bookingId } });
+    if (vehicleId) {
+      await prisma.vehicle.update({ where: { id: vehicleId }, data: { status: 'AVAILABLE' } });
+    }
+    res.json({ deletedZones: delZones.count, deletedTracking: delTrack.count, deletedBooking: delBook.count });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
