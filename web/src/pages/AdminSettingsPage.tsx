@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Shield, Bell, Save, Loader2, CreditCard } from 'lucide-react';
+import { Settings, Shield, Bell, Save, Loader2, CreditCard, MapPin, Navigation, AlertCircle, CheckCircle } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { settingsApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
+
+const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 // Default settings values
 const DEFAULT_SETTINGS = {
@@ -20,6 +23,10 @@ const DEFAULT_SETTINGS = {
   },
   payments: {
     gcashNumber: ''
+  },
+  map: {
+    centerLat: 10.6765,
+    centerLng: 122.9509
   },
   notifications: {
     enableOverdueAlerts: true,
@@ -54,8 +61,19 @@ const AdminSettingsPage: React.FC = () => {
   const [hasChanges, setHasChanges] = useState<Record<SettingsKey, boolean>>({
     general: false,
     payments: false,
+    map: false,
     notifications: false,
     security: false
+  });
+
+  const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [detectingGps, setDetectingGps] = useState(false);
+  const [locationStatusMessage, setLocationStatusMessage] = useState<string | null>(null);
+  const [locationStatusType, setLocationStatusType] = useState<'info' | 'error' | 'success' | null>(null);
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script-settings',
+    googleMapsApiKey: API_KEY
   });
 
   useEffect(() => {
@@ -87,9 +105,14 @@ const AdminSettingsPage: React.FC = () => {
           const merged = { ...prev };
           Object.entries(loadedSettings).forEach(([category, values]: any) => {
             if (merged[category as SettingsKey]) {
+              let parsedValues = { ...values };
+              if (category === 'map') {
+                if (values.centerLat !== undefined) parsedValues.centerLat = parseFloat(values.centerLat);
+                if (values.centerLng !== undefined) parsedValues.centerLng = parseFloat(values.centerLng);
+              }
               merged[category as SettingsKey] = {
                 ...merged[category as SettingsKey],
-                ...values
+                ...parsedValues
               };
             }
           });
@@ -109,6 +132,73 @@ const AdminSettingsPage: React.FC = () => {
 
     fetchSettings();
   }, []);
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatusMessage('Geolocation is not supported by your browser. Please click anywhere on the map preview to set coordinates.');
+      setLocationStatusType('error');
+      return;
+    }
+
+    setDetectingGps(true);
+    setLocationStatusMessage(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = parseFloat(position.coords.latitude.toFixed(6));
+        const lng = parseFloat(position.coords.longitude.toFixed(6));
+        setPendingLocation({ lat, lng });
+        setLocationStatusMessage(`GPS position detected (${lat}, ${lng}). Click "Confirm Location" to apply.`);
+        setLocationStatusType('info');
+        setDetectingGps(false);
+      },
+      (error) => {
+        setDetectingGps(false);
+        let errorText = 'Unable to retrieve location via GPS. Click anywhere on the map preview to manually select a default center.';
+        if (error.code === error.PERMISSION_DENIED) {
+          errorText = 'Location access was denied. Click anywhere on the map preview to set coordinates manually.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorText = 'GPS position unavailable. Click on the map preview to pick location manually.';
+        } else if (error.code === error.TIMEOUT) {
+          errorText = 'GPS request timed out. Click on the map preview to pick location manually.';
+        }
+        setLocationStatusMessage(errorText);
+        setLocationStatusType('error');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const lat = parseFloat(e.latLng.lat().toFixed(6));
+      const lng = parseFloat(e.latLng.lng().toFixed(6));
+      setPendingLocation({ lat, lng });
+      setLocationStatusMessage(`Point selected on map (${lat}, ${lng}). Click "Confirm Location" to apply.`);
+      setLocationStatusType('info');
+    }
+  };
+
+  const confirmPendingLocation = () => {
+    if (!pendingLocation) return;
+    setSettings((prev) => ({
+      ...prev,
+      map: {
+        centerLat: pendingLocation.lat,
+        centerLng: pendingLocation.lng
+      }
+    }));
+    setHasChanges((prev) => ({ ...prev, map: true }));
+    setPendingLocation(null);
+    setLocationStatusMessage(`Location confirmed (${pendingLocation.lat}, ${pendingLocation.lng})! Click 'Save Changes' to persist to database.`);
+    setLocationStatusType('success');
+  };
+
+  const cancelPendingLocation = () => {
+    setPendingLocation(null);
+    setLocationStatusMessage(null);
+    setLocationStatusType(null);
+  };
 
   const handleGeneralSettingsChange = (field: string, value: any) => {
     setSettings((prev) => ({
@@ -431,6 +521,167 @@ const AdminSettingsPage: React.FC = () => {
           {saving === 'payments' ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
           Save Changes
         </button>
+      </div>
+
+      {/* Map & Location Settings */}
+      <div className="card" style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ backgroundColor: 'var(--soft-beige)', padding: '0.75rem', borderRadius: '12px' }}>
+              <MapPin size={24} color="var(--warm-taupe)" />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Default Map Center</h3>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--gray-500)' }}>
+                Set base coordinates for fleet tracking maps and initial geofence views.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={detectingGps}
+            className="btn btn-outline"
+            style={{
+              padding: '0.6rem 1.2rem',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              borderRadius: '8px'
+            }}
+          >
+            {detectingGps ? (
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <Navigation size={16} color="#0284C7" />
+            )}
+            Use My Current Location
+          </button>
+        </div>
+
+        {/* Current Coordinates Display */}
+        <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', flexWrap: 'wrap', backgroundColor: 'var(--gray-50)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+          <div>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', display: 'block' }}>Current Base Latitude</span>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{settings.map.centerLat}</div>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', display: 'block' }}>Current Base Longitude</span>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{settings.map.centerLng}</div>
+          </div>
+          {pendingLocation && (
+            <div style={{ borderLeft: '2px solid var(--gray-300)', paddingLeft: '1.5rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0284C7', textTransform: 'uppercase', display: 'block' }}>Pending Pin Coordinates</span>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0284C7' }}>{pendingLocation.lat}, {pendingLocation.lng}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Status / Error Banner */}
+        {locationStatusMessage && (
+          <div 
+            style={{ 
+              padding: '0.85rem 1rem', 
+              borderRadius: '8px', 
+              marginBottom: '1.5rem',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: locationStatusType === 'error' ? '#FEF2F2' : (locationStatusType === 'success' ? '#F0FDF4' : '#F0F9FF'),
+              color: locationStatusType === 'error' ? '#DC2626' : (locationStatusType === 'success' ? '#16A34A' : '#0284C7'),
+              border: `1px solid ${locationStatusType === 'error' ? '#FCA5A5' : (locationStatusType === 'success' ? '#86EFAC' : '#BAE6FD')}`
+            }}
+          >
+            {locationStatusType === 'error' ? <AlertCircle size={18} /> : (locationStatusType === 'success' ? <CheckCircle size={18} /> : <Navigation size={18} />)}
+            <span>{locationStatusMessage}</span>
+          </div>
+        )}
+
+        {/* Map Preview Container */}
+        <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--gray-200)', height: '280px', marginBottom: '1.5rem', position: 'relative' }}>
+          {isLoaded && API_KEY ? (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={pendingLocation ? pendingLocation : { lat: settings.map.centerLat, lng: settings.map.centerLng }}
+              zoom={11}
+              onClick={handleMapClick}
+              options={{
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false,
+                zoomControl: true
+              }}
+            >
+              <Marker
+                position={pendingLocation ? pendingLocation : { lat: settings.map.centerLat, lng: settings.map.centerLng }}
+                title={pendingLocation ? 'Pending Location' : 'Current Default Center'}
+                icon={{
+                  path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+                  fillColor: pendingLocation ? '#0284C7' : '#AD9B8D',
+                  fillOpacity: 1,
+                  strokeColor: '#FFFFFF',
+                  strokeWeight: 2,
+                  scale: 1.5,
+                  anchor: new google.maps.Point(12, 24),
+                }}
+              />
+            </GoogleMap>
+          ) : (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--gray-100)', color: 'var(--gray-500)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem' }}>
+              {loadError ? 'Failed to load Google Map preview.' : 'Map preview loading or API key not configured. Click "Use My Current Location" or edit manually.'}
+            </div>
+          )}
+          <div style={{ position: 'absolute', bottom: '10px', left: '10px', backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-600)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+            Click anywhere on map to pin coordinates
+          </div>
+        </div>
+
+        {/* Actions & Confirmation Choice */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          {pendingLocation ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-brand"
+                onClick={confirmPendingLocation}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <CheckCircle size={18} />
+                Confirm This Location
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={cancelPendingLocation}
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '8px' }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              className="btn btn-brand"
+              onClick={() => saveSection('map')}
+              disabled={!hasChanges.map || saving === 'map'}
+              style={{
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                opacity: !hasChanges.map ? 0.5 : 1,
+                cursor: !hasChanges.map ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {saving === 'map' ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
+              Save Changes
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Notifications Settings */}
