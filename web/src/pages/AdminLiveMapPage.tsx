@@ -85,8 +85,10 @@ const AdminLiveMapPage: React.FC = () => {
   useEffect(() => {
     settingsApi.getAll()
       .then((res) => {
+        console.log('Settings API response:', res.data);
         const lat = parseFloat(res.data?.map?.centerLat);
         const lng = parseFloat(res.data?.map?.centerLng);
+        console.log('Parsed lat/lng:', { lat, lng });
         if (!isNaN(lat) && !isNaN(lng)) {
           setDefaultCenter({ lat, lng });
         }
@@ -99,15 +101,22 @@ const AdminLiveMapPage: React.FC = () => {
       });
   }, []);
 
+  useEffect(() => {
+    console.log('defaultCenter updated:', defaultCenter);
+  }, [defaultCenter]);
+
   const mapCenter = useMemo(() => {
+    let calculated = defaultCenter;
     if (selectedRental?.locations?.[0]) {
-      return { lat: selectedRental.locations[0].latitude, lng: selectedRental.locations[0].longitude };
+      calculated = { lat: selectedRental.locations[0].latitude, lng: selectedRental.locations[0].longitude };
+    } else {
+      const firstWithLoc = activeRentals.find(r => r.locations?.[0]);
+      if (firstWithLoc?.locations?.[0]) {
+        calculated = { lat: firstWithLoc.locations[0].latitude, lng: firstWithLoc.locations[0].longitude };
+      }
     }
-    const firstWithLoc = activeRentals.find(r => r.locations?.[0]);
-    if (firstWithLoc?.locations?.[0]) {
-      return { lat: firstWithLoc.locations[0].latitude, lng: firstWithLoc.locations[0].longitude };
-    }
-    return defaultCenter;
+    console.log('mapCenter recalculated:', calculated, 'selectedRental:', selectedRental?.id, 'activeRentals count:', activeRentals.length);
+    return calculated;
   }, [selectedRental, activeRentals, defaultCenter]);
 
   const mapZoom = useMemo(() => {
@@ -264,7 +273,11 @@ const AdminLiveMapPage: React.FC = () => {
 
   // Imperatively re-center map when defaultCenter updates if no rental is selected
   useEffect(() => {
+    console.log('panTo useEffect ran — map exists:', !!map, 'selectedRental:', selectedRental?.id, 'defaultCenter:', defaultCenter);
+    const condition = !!(map && !selectedRental);
+    console.log('if (map && !selectedRental) condition evaluated to:', condition);
     if (map && !selectedRental) {
+      console.log('Executing map.panTo(defaultCenter)', defaultCenter);
       map.panTo(defaultCenter);
     }
   }, [defaultCenter, map, selectedRental]);
