@@ -85,10 +85,8 @@ const AdminLiveMapPage: React.FC = () => {
   useEffect(() => {
     settingsApi.getAll()
       .then((res) => {
-        console.log('Settings API response:', res.data);
         const lat = parseFloat(res.data?.map?.centerLat);
         const lng = parseFloat(res.data?.map?.centerLng);
-        console.log('Parsed lat/lng:', { lat, lng });
         if (!isNaN(lat) && !isNaN(lng)) {
           setDefaultCenter({ lat, lng });
         }
@@ -101,10 +99,6 @@ const AdminLiveMapPage: React.FC = () => {
       });
   }, []);
 
-  useEffect(() => {
-    console.log('defaultCenter updated:', defaultCenter);
-  }, [defaultCenter]);
-
   const mapCenter = useMemo(() => {
     let calculated = defaultCenter;
     if (selectedRental?.locations?.[0]) {
@@ -115,7 +109,6 @@ const AdminLiveMapPage: React.FC = () => {
         calculated = { lat: firstWithLoc.locations[0].latitude, lng: firstWithLoc.locations[0].longitude };
       }
     }
-    console.log('mapCenter recalculated:', calculated, 'selectedRental:', selectedRental?.id, 'activeRentals count:', activeRentals.length);
     return calculated;
   }, [selectedRental, activeRentals, defaultCenter]);
 
@@ -163,7 +156,6 @@ const AdminLiveMapPage: React.FC = () => {
       const zones: ActiveGeofenceZone[] = (zonesRes.data?.zones ?? []).filter(
         (z: any) => z.centerLatitude !== null && z.centerLongitude !== null && z.radiusKm !== null
       );
-      console.log('fetchMonitoringData completed — geofence zones count:', zones.length);
       setGeofenceZones(zones);
 
       setLastUpdated(new Date());
@@ -254,14 +246,7 @@ const AdminLiveMapPage: React.FC = () => {
   );
 
   const onMapLoad = useCallback((mapInstance: google.maps.Map) => {
-    console.log('onMapLoad fired! Initial map center:', mapInstance.getCenter()?.toJSON());
     setMap(mapInstance);
-    mapInstance.addListener('center_changed', () => {
-      console.log('Map center_changed event fired -> New map center:', mapInstance.getCenter()?.toJSON());
-    });
-    mapInstance.addListener('zoom_changed', () => {
-      console.log('Map zoom_changed event fired -> New map zoom:', mapInstance.getZoom());
-    });
   }, []);
 
   const onMapUnmount = useCallback(() => {
@@ -281,11 +266,7 @@ const AdminLiveMapPage: React.FC = () => {
 
   // Imperatively re-center map when defaultCenter updates if no rental is selected
   useEffect(() => {
-    console.log('panTo useEffect ran — map exists:', !!map, 'selectedRental:', selectedRental?.id, 'defaultCenter:', defaultCenter);
-    const condition = !!(map && !selectedRental);
-    console.log('if (map && !selectedRental) condition evaluated to:', condition);
     if (map && !selectedRental) {
-      console.log('Executing map.panTo(defaultCenter)', defaultCenter);
       map.panTo(defaultCenter);
     }
   }, [defaultCenter, map, selectedRental]);
@@ -392,10 +373,10 @@ const AdminLiveMapPage: React.FC = () => {
           );
         })}
 
-        {/* Shop location marker — CHMSU Talisay */}
+        {/* Shop location marker */}
         <Marker
-          position={{ lat: 10.7391, lng: 122.9691 }}
-          title="JD Car Rental — CHMSU Talisay"
+          position={defaultCenter}
+          title="JD Car Rental — Main Shop"
           icon={{
             path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
             fillColor: '#AD9B8D',
