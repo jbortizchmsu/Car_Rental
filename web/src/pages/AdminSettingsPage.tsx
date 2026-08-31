@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Shield, Bell, Save, Loader2 } from 'lucide-react';
+import { Settings, Shield, Bell, Save, Loader2, CreditCard } from 'lucide-react';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { settingsApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS = {
     businessHoursOpen: '08:00',
     businessHoursClose: '18:00',
     businessDays: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false }
+  },
+  payments: {
+    gcashNumber: ''
   },
   notifications: {
     enableOverdueAlerts: true,
@@ -47,8 +50,10 @@ const AdminSettingsPage: React.FC = () => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [gcashError, setGcashError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState<Record<SettingsKey, boolean>>({
     general: false,
+    payments: false,
     notifications: false,
     security: false
   });
@@ -60,6 +65,15 @@ const AdminSettingsPage: React.FC = () => {
     });
     return () => setPageHeader({});
   }, [setPageHeader]);
+
+  const validateGcashNumber = (val: string) => {
+    if (!val) return null;
+    const phPhoneRegex = /^09\d{9}$/;
+    if (!phPhoneRegex.test(val)) {
+      return 'Invalid Philippine phone number format (must be 11 digits starting with 09, e.g. 09171234567)';
+    }
+    return null;
+  };
 
   // Load settings from API
   useEffect(() => {
@@ -81,6 +95,10 @@ const AdminSettingsPage: React.FC = () => {
           });
           return merged;
         });
+
+        if (loadedSettings.payments?.gcashNumber) {
+          setGcashError(validateGcashNumber(loadedSettings.payments.gcashNumber));
+        }
       } catch (error) {
         console.error('Failed to load settings:', error);
         // Use defaults if load fails
@@ -98,6 +116,18 @@ const AdminSettingsPage: React.FC = () => {
       general: { ...prev.general, [field]: value }
     }));
     setHasChanges((prev) => ({ ...prev, general: true }));
+  };
+
+  const handlePaymentSettingsChange = (field: string, value: any) => {
+    if (field === 'gcashNumber') {
+      const err = validateGcashNumber(value);
+      setGcashError(err);
+    }
+    setSettings((prev) => ({
+      ...prev,
+      payments: { ...prev.payments, [field]: value }
+    }));
+    setHasChanges((prev) => ({ ...prev, payments: true }));
   };
 
   const handleNotificationsChange = (field: string, value: any) => {
@@ -337,6 +367,68 @@ const AdminSettingsPage: React.FC = () => {
           }}
         >
           {saving === 'general' ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
+          Save Changes
+        </button>
+      </div>
+
+      {/* Payment Settings */}
+      <div className="card" style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+          <div style={{ backgroundColor: 'var(--soft-beige)', padding: '0.75rem', borderRadius: '12px' }}>
+            <CreditCard size={24} color="var(--warm-taupe)" />
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Payment Settings</h3>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--gray-500)' }}>
+              Configure payment account numbers and merchant credentials.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '2rem', maxWidth: '480px' }}>
+          <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            GCash Merchant / Payment Number
+          </label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="e.g. 09171234567"
+            value={settings.payments.gcashNumber}
+            onChange={(e) => handlePaymentSettingsChange('gcashNumber', e.target.value)}
+            style={{ 
+              width: '100%', 
+              padding: '0.75rem', 
+              borderRadius: '8px', 
+              border: gcashError ? '1px solid #DC2626' : '1px solid var(--gray-200)',
+              outline: gcashError ? '1px solid #DC2626' : undefined
+            }}
+          />
+          {gcashError ? (
+            <p style={{ color: '#DC2626', fontSize: '0.8rem', marginTop: '0.4rem', fontWeight: 600 }}>
+              {gcashError}
+            </p>
+          ) : (
+            <p style={{ color: 'var(--gray-500)', fontSize: '0.75rem', marginTop: '0.4rem' }}>
+              Must be an 11-digit Philippine mobile number starting with 09.
+            </p>
+          )}
+        </div>
+
+        <button
+          className="btn btn-brand"
+          onClick={() => saveSection('payments')}
+          disabled={!hasChanges.payments || saving === 'payments' || Boolean(gcashError)}
+          style={{
+            padding: '0.75rem 1.5rem',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            opacity: (!hasChanges.payments || Boolean(gcashError)) ? 0.5 : 1,
+            cursor: (!hasChanges.payments || Boolean(gcashError)) ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {saving === 'payments' ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
           Save Changes
         </button>
       </div>
