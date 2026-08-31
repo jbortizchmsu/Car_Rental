@@ -61,12 +61,19 @@ router.post('/:id/submit', authenticate, upload.single('proof'), async (req: Aut
     if (req.file) {
       const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
       const filePath = `payment-proofs/${req.user!.id}/${bookingId}/proof-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
-      proofUrl = await uploadToSupabaseStorage(
-        BUCKETS.PAYMENT_PROOFS,
-        filePath,
-        req.file.buffer,
-        req.file.mimetype
-      );
+      try {
+        proofUrl = await uploadToSupabaseStorage(
+          BUCKETS.PAYMENT_PROOFS,
+          filePath,
+          req.file.buffer,
+          req.file.mimetype
+        );
+      } catch (storageErr: any) {
+        console.error('[UPLOAD_FAILURE] payments.ts POST /:id/submit:', storageErr?.stack || storageErr?.message || storageErr);
+        return res.status(502).json({
+          error: 'File upload failed. Please try again.'
+        });
+      }
     }
 
     const payment = await prisma.payment.create({

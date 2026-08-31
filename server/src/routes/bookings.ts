@@ -112,7 +112,9 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-import { uploadToSupabaseStorage, BUCKETS } from '../lib/supabase';
+import { uploadToSupabaseStorage, deleteFromSupabaseStorage, extractSupabaseFilePath, BUCKETS } from '../lib/supabase';
+
+// KNOWN GAP: no cleanup job exists for bookings with permanently incomplete document sets (abandoned before second document upload). Revisit if storage bloat becomes measurable.
 
 // Customer: Upload Documents
 router.post('/:id/documents', authenticate, upload.single('file'), async (req: AuthRequest, res) => {
@@ -122,7 +124,10 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   try {
-    const booking = await prisma.booking.findUnique({ where: { id } });
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: { documents: true }
+    });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     
     // Ownership check
@@ -135,17 +140,35 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
       return res.status(400).json({ error: 'Cannot upload documents for booking in current status' });
     }
 
+    // Check if an existing document of the SAME type was already uploaded for this booking (replacement scenario)
+    const existingDoc = booking.documents.find(d => d.documentType === type);
+
     const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
     const filePath = `booking-documents/${req.user!.id}/${id}/${type}/doc-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+    let publicUrl = '';
+    try {
+      publicUrl = await uploadToSupabaseStorage(
+        BUCKETS.BOOKING_DOCUMENTS,
+        filePath,
+        req.file.buffer,
+        req.file.mimetype
+      );
+    } catch (storageErr: any) {
+      console.error('[UPLOAD_FAILURE] bookings.ts POST /:id/documents:', storageErr?.stack || storageErr?.message || storageErr);
+      return res.status(502).json({
+        error: 'File upload failed. Please try again.'
+      });
+    }
 
-    const publicUrl = await uploadToSupabaseStorage(
-      BUCKETS.BOOKING_DOCUMENTS,
-      filePath,
-      req.file.buffer,
-      req.file.mimetype
-    );
+    console.log(`📂 Uploaded ${type} for Booking ${id} to Supabase Storage: ${publicUrl}`);
 
-    console.log(`📂 Uploading ${type} for Booking ${id} to Supabase Storage: ${publicUrl}`);
+    // If replacing a previously uploaded document of the same type, delete old file from Supabase & DB
+    if (existingDoc) {
+      const oldPath = extractSupabaseFilePath(existingDoc.fileUrl, BUCKETS.BOOKING_DOCUMENTS);
+      console.log(`[REPLACEMENT_CLEANUP] Deleting previous ${type} (${existingDoc.id}) at path: ${oldPath}`);
+      await deleteFromSupabaseStorage(BUCKETS.BOOKING_DOCUMENTS, oldPath);
+      await prisma.bookingDocument.delete({ where: { id: existingDoc.id } });
+    }
 
     const doc = await prisma.bookingDocument.create({
       data: {
@@ -155,8 +178,16 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
       }
     });
 
-    console.log(`✅ Document saved: ${doc.id}`);
-    res.json(doc);
+    // Check total distinct document types now attached to this booking
+    const remainingOtherDocs = booking.documents.filter(d => d.documentType !== type);
+    const isCompleteSet = remainingOtherDocs.length > 0;
+
+    console.log(`✅ Document saved: ${doc.id} (Set complete: ${isCompleteSet})`);
+    res.json({
+      ...doc,
+      isDocumentSetComplete: isCompleteSet,
+      message: `${type === 'valid_id' ? 'Valid ID' : "Driver's License"} uploaded successfully.`
+    });
   } catch (error) {
     console.error('Document upload error:', error);
     res.status(500).json({ error: 'Failed to save document info' });

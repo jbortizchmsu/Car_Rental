@@ -83,3 +83,42 @@ export async function uploadToSupabaseStorage(
 
   return publicUrlData.publicUrl;
 }
+
+/**
+ * Safely deletes a file from a Supabase Storage bucket.
+ * Non-throwing: errors are logged with [ORPHAN_CLEANUP_FAILED] prefix.
+ */
+export async function deleteFromSupabaseStorage(
+  bucketName: string,
+  filePath: string
+): Promise<void> {
+  try {
+    const client = getSupabaseClient();
+    const cleanPath = filePath.replace(/^[/\\]+/, '');
+    const { error } = await client.storage.from(bucketName).remove([cleanPath]);
+    if (error) {
+      console.error(`[ORPHAN_CLEANUP_FAILED] Bucket "${bucketName}", Path "${cleanPath}":`, error.message || error);
+    } else {
+      console.log(`[ORPHAN_CLEANUP_SUCCESS] Bucket "${bucketName}", Path "${cleanPath}" deleted successfully.`);
+    }
+  } catch (err: any) {
+    const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+    console.error(`[ORPHAN_CLEANUP_FAILED] Bucket "${bucketName}", Path "${filePath}":`, msg);
+  }
+}
+
+/**
+ * Extracts the object key/path inside a Supabase bucket from a full public URL or relative path string.
+ */
+export function extractSupabaseFilePath(fileUrl: string, bucketName: string): string {
+  if (!fileUrl) return '';
+  const searchPattern = `/public/${bucketName}/`;
+  if (fileUrl.includes(searchPattern)) {
+    return fileUrl.split(searchPattern)[1];
+  }
+  const altPattern = `/${bucketName}/`;
+  if (fileUrl.includes(altPattern)) {
+    return fileUrl.split(altPattern)[1];
+  }
+  return fileUrl.replace(/^[/\\]+/, '');
+}

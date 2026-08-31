@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { paymentsApi } from '../services/api';
+import { paymentsApi, getApiErrorMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, CreditCard, Upload, AlertCircle, CheckCircle2, ChevronLeft, Info, Smartphone } from 'lucide-react';
 
@@ -70,7 +70,7 @@ const PaymentSubmissionPage: React.FC = () => {
       setSuccess(true);
       setTimeout(() => navigate('/customer/my-bookings'), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to submit payment.');
+      setError(getApiErrorMessage(err, 'Failed to submit payment.'));
     } finally {
       setSubmitting(false);
     }

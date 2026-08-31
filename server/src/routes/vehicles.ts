@@ -185,12 +185,19 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
     if (req.file) {
       const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
       const fileName = `vehicle-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
-      finalImageUrl = await uploadToSupabaseStorage(
-        BUCKETS.VEHICLE_IMAGES,
-        fileName,
-        req.file.buffer,
-        req.file.mimetype
-      );
+      try {
+        finalImageUrl = await uploadToSupabaseStorage(
+          BUCKETS.VEHICLE_IMAGES,
+          fileName,
+          req.file.buffer,
+          req.file.mimetype
+        );
+      } catch (storageErr: any) {
+        console.error('[UPLOAD_FAILURE] vehicles.ts POST /:', storageErr?.stack || storageErr?.message || storageErr);
+        return res.status(502).json({
+          error: 'File upload failed. Please try again.'
+        });
+      }
     }
 
     const vehicle = await prisma.vehicle.create({
@@ -305,12 +312,19 @@ router.put('/:id', authenticate, authorizeAdmin, vehicleImageUpload.single('vehi
     if (req.file) {
       const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
       const fileName = `vehicle-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
-      data.imageUrl = await uploadToSupabaseStorage(
-        BUCKETS.VEHICLE_IMAGES,
-        fileName,
-        req.file.buffer,
-        req.file.mimetype
-      );
+      try {
+        data.imageUrl = await uploadToSupabaseStorage(
+          BUCKETS.VEHICLE_IMAGES,
+          fileName,
+          req.file.buffer,
+          req.file.mimetype
+        );
+      } catch (storageErr: any) {
+        console.error('[UPLOAD_FAILURE] vehicles.ts PUT /:id:', storageErr?.stack || storageErr?.message || storageErr);
+        return res.status(502).json({
+          error: 'File upload failed. Please try again.'
+        });
+      }
     } else {
       // Remove imageUrl from data entirely so Prisma leaves the existing DB value unchanged
       delete data.imageUrl;

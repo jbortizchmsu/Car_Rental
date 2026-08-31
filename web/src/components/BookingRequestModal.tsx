@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Upload, Calendar, MapPin, User, ShieldCheck, AlertCircle, X, CheckCircle2, Calculator, Car, FileText, ChevronRight, ChevronLeft, Check, Tag, Eye, RefreshCw } from 'lucide-react';
-import { bookingsApi, pricingApi, vehiclesApi } from '../services/api';
+import { bookingsApi, pricingApi, vehiclesApi, getApiErrorMessage } from '../services/api';
 import { NEGROS_LOCATIONS, NEGROS_OCC, NEGROS_OR } from '../utils/negros-locations';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -568,7 +568,8 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
         if (files.valid_id) await bookingsApi.uploadDocument(booking.id, 'valid_id', files.valid_id);
         if (files.drivers_license) await bookingsApi.uploadDocument(booking.id, 'drivers_license', files.drivers_license);
       } catch (err: any) {
-        throw new Error('Booking created, but document upload failed. Please contact support.');
+        const errorMsg = getApiErrorMessage(err, 'Document upload failed. Please try again.');
+        throw new Error(errorMsg);
       }
 
       setSuccess(true);
