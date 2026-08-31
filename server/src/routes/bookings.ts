@@ -14,6 +14,26 @@ const router = Router();
 
 import { upload } from '../middleware/upload';
 
+async function getShopCenterFromSettings(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const settings = await prisma.systemSettings.findMany({
+      where: { key: { in: ['map.centerLat', 'map.centerLng'] } }
+    });
+    const latStr = settings.find(s => s.key === 'map.centerLat')?.value;
+    const lngStr = settings.find(s => s.key === 'map.centerLng')?.value;
+    if (latStr && lngStr) {
+      const lat = parseFloat(latStr);
+      const lng = parseFloat(lngStr);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+  } catch (err) {
+    console.warn('[Geofence] Failed to fetch shop center settings, using fallback:', err);
+  }
+  return null;
+}
+
 // Customer: Request Booking
 router.post('/', authenticate, async (req: AuthRequest, res) => {
   const { 
@@ -446,7 +466,8 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
     // Create geofence zone if destination is set
     if (existingBooking.destinationName) {
       try {
-        const geo = computeGeofence(existingBooking.destinationName);
+        const shopCenter = await getShopCenterFromSettings();
+        const geo = computeGeofence(existingBooking.destinationName, shopCenter);
         if (geo) {
           await prisma.geofenceZone.updateMany({
             where: { vehicleId: existingBooking.vehicleId, isActive: true },
