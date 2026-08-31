@@ -17,7 +17,8 @@ import {
   PieChart,
   Filter,
   DollarSign,
-  Activity
+  Activity,
+  Search
 } from 'lucide-react';
 import { adminApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
@@ -31,6 +32,7 @@ const AdminReportsPage: React.FC = () => {
   const [dateRange, setDateRange] = useState('month'); // today, week, month, custom
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -173,6 +175,25 @@ const AdminReportsPage: React.FC = () => {
     if (!data) return null;
     const avgBookingValue = data.details.length > 0 ? (data.breakdown.total / data.details.length) : 0;
     
+    const filteredDetails = data.details.filter((payment: any) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const customer = payment.booking?.customer?.fullName ?? '';
+      const vehicle = `${payment.booking?.vehicle?.brand ?? ''} ${payment.booking?.vehicle?.model ?? ''}`;
+      const type = (payment.paymentType ?? '').replace('_', ' ');
+      const rawType = payment.paymentType ?? '';
+      const status = payment.status ?? '';
+      const date = new Date(payment.createdAt).toLocaleDateString();
+      return (
+        customer.toLowerCase().includes(term) ||
+        vehicle.toLowerCase().includes(term) ||
+        type.toLowerCase().includes(term) ||
+        rawType.toLowerCase().includes(term) ||
+        status.toLowerCase().includes(term) ||
+        date.toLowerCase().includes(term)
+      );
+    });
+
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
@@ -273,20 +294,28 @@ const AdminReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.details.map((payment: any) => (
-                <tr key={payment.id}>
-                  <td className="text-sm">{new Date(payment.createdAt).toLocaleDateString()}</td>
-                  <td className="text-sm font-semibold">{payment.booking.customer.fullName}</td>
-                  <td className="text-sm">{payment.booking.vehicle.brand} {payment.booking.vehicle.model}</td>
-                  <td>
-                    <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded-md" style={{ color: 'var(--gray-600)' }}>
-                      {payment.paymentType.replace('_', ' ')}
-                    </span>
+              {filteredDetails.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-gray-400">
+                    No matching transactions found for "{searchTerm}"
                   </td>
-                  <td className="text-sm font-black" style={{ color: '#16A34A' }}>₱{Number(payment.amount).toLocaleString()}</td>
-                  <td><StatusBadge status={payment.status} /></td>
                 </tr>
-              ))}
+              ) : (
+                filteredDetails.map((payment: any) => (
+                  <tr key={payment.id}>
+                    <td className="text-sm">{new Date(payment.createdAt).toLocaleDateString()}</td>
+                    <td className="text-sm font-semibold">{payment.booking.customer.fullName}</td>
+                    <td className="text-sm">{payment.booking.vehicle.brand} {payment.booking.vehicle.model}</td>
+                    <td>
+                      <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded-md" style={{ color: 'var(--gray-600)' }}>
+                        {payment.paymentType.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="text-sm font-black" style={{ color: '#16A34A' }}>₱{Number(payment.amount).toLocaleString()}</td>
+                    <td><StatusBadge status={payment.status} /></td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -301,6 +330,23 @@ const AdminReportsPage: React.FC = () => {
     const activeCount = data.statusCounts['ACTIVE'] || 0;
     const pendingCount = data.statusCounts['PENDING_REVIEW'] || 0;
     const rejectedCount = data.statusCounts['REJECTED'] || 0;
+
+    const filteredBookings = data.details.filter((booking: any) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const id = booking.id ?? '';
+      const shortId = `#${id.slice(0, 8)}`;
+      const customer = booking.customer?.fullName ?? '';
+      const vehicle = `${booking.vehicle?.brand ?? ''} ${booking.vehicle?.model ?? ''}`;
+      const status = booking.status ?? '';
+      return (
+        id.toLowerCase().includes(term) ||
+        shortId.toLowerCase().includes(term) ||
+        customer.toLowerCase().includes(term) ||
+        vehicle.toLowerCase().includes(term) ||
+        status.toLowerCase().includes(term)
+      );
+    });
 
     return (
       <div className="reports-dashboard">
@@ -342,19 +388,27 @@ const AdminReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.details.map((booking: any) => (
-                <tr key={booking.id}>
-                  <td className="text-xs font-mono">#{booking.id.slice(0, 8).toUpperCase()}</td>
-                  <td className="text-sm">{new Date(booking.createdAt).toLocaleDateString()}</td>
-                  <td className="text-sm font-semibold">{booking.customer.fullName}</td>
-                  <td className="text-sm">{booking.vehicle.brand} {booking.vehicle.model}</td>
-                  <td className="text-xs">
-                    {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
+              {filteredBookings.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-gray-400">
+                    No matching bookings found for "{searchTerm}"
                   </td>
-                  <td className="text-sm font-black">₱{Number(booking.totalAmount).toLocaleString()}</td>
-                  <td><StatusBadge status={booking.status} /></td>
                 </tr>
-              ))}
+              ) : (
+                filteredBookings.map((booking: any) => (
+                  <tr key={booking.id}>
+                    <td className="text-xs font-mono">#{booking.id.slice(0, 8).toUpperCase()}</td>
+                    <td className="text-sm">{new Date(booking.createdAt).toLocaleDateString()}</td>
+                    <td className="text-sm font-semibold">{booking.customer.fullName}</td>
+                    <td className="text-sm">{booking.vehicle.brand} {booking.vehicle.model}</td>
+                    <td className="text-xs">
+                      {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
+                    </td>
+                    <td className="text-sm font-black">₱{Number(booking.totalAmount).toLocaleString()}</td>
+                    <td><StatusBadge status={booking.status} /></td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -365,6 +419,24 @@ const AdminReportsPage: React.FC = () => {
   const renderVehicleReport = () => {
     if (!data || !data.stats || !data.topRented || !data.details) return null;
     const utilization = Math.round(data.stats.utilizationRate * 100);
+
+    const filterVehicle = (v: any) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const vehicleName = `${v.brand ?? ''} ${v.model ?? ''}`;
+      const plate = v.licensePlate ?? '';
+      const category = v.category ?? '';
+      const status = v.status ?? '';
+      return (
+        vehicleName.toLowerCase().includes(term) ||
+        plate.toLowerCase().includes(term) ||
+        category.toLowerCase().includes(term) ||
+        status.toLowerCase().includes(term)
+      );
+    };
+
+    const filteredTopRented = data.topRented.filter(filterVehicle);
+    const filteredDetails = data.details.filter(filterVehicle);
     
     return (
       <div className="reports-dashboard">
@@ -413,15 +485,23 @@ const AdminReportsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {data.topRented.map((v: any) => (
-                  <tr key={v.id}>
-                    <td className="text-sm font-semibold">{v.brand} {v.model}</td>
-                    <td className="text-xs font-mono">{v.licensePlate}</td>
-                    <td className="text-sm font-black">{v.rentalsCount}</td>
-                    <td className="text-sm font-bold" style={{ color: '#16A34A' }}>₱{v.revenue.toLocaleString()}</td>
-                    <td><StatusBadge status={v.status} /></td>
+                {filteredTopRented.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-gray-400">
+                      No matching top vehicles found for "{searchTerm}"
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredTopRented.map((v: any) => (
+                    <tr key={v.id}>
+                      <td className="text-sm font-semibold">{v.brand} {v.model}</td>
+                      <td className="text-xs font-mono">{v.licensePlate}</td>
+                      <td className="text-sm font-black">{v.rentalsCount}</td>
+                      <td className="text-sm font-bold" style={{ color: '#16A34A' }}>₱{v.revenue.toLocaleString()}</td>
+                      <td><StatusBadge status={v.status} /></td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -452,16 +532,24 @@ const AdminReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.details.map((v: any) => (
-                <tr key={v.id}>
-                  <td className="text-sm font-semibold">{v.brand} {v.model}</td>
-                  <td className="text-xs font-bold">{v.category}</td>
-                  <td className="text-sm font-black">{v.rentalsCount}</td>
-                  <td className="text-sm font-bold" style={{ color: '#16A34A' }}>₱{v.revenue.toLocaleString()}</td>
-                  <td className="text-xs">{v.currentOdometerKm.toLocaleString()} KM</td>
-                  <td><StatusBadge status={v.status} /></td>
+              {filteredDetails.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-gray-400">
+                    No matching fleet vehicles found for "{searchTerm}"
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                filteredDetails.map((v: any) => (
+                  <tr key={v.id}>
+                    <td className="text-sm font-semibold">{v.brand} {v.model}</td>
+                    <td className="text-xs font-bold">{v.category}</td>
+                    <td className="text-sm font-black">{v.rentalsCount}</td>
+                    <td className="text-sm font-bold" style={{ color: '#16A34A' }}>₱{v.revenue.toLocaleString()}</td>
+                    <td className="text-xs">{v.currentOdometerKm.toLocaleString()} KM</td>
+                    <td><StatusBadge status={v.status} /></td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -471,6 +559,26 @@ const AdminReportsPage: React.FC = () => {
 
   const renderPaymentReport = () => {
     if (!data || !data.statusSummary || !data.details) return null;
+
+    const filteredPayments = data.details.filter((p: any) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const customer = p.booking?.customer?.fullName ?? '';
+      const vehicle = `${p.booking?.vehicle?.brand ?? ''} ${p.booking?.vehicle?.model ?? ''}`;
+      const type = (p.paymentType ?? '').replace('_', ' ');
+      const rawType = p.paymentType ?? '';
+      const refNum = p.proofs?.[0]?.referenceNumber ?? '';
+      const status = p.status ?? '';
+      return (
+        customer.toLowerCase().includes(term) ||
+        vehicle.toLowerCase().includes(term) ||
+        type.toLowerCase().includes(term) ||
+        rawType.toLowerCase().includes(term) ||
+        refNum.toLowerCase().includes(term) ||
+        status.toLowerCase().includes(term)
+      );
+    });
+
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
@@ -504,16 +612,24 @@ const AdminReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.details.map((p: any) => (
-                <tr key={p.id}>
-                  <td className="text-sm">{new Date(p.createdAt).toLocaleDateString()}</td>
-                  <td className="text-sm font-semibold">{p.booking?.customer?.fullName ?? 'N/A'}</td>
-                  <td className="text-xs font-bold">{p.paymentType?.replace('_', ' ') ?? '—'}</td>
-                  <td className="text-sm font-black">₱{Number(p.amount ?? 0).toLocaleString()}</td>
-                  <td className="text-xs font-mono">{p.proofs?.[0]?.referenceNumber ?? 'No ref provided'}</td>
-                  <td><StatusBadge status={p.status} /></td>
+              {filteredPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-gray-400">
+                    No matching payment transactions found for "{searchTerm}"
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                filteredPayments.map((p: any) => (
+                  <tr key={p.id}>
+                    <td className="text-sm">{new Date(p.createdAt).toLocaleDateString()}</td>
+                    <td className="text-sm font-semibold">{p.booking?.customer?.fullName ?? 'N/A'}</td>
+                    <td className="text-xs font-bold">{p.paymentType?.replace('_', ' ') ?? '—'}</td>
+                    <td className="text-sm font-black">₱{Number(p.amount ?? 0).toLocaleString()}</td>
+                    <td className="text-xs font-mono">{p.proofs?.[0]?.referenceNumber ?? 'No ref provided'}</td>
+                    <td><StatusBadge status={p.status} /></td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -523,6 +639,37 @@ const AdminReportsPage: React.FC = () => {
 
   const renderMaintenanceReport = () => {
     if (!data || !data.summary || !data.maintenance || !data.damages) return null;
+
+    const filteredMaintenance = data.maintenance.filter((m: any) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const vehicle = `${m.vehicle?.brand ?? ''} ${m.vehicle?.model ?? ''}`;
+      const type = m.serviceType ?? '';
+      const desc = m.description ?? '';
+      const status = m.status ?? '';
+      return (
+        vehicle.toLowerCase().includes(term) ||
+        type.toLowerCase().includes(term) ||
+        desc.toLowerCase().includes(term) ||
+        status.toLowerCase().includes(term)
+      );
+    });
+
+    const filteredDamages = data.damages.filter((d: any) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const vehicle = `${d.booking?.vehicle?.brand ?? ''} ${d.booking?.vehicle?.model ?? ''}`;
+      const severity = d.severity ?? '';
+      const desc = d.description ?? '';
+      const status = d.status ?? '';
+      return (
+        vehicle.toLowerCase().includes(term) ||
+        severity.toLowerCase().includes(term) ||
+        desc.toLowerCase().includes(term) ||
+        status.toLowerCase().includes(term)
+      );
+    });
+
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
@@ -570,25 +717,35 @@ const AdminReportsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {data.maintenance.map((m: any) => (
-                  <tr key={m.id}>
-                    <td className="text-sm font-semibold">{m.vehicle.brand} {m.vehicle.model}</td>
-                    <td className="text-xs font-bold">{m.serviceType}</td>
-                    <td className="text-sm font-black">₱{Number(m.cost || 0).toLocaleString()}</td>
-                    <td className="text-xs">{new Date(m.serviceDate).toLocaleDateString()}</td>
-                    <td><StatusBadge status={m.status} /></td>
+                {filteredMaintenance.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-gray-400">
+                      No matching maintenance logs found for "{searchTerm}"
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredMaintenance.map((m: any) => (
+                    <tr key={m.id}>
+                      <td className="text-sm font-semibold">{m.vehicle.brand} {m.vehicle.model}</td>
+                      <td className="text-xs font-bold">{m.serviceType}</td>
+                      <td className="text-sm font-black">₱{Number(m.cost || 0).toLocaleString()}</td>
+                      <td className="text-xs">{new Date(m.serviceDate).toLocaleDateString()}</td>
+                      <td><StatusBadge status={m.status} /></td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
           <div className="chart-card">
             <h3 className="chart-title" style={{ marginBottom: '1.5rem' }}>Damage Reports</h3>
-            {data.damages.length === 0 ? (
-              <div className="text-center py-10 text-gray-400">No damage reports found</div>
+            {filteredDamages.length === 0 ? (
+              <div className="text-center py-10 text-gray-400">
+                {searchTerm ? `No matching damage reports found for "${searchTerm}"` : 'No damage reports found'}
+              </div>
             ) : (
               <div className="space-y-4">
-                {data.damages.map((d: any) => (
+                {filteredDamages.map((d: any) => (
                   <div key={d.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                     <div className="flex justify-between items-start mb-2">
                       <div className="font-bold text-sm">{d.booking.vehicle.brand} {d.booking.vehicle.model}</div>
@@ -615,6 +772,24 @@ const AdminReportsPage: React.FC = () => {
 
   const renderAlertReport = () => {
     if (!data || !data.stats || !data.details) return null;
+
+    const filteredAlerts = data.details.filter((a: any) => {
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const vehicle = `${a.vehicle?.brand ?? ''} ${a.vehicle?.model ?? ''}`;
+      const customer = a.booking?.customer?.fullName ?? '';
+      const alertType = a.alertType ?? '';
+      const severity = a.severity ?? '';
+      const status = a.resolved ? 'resolved' : 'pending';
+      return (
+        vehicle.toLowerCase().includes(term) ||
+        customer.toLowerCase().includes(term) ||
+        alertType.toLowerCase().includes(term) ||
+        severity.toLowerCase().includes(term) ||
+        status.toLowerCase().includes(term)
+      );
+    });
+
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
@@ -657,16 +832,24 @@ const AdminReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.details.map((a: any) => (
-                <tr key={a.id}>
-                  <td className="text-sm">{new Date(a.createdAt).toLocaleString()}</td>
-                  <td className="text-sm font-semibold">{a.vehicle?.brand ?? '—'} {a.vehicle?.model ?? ''}</td>
-                  <td className="text-sm">{a.booking?.customer?.fullName ?? 'N/A'}</td>
-                  <td className="text-xs font-bold">{a.alertType ?? '—'}</td>
-                  <td className="text-xs font-black" style={{ color: a.severity === 'HIGH' ? '#DC2626' : '#EA580C' }}>{a.severity ?? '—'}</td>
-                  <td>{a.resolved ? <span className="text-green-600 font-bold text-xs">RESOLVED</span> : <span className="text-red-600 font-bold text-xs">PENDING</span>}</td>
+              {filteredAlerts.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-gray-400">
+                    No matching safety alerts found for "{searchTerm}"
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                filteredAlerts.map((a: any) => (
+                  <tr key={a.id}>
+                    <td className="text-sm">{new Date(a.createdAt).toLocaleString()}</td>
+                    <td className="text-sm font-semibold">{a.vehicle?.brand ?? '—'} {a.vehicle?.model ?? ''}</td>
+                    <td className="text-sm">{a.booking?.customer?.fullName ?? 'N/A'}</td>
+                    <td className="text-xs font-bold">{a.alertType ?? '—'}</td>
+                    <td className="text-xs font-black" style={{ color: a.severity === 'HIGH' ? '#DC2626' : '#EA580C' }}>{a.severity ?? '—'}</td>
+                    <td>{a.resolved ? <span className="text-green-600 font-bold text-xs">RESOLVED</span> : <span className="text-red-600 font-bold text-xs">PENDING</span>}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -677,51 +860,75 @@ const AdminReportsPage: React.FC = () => {
   return (
     <div className="reports-dashboard">
       {/* Modern Filter Bar */}
-      <div className="reports-filter-bar">
-        <div className="filter-group">
-          {[
-            { id: 'today', label: 'Today' },
-            { id: 'week', label: 'This Week' },
-            { id: 'month', label: 'This Month' },
-            { id: 'custom', label: 'Custom Range' }
-          ].map(range => (
-            <button 
-              key={range.id}
-              onClick={() => handleQuickFilter(range.id)}
-              className={`filter-btn ${dateRange === range.id ? 'active' : ''}`}
-            >
-              {range.id === 'custom' && <Filter size={14} style={{ marginRight: '0.5rem' }} />}
-              {range.label}
-            </button>
-          ))}
+      <div className="reports-filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="filter-group">
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'week', label: 'This Week' },
+              { id: 'month', label: 'This Month' },
+              { id: 'custom', label: 'Custom Range' }
+            ].map(range => (
+              <button 
+                key={range.id}
+                onClick={() => handleQuickFilter(range.id)}
+                className={`filter-btn ${dateRange === range.id ? 'active' : ''}`}
+              >
+                {range.id === 'custom' && <Filter size={14} style={{ marginRight: '0.5rem' }} />}
+                {range.label}
+              </button>
+            ))}
+          </div>
+
+          {dateRange === 'custom' && (
+            <div className="filter-group" style={{ backgroundColor: 'var(--gray-50)', padding: '0.4rem 1rem', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+              <Calendar size={16} className="text-gray-400" />
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="text-sm"
+                style={{ border: 'none', outline: 'none', background: 'none' }}
+              />
+              <ChevronRight size={14} className="text-gray-300" />
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="text-sm"
+                style={{ border: 'none', outline: 'none', background: 'none' }}
+              />
+              <button 
+                onClick={() => fetchReport()}
+                style={{ backgroundColor: 'var(--black)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem' }}
+              >
+                Apply
+              </button>
+            </div>
+          )}
         </div>
 
-        {dateRange === 'custom' && (
-          <div className="filter-group" style={{ backgroundColor: 'var(--gray-50)', padding: '0.4rem 1rem', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
-            <Calendar size={16} className="text-gray-400" />
-            <input 
-              type="date" 
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="text-sm"
-              style={{ border: 'none', outline: 'none', background: 'none' }}
-            />
-            <ChevronRight size={14} className="text-gray-300" />
-            <input 
-              type="date" 
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="text-sm"
-              style={{ border: 'none', outline: 'none', background: 'none' }}
-            />
+        {/* Client-side Search Input */}
+        <div className="filter-group" style={{ backgroundColor: 'var(--gray-50)', padding: '0.4rem 0.8rem', borderRadius: '12px', border: '1px solid var(--gray-200)', minWidth: '240px', flex: '0 1 300px' }}>
+          <Search size={16} className="text-gray-400" style={{ marginRight: '0.5rem', flexShrink: 0 }} />
+          <input 
+            type="text" 
+            placeholder="Search report table..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="text-sm w-full"
+            style={{ border: 'none', outline: 'none', background: 'none', width: '100%' }}
+          />
+          {searchTerm && (
             <button 
-              onClick={() => fetchReport()}
-              style={{ backgroundColor: 'var(--black)', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem' }}
+              onClick={() => setSearchTerm('')} 
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', fontSize: '0.85rem', padding: '0 0.2rem' }}
+              title="Clear search"
             >
-              Apply
+              ✕
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -736,7 +943,7 @@ const AdminReportsPage: React.FC = () => {
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => { setData(null); setReportType(tab.id); }}
+            onClick={() => { setData(null); setSearchTerm(''); setReportType(tab.id); }}
             className={`booking-tab ${reportType === tab.id ? 'booking-tab-active' : ''}`}
             style={{ flex: 1, justifyContent: 'center' }}
           >
