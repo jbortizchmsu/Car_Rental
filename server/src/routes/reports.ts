@@ -10,7 +10,11 @@ const getDateFilter = (startDate?: any, endDate?: any) => {
   
   const filter: any = {};
   if (startDate) filter.gte = new Date(startDate as string);
-  if (endDate) filter.lte = new Date(endDate as string);
+  if (endDate) {
+    const end = new Date(endDate as string);
+    end.setHours(23, 59, 59, 999);
+    filter.lte = end;
+  }
   
   return filter;
 };
@@ -133,13 +137,16 @@ router.get('/vehicles', authenticate, authorizeAdmin, async (req, res) => {
         _count: {
           select: { 
             bookings: {
-              where: { createdAt: dateFilter }
+              where: {
+                createdAt: dateFilter,
+                status: { notIn: ['CANCELLED', 'REJECTED', 'VOIDED'] }
+              }
             } 
           }
         },
         bookings: {
           where: { 
-            status: { in: ['COMPLETED', 'ACTIVE', 'RETURNED'] },
+            status: { in: ['COMPLETED', 'ACTIVE', 'RETURNED', 'READY_FOR_PICKUP', 'RESERVED'] },
             createdAt: dateFilter
           },
           select: { totalAmount: true }
