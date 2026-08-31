@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Settings, Shield, Bell, Save, Loader2, CreditCard, MapPin, Navigation, AlertCircle, CheckCircle } from 'lucide-react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { usePageHeader } from '../contexts/PageHeaderContext';
-import { settingsApi, getApiErrorMessage } from '../services/api';
+import { settingsApi, adminApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 
@@ -235,6 +235,30 @@ const AdminSettingsPage: React.FC = () => {
   const saveSection = async (section: SettingsKey) => {
     setSaving(section);
     try {
+      if (section === 'map') {
+        try {
+          const { data } = await adminApi.getLiveLocations();
+          const activeCount = Array.isArray(data) ? data.length : 0;
+
+          if (activeCount > 0) {
+            const vehicleText = activeCount === 1 ? '1 vehicle is' : `${activeCount} vehicle(s) are`;
+            const message = `Cannot change the shop location while ${vehicleText} currently active on the road, since their geofence zones were calculated using the current location. Please wait until all rentals are completed, or contact support to manually recalculate active geofence zones.`;
+            
+            toast.error('Save Blocked', message);
+            setLocationStatusMessage(message);
+            setLocationStatusType('error');
+            return;
+          }
+        } catch (checkErr) {
+          console.error('Active rentals check failed:', checkErr);
+          const failMessage = "Couldn't verify active rental status. Please try again.";
+          toast.error('Save Blocked', failMessage);
+          setLocationStatusMessage(failMessage);
+          setLocationStatusType('error');
+          return;
+        }
+      }
+
       const sectionSettings = settings[section];
       const keysToSave = Object.entries(sectionSettings).map(([key, value]) => ({
         key: `${section}.${key}`,

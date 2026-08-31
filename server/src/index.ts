@@ -22,6 +22,7 @@ import pricingRoutes from './routes/pricing';
 import usersRoutes from './routes/users';
 import settingsRoutes from './routes/settings';
 import { initializeBackgroundJobs } from './lib/background-jobs';
+import { ensureBucketsExist } from './lib/supabase';
 
 // Load environment variables
 dotenv.config();
@@ -108,8 +109,11 @@ app.get('/health', (req, res) => {
 initializeBackgroundJobs();
 
 // Start server
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log(`🚀 JD Car Rental API running on http://localhost:${PORT}`);
   console.log(`🔒 File access via authenticated /api/files/:fileId only`);
   console.log(`📡 WebSocket server initialized`);
+
+  // Ensure Supabase storage buckets exist
+  await ensureBucketsExist();
 });

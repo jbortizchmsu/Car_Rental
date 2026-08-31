@@ -7,6 +7,9 @@ import { checkVehicleAvailability } from '../lib/booking-availability';
 
 const router = Router();
 
+import { uploadToSupabaseStorage, BUCKETS } from '../lib/supabase';
+import path from 'path';
+
 // Customer: Submit Payment
 router.post('/:id/submit', authenticate, upload.single('proof'), async (req: AuthRequest, res) => {
   const { amount, paymentType, referenceNumber } = req.body;
@@ -54,6 +57,18 @@ router.post('/:id/submit', authenticate, upload.single('proof'), async (req: Aut
       validatedAmount = Math.round(Number(booking.totalAmount) * 0.3);
     }
 
+    let proofUrl = '';
+    if (req.file) {
+      const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+      const filePath = `payment-proofs/${req.user!.id}/${bookingId}/proof-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+      proofUrl = await uploadToSupabaseStorage(
+        BUCKETS.PAYMENT_PROOFS,
+        filePath,
+        req.file.buffer,
+        req.file.mimetype
+      );
+    }
+
     const payment = await prisma.payment.create({
       data: {
         bookingId,
@@ -62,7 +77,7 @@ router.post('/:id/submit', authenticate, upload.single('proof'), async (req: Aut
         status: 'SUBMITTED',
         proofs: {
           create: {
-            proofUrl: req.file ? req.file.path.replace(/\\/g, '/') : '',
+            proofUrl,
             referenceNumber: referenceNumber || null
           }
         }

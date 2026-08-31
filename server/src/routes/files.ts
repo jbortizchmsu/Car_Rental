@@ -32,6 +32,11 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
       if (req.user!.role !== 'admin' && doc.booking.customerId !== req.user!.id) {
         return res.status(403).json({ error: 'Unauthorized to view this document' });
       }
+
+      if (doc.fileUrl.startsWith('http://') || doc.fileUrl.startsWith('https://')) {
+        return res.redirect(doc.fileUrl);
+      }
+
       const filePath = path.resolve(__dirname, '..', '..', doc.fileUrl);
       if (!filePath.startsWith(UPLOADS_ROOT + path.sep)) {
         return res.status(403).json({ error: 'Access denied' });
@@ -54,6 +59,10 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
       }
 
       let url = proof.proofUrl;
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return res.redirect(url);
+      }
+
       if (url.startsWith('/uploads/.uploads/')) url = url.replace('/uploads/.uploads/', '.uploads/');
       else if (url.startsWith('/uploads/')) url = url.replace('/uploads/', '.uploads/');
 

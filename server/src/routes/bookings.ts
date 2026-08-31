@@ -112,6 +112,8 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+import { uploadToSupabaseStorage, BUCKETS } from '../lib/supabase';
+
 // Customer: Upload Documents
 router.post('/:id/documents', authenticate, upload.single('file'), async (req: AuthRequest, res) => {
   const { id } = req.params;
@@ -133,13 +135,23 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
       return res.status(400).json({ error: 'Cannot upload documents for booking in current status' });
     }
 
-    console.log(`📂 Uploading ${type} for Booking ${id}. File: ${req.file.filename}`);
+    const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
+    const filePath = `booking-documents/${req.user!.id}/${id}/${type}/doc-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+
+    const publicUrl = await uploadToSupabaseStorage(
+      BUCKETS.BOOKING_DOCUMENTS,
+      filePath,
+      req.file.buffer,
+      req.file.mimetype
+    );
+
+    console.log(`📂 Uploading ${type} for Booking ${id} to Supabase Storage: ${publicUrl}`);
 
     const doc = await prisma.bookingDocument.create({
       data: {
         bookingId: id,
         documentType: type,
-        fileUrl: req.file.path.replace(/\\/g, '/') // Standardize path
+        fileUrl: publicUrl
       }
     });
 

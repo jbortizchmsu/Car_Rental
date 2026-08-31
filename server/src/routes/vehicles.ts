@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { authenticate, authorizeAdmin } from '../middleware/auth';
 import { vehicleImageUpload } from '../middleware/upload';
+import { uploadToSupabaseStorage, BUCKETS } from '../lib/supabase';
 import path from 'path';
 import fs from 'fs';
 
@@ -179,10 +180,17 @@ router.post('/', authenticate, authorizeAdmin, vehicleImageUpload.single('vehicl
       return res.status(400).json({ error: 'Seats must be a valid number.' });
     }
 
-    // If a file was uploaded, normalize backslashes so path.join resolves correctly on all platforms
+    // If a file was uploaded, store directly in Supabase Storage
     let finalImageUrl = imageUrl;
     if (req.file) {
-      finalImageUrl = req.file.path.replace(/\\/g, '/').replace(/^\.?\/?/, '');
+      const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+      const fileName = `vehicle-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+      finalImageUrl = await uploadToSupabaseStorage(
+        BUCKETS.VEHICLE_IMAGES,
+        fileName,
+        req.file.buffer,
+        req.file.mimetype
+      );
     }
 
     const vehicle = await prisma.vehicle.create({
@@ -293,10 +301,16 @@ router.put('/:id', authenticate, authorizeAdmin, vehicleImageUpload.single('vehi
     console.log('req.file:', req.file ? `File received: ${req.file.filename}` : 'No file uploaded');
     console.log('req.body.imageUrl:', req.body.imageUrl);
 
-    // Only update imageUrl when a new file was uploaded — never overwrite with body value
+    // Only update imageUrl when a new file was uploaded — upload directly to Supabase Storage
     if (req.file) {
-      data.imageUrl = req.file.path.replace(/\\/g, '/').replace(/^\.?\/?/, '');
-      console.log('Image uploaded, saving imageUrl:', data.imageUrl);
+      const ext = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+      const fileName = `vehicle-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+      data.imageUrl = await uploadToSupabaseStorage(
+        BUCKETS.VEHICLE_IMAGES,
+        fileName,
+        req.file.buffer,
+        req.file.mimetype
+      );
     } else {
       // Remove imageUrl from data entirely so Prisma leaves the existing DB value unchanged
       delete data.imageUrl;
