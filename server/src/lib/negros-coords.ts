@@ -130,8 +130,11 @@ export function isPointInCircle(
 
 const GEOFENCE_BUFFER_KM = 20;
 
-/** Compute geofence center (always the shop) and radius (distance + buffer). */
-export function computeGeofence(destinationName: string): {
+/** Compute geofence center (the configured shop or default SHOP_LOCATION) and radius (distance + buffer). */
+export function computeGeofence(
+  destinationName: string,
+  shopCenter?: { lat: number; lng: number } | null
+): {
   centerLat: number;
   centerLng: number;
   radiusKm: number;
@@ -139,12 +142,16 @@ export function computeGeofence(destinationName: string): {
   const destCoords = getMunicipalityCoords(destinationName);
   if (!destCoords) return null;
 
+  const shop = (shopCenter && !isNaN(shopCenter.lat) && !isNaN(shopCenter.lng))
+    ? shopCenter
+    : { lat: SHOP_LOCATION.lat, lng: SHOP_LOCATION.lng };
+
   const distance = getDistanceKm(
-    SHOP_LOCATION.lat, SHOP_LOCATION.lng,
+    shop.lat, shop.lng,
     destCoords.lat, destCoords.lng
   );
 
   const radiusKm = Math.max(GEOFENCE_BUFFER_KM, Math.ceil(distance + GEOFENCE_BUFFER_KM));
 
-  return { centerLat: SHOP_LOCATION.lat, centerLng: SHOP_LOCATION.lng, radiusKm };
+  return { centerLat: shop.lat, centerLng: shop.lng, radiusKm };
 }

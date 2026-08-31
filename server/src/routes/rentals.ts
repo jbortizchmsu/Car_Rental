@@ -12,6 +12,26 @@ import {
 
 const router = Router();
 
+async function getShopCenterFromSettings(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const settings = await prisma.systemSettings.findMany({
+      where: { key: { in: ['map.centerLat', 'map.centerLng'] } }
+    });
+    const latStr = settings.find(s => s.key === 'map.centerLat')?.value;
+    const lngStr = settings.find(s => s.key === 'map.centerLng')?.value;
+    if (latStr && lngStr) {
+      const lat = parseFloat(latStr);
+      const lng = parseFloat(lngStr);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { lat, lng };
+      }
+    }
+  } catch (err) {
+    console.warn('[Geofence] Failed to fetch shop center settings, using fallback:', err);
+  }
+  return null;
+}
+
 // Admin: Release Vehicle (Pick up)
 router.post('/bookings/:id/release', authenticate, authorizeAdmin, async (req: AuthRequest, res) => {
   try {
@@ -36,7 +56,8 @@ router.post('/bookings/:id/release', authenticate, authorizeAdmin, async (req: A
     // Create geofence zone if destination is set
     if (booking.destinationName) {
       try {
-        const geo = computeGeofence(booking.destinationName);
+        const shopCenter = await getShopCenterFromSettings();
+        const geo = computeGeofence(booking.destinationName, shopCenter);
 
         if (!geo) {
           console.warn(`[Geofence] No coordinates for "${booking.destinationName}" — skipping zone creation.`);
@@ -71,13 +92,12 @@ router.post('/bookings/:id/release', authenticate, authorizeAdmin, async (req: A
             },
           });
 
-          const distKm = getDistanceKm(
-            SHOP_LOCATION.lat, SHOP_LOCATION.lng,
-            getMunicipalityCoords(booking.destinationName)!.lat,
-            getMunicipalityCoords(booking.destinationName)!.lng
-          );
+          const originLat = geo.centerLat;
+          const originLng = geo.centerLng;
+          const dest = getMunicipalityCoords(booking.destinationName);
+          const distKm = dest ? getDistanceKm(originLat, originLng, dest.lat, dest.lng) : 0;
           console.log(
-            `[Geofence] Shop → ${booking.destinationName}: ${distKm.toFixed(1)}km, radius: ${geo.radiusKm}km` +
+            `[Geofence] Shop (${originLat}, ${originLng}) → ${booking.destinationName}: ${distKm.toFixed(1)}km, radius: ${geo.radiusKm}km` +
             ` (booking ${booking.id})`
           );
         }
@@ -207,6 +227,8 @@ router.post('/backfill-geofences', authenticate, authorizeAdmin, async (req: Aut
       where: { status: 'ACTIVE', destinationName: { not: null } },
     });
 
+    const shopCenter = await getShopCenterFromSettings();
+
     const results: Array<{
       bookingId: string;
       destination: string;
@@ -218,7 +240,7 @@ router.post('/backfill-geofences', authenticate, authorizeAdmin, async (req: Aut
 
     for (const booking of activeBookings) {
       try {
-        const geo = computeGeofence(booking.destinationName!);
+        const geo = computeGeofence(booking.destinationName!, shopCenter);
         if (!geo) {
           results.push({ bookingId: booking.id, destination: booking.destinationName!, status: 'skipped', reason: 'No coordinates' });
           continue;
@@ -247,7 +269,7 @@ router.post('/backfill-geofences', authenticate, authorizeAdmin, async (req: Aut
 
         const destCoords = getMunicipalityCoords(booking.destinationName!)!;
         const distanceKm = getDistanceKm(
-          SHOP_LOCATION.lat, SHOP_LOCATION.lng,
+          geo.centerLat, geo.centerLng,
           destCoords.lat, destCoords.lng
         );
 
