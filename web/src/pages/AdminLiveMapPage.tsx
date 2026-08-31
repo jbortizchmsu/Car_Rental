@@ -80,6 +80,7 @@ const AdminLiveMapPage: React.FC = () => {
 
   const { isLoaded, loadError } = useGoogleMaps();
   const [defaultCenter, setDefaultCenter] = useState(NEGROS_DEFAULT_CENTER);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
     settingsApi.getAll()
@@ -92,6 +93,9 @@ const AdminLiveMapPage: React.FC = () => {
       })
       .catch(() => {
         // Fall back to NEGROS_DEFAULT_CENTER
+      })
+      .finally(() => {
+        setSettingsLoaded(true);
       });
   }, []);
 
@@ -258,6 +262,13 @@ const AdminLiveMapPage: React.FC = () => {
     }
   }, [selectedRental, map]);
 
+  // Imperatively re-center map when defaultCenter updates if no rental is selected
+  useEffect(() => {
+    if (map && !selectedRental) {
+      map.panTo(defaultCenter);
+    }
+  }, [defaultCenter, map, selectedRental]);
+
   const handleTrackVehicle = (rental: ActiveRental) => {
     setSelectedRental(rental);
     if (rental.locations?.[0] && map) {
@@ -283,7 +294,7 @@ const AdminLiveMapPage: React.FC = () => {
     }
 
     if (loadError) return <div className="card">Error loading map.</div>;
-    if (!isLoaded) return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin" color="var(--warm-taupe)" /></div>;
+    if (!isLoaded || !settingsLoaded) return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin" color="var(--warm-taupe)" /></div>;
 
 
     return (

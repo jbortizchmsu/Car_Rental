@@ -50,6 +50,7 @@ const AdminGpsTrackingPage: React.FC = () => {
 
   const { isLoaded, loadError } = useGoogleMaps();
   const [defaultCenter, setDefaultCenter] = useState(DEFAULT_CENTER);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
     settingsApi.getAll()
@@ -62,6 +63,9 @@ const AdminGpsTrackingPage: React.FC = () => {
       })
       .catch(() => {
         // Fall back to DEFAULT_CENTER
+      })
+      .finally(() => {
+        setSettingsLoaded(true);
       });
   }, []);
 
@@ -95,6 +99,13 @@ const AdminGpsTrackingPage: React.FC = () => {
     locations.forEach((l) => bounds.extend({ lat: l.latitude, lng: l.longitude }));
     mapInstance.fitBounds(bounds);
   }, [mapInstance, locations]);
+
+  // Imperatively re-center map when defaultCenter updates if no route bounds are active
+  useEffect(() => {
+    if (mapInstance && locations.length < 2) {
+      mapInstance.panTo(defaultCenter);
+    }
+  }, [defaultCenter, mapInstance, locations.length]);
 
   const onMapLoad = useCallback((m: google.maps.Map) => {
     setMapInstance(m);
@@ -418,7 +429,7 @@ const AdminGpsTrackingPage: React.FC = () => {
                 >
                   Failed to load Google Maps. Check your VITE_GOOGLE_MAPS_API_KEY.
                 </div>
-              ) : !isLoaded ? (
+              ) : !isLoaded || !settingsLoaded ? (
                 <div
                   style={{
                     height: '400px',
