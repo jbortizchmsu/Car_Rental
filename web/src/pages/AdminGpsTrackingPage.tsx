@@ -3,9 +3,9 @@ import { History, Clock, FileText, Download, Loader2, MapPin, AlertCircle } from
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { adminApi, bookingsApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
+import { GoogleMap, Marker, Polyline } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 const DEFAULT_CENTER = {
   lat: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LAT || '10.3000'),
   lng: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LNG || '123.0000'),
@@ -48,10 +48,7 @@ const AdminGpsTrackingPage: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: API_KEY,
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   useEffect(() => {
     setPageHeader({

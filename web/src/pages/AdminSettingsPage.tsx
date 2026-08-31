@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Settings, Shield, Bell, Save, Loader2, CreditCard, MapPin, Navigation, AlertCircle, CheckCircle } from 'lucide-react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { settingsApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
-
-const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 
 // Default settings values
 const DEFAULT_SETTINGS = {
@@ -71,10 +70,7 @@ const AdminSettingsPage: React.FC = () => {
   const [locationStatusMessage, setLocationStatusMessage] = useState<string | null>(null);
   const [locationStatusType, setLocationStatusType] = useState<'info' | 'error' | 'success' | null>(null);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script-settings',
-    googleMapsApiKey: API_KEY
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   useEffect(() => {
     setPageHeader({
@@ -603,7 +599,7 @@ const AdminSettingsPage: React.FC = () => {
 
         {/* Map Preview Container */}
         <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--gray-200)', height: '280px', marginBottom: '1.5rem', position: 'relative' }}>
-          {isLoaded && API_KEY ? (
+          {isLoaded ? (
             <GoogleMap
               mapContainerStyle={{ width: '100%', height: '100%' }}
               center={pendingLocation ? pendingLocation : { lat: settings.map.centerLat, lng: settings.map.centerLng }}

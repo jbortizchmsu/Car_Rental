@@ -28,12 +28,14 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import { ToastProvider } from './components/ToastProvider';
 import { PageHeaderProvider } from './contexts/PageHeaderContext';
+import { GoogleMapsProvider } from './contexts/GoogleMapsContext';
 
 function App() {
   return (
     <PageHeaderProvider>
       <ToastProvider>
-        <Router>
+        <GoogleMapsProvider>
+          <Router>
         <Routes>
           {/* Public Routes with Navbar/Footer */}
           <Route element={<PublicLayout><Outlet /></PublicLayout>}>
@@ -99,6 +101,7 @@ function App() {
           </Route>
         </Routes>
       </Router>
+    </GoogleMapsProvider>
     </ToastProvider>
     </PageHeaderProvider>
   );

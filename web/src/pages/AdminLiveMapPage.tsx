@@ -10,7 +10,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../services/api';
 import { io } from 'socket.io-client';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, TrafficLayer, Circle } from '@react-google-maps/api';
+import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 
 interface ActiveRental {
   id: string;
@@ -77,10 +78,7 @@ const AdminLiveMapPage: React.FC = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [geofenceZones, setGeofenceZones] = useState<ActiveGeofenceZone[]>([]);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: API_KEY
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   const mapCenter = useMemo(() => {
     if (selectedRental?.locations?.[0]) {
