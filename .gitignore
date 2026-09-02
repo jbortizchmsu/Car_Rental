@@ -43,3 +43,5 @@ server/.env.postgres
 # generated native folders
 /ios
 /android
+
+mobile_backup_before_fix/
