@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
   TextInput, ActivityIndicator, Alert, SafeAreaView,
   KeyboardAvoidingView, Platform, Modal, FlatList, Image,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ChevronLeft, ChevronRight, Check, Calendar, MapPin,
@@ -13,6 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { bookingsApi, pricingApi, vehiclesApi } from '../services/api';
+import { bookingFormStatus } from '../services/bookingState';
 
 const formatApiDate = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -155,8 +157,13 @@ export default function BookingFormScreen({ route, navigation }: any) {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
-  // Pre-fill user data
-  useEffect(() => {
+  // Submission tracking
+  const [submittedCompleted, setSubmittedCompleted] = useState(false);
+  const hasSubmittedRef = useRef(false);
+  const lastVehicleIdRef = useRef<string | null>(null);
+
+  // Pre-fill user data helper
+  const loadUserData = useCallback(() => {
     AsyncStorage.getItem('jd_user').then(val => {
       if (val) {
         const user = JSON.parse(val);
@@ -166,6 +173,87 @@ export default function BookingFormScreen({ route, navigation }: any) {
       }
     });
   }, []);
+
+  // Complete state reset helper for new booking sessions
+  const resetFormState = useCallback(() => {
+    setStep(1);
+    setPickupDate(new Date(Date.now() + 86400000));
+    setReturnDate(new Date(Date.now() + 2 * 86400000));
+    setPickupLocation('JD Car Rental Main Shop');
+    setDestinationName('');
+    setDestinationAddress('');
+    setDestinationNotes('');
+    setShowMunicipalityPicker(false);
+    setMuniSearch('');
+    setCheckingAvailability(false);
+    setAvailabilityError(null);
+    setAvailabilityFailed(false);
+    setLicenseNumber('');
+    setLicenseExpiryDate(null);
+    setShowLicenseExpiryPicker(false);
+    setEmergencyName('');
+    setEmergencyPhone('');
+    setValidIdAsset(null);
+    setLicenseAsset(null);
+    setViewingImageUri(null);
+    setViewingImageTitle(null);
+    setFieldErrors({});
+    setPricingQuote(null);
+    setQuoteLoading(false);
+    setQuoteError(null);
+    setSubmitting(false);
+    setSubmitStatusText('');
+    setSubmittedCompleted(false);
+    hasSubmittedRef.current = false;
+    bookingFormStatus.hasInProgress = false;
+    loadUserData();
+  }, [loadUserData]);
+
+  // Initial user data load
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  // Helper to determine if current form state constitutes an active in-progress booking
+  const checkIsInProgress = useCallback(() => {
+    if (hasSubmittedRef.current) return false;
+    if (step > 1) return true;
+    if (destinationName.trim() !== '' || destinationAddress.trim() !== '' || destinationNotes.trim() !== '') {
+      return true;
+    }
+    if (licenseNumber.trim() !== '' || licenseExpiryDate !== null || emergencyName.trim() !== '' || emergencyPhone.trim() !== '' || validIdAsset !== null || licenseAsset !== null) {
+      return true;
+    }
+    return false;
+  }, [step, destinationName, destinationAddress, destinationNotes, licenseNumber, licenseExpiryDate, emergencyName, emergencyPhone, validIdAsset, licenseAsset]);
+
+  // Keep global shared status in sync whenever state updates
+  useEffect(() => {
+    bookingFormStatus.hasInProgress = checkIsInProgress();
+  }, [checkIsInProgress]);
+
+  // React Navigation Focus lifecycle listener
+  useFocusEffect(
+    useCallback(() => {
+      const currentVehicleId = vehicle?.id;
+      // Reset state if a booking was just submitted or if opened for a different vehicle
+      if (hasSubmittedRef.current || (lastVehicleIdRef.current && lastVehicleIdRef.current !== currentVehicleId)) {
+        resetFormState();
+      } else {
+        // Clear stale availability errors when returning to an in-progress booking
+        setAvailabilityError(null);
+        setAvailabilityFailed(false);
+      }
+      lastVehicleIdRef.current = currentVehicleId;
+      bookingFormStatus.hasInProgress = checkIsInProgress();
+
+      return () => {
+        if (!checkIsInProgress()) {
+          bookingFormStatus.hasInProgress = false;
+        }
+      };
+    }, [vehicle?.id, resetFormState, checkIsInProgress])
+  );
 
   // Fetch real pricing quote from backend when dates or vehicle change
   useEffect(() => {
@@ -505,18 +593,26 @@ export default function BookingFormScreen({ route, navigation }: any) {
 
     setSubmitting(false);
     setSubmitStatusText('');
+    hasSubmittedRef.current = true;
+    setSubmittedCompleted(true);
+    bookingFormStatus.hasInProgress = false;
+
+    const handleSuccessNavigation = () => {
+      resetFormState();
+      navigation.navigate('Bookings', { screen: 'BookingsList' });
+    };
 
     if (docUploadError) {
       Alert.alert(
         'Booking Created',
         'Your booking request was created, but document upload failed. You can upload your documents anytime from your Booking Details.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Bookings', { screen: 'BookingsList' }) }]
+        [{ text: 'OK', onPress: handleSuccessNavigation }]
       );
     } else {
       Alert.alert(
         'Booking Submitted!',
         'Your booking request and documents have been sent. Please wait for admin review. You can track it in your Bookings tab.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Bookings', { screen: 'BookingsList' }) }]
+        [{ text: 'OK', onPress: handleSuccessNavigation }]
       );
     }
   };
@@ -536,7 +632,7 @@ export default function BookingFormScreen({ route, navigation }: any) {
             step > 1 ? setStep(s => s - 1) : navigation.goBack();
           }}
           style={styles.backBtn}
-          disabled={checkingAvailability || submitting}
+          disabled={checkingAvailability || submitting || submittedCompleted}
         >
           <ChevronLeft size={24} stroke="#FFF" />
         </TouchableOpacity>
@@ -1040,7 +1136,7 @@ export default function BookingFormScreen({ route, navigation }: any) {
                   setFieldErrors({});
                   setStep(s => s - 1);
                 }}
-                disabled={checkingAvailability || submitting}
+                disabled={checkingAvailability || submitting || submittedCompleted}
               >
                 <ChevronLeft size={18} stroke="#000" />
                 <Text style={styles.backNavText}>Back</Text>
@@ -1049,13 +1145,13 @@ export default function BookingFormScreen({ route, navigation }: any) {
             <TouchableOpacity
               style={[
                 styles.nextBtn,
-                (checkingAvailability || submitting) && { opacity: 0.6 },
+                (checkingAvailability || submitting || submittedCompleted) && { opacity: 0.6 },
                 step === 1 && { flex: 1 }
               ]}
               onPress={handleNext}
-              disabled={checkingAvailability || submitting}
+              disabled={checkingAvailability || submitting || submittedCompleted}
             >
-              {checkingAvailability || submitting ? (
+              {checkingAvailability || submitting || submittedCompleted ? (
                 <ActivityIndicator color="#FFF" size="small" />
               ) : (
                 <>

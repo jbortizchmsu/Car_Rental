@@ -20,6 +20,7 @@ import BookingDetailScreen from './src/screens/BookingDetailScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import VehiclesScreen from './src/screens/VehiclesScreen';
 import BookingFormScreen from './src/screens/BookingFormScreen';
+import { bookingFormStatus } from './src/services/bookingState';
 
 // --- Login Screen (unchanged) ---
 const LoginScreen = ({ onLogin }: any) => {
@@ -435,7 +436,18 @@ export default function App() {
             })}
           >
             <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Active' }} />
-            <Tab.Screen name="Book" component={VehiclesStackNavigator} options={{ tabBarLabel: 'Book' }} />
+            <Tab.Screen
+              name="Book"
+              component={VehiclesStackNavigator}
+              options={{ tabBarLabel: 'Book' }}
+              listeners={({ navigation }) => ({
+                tabPress: () => {
+                  if (!bookingFormStatus.hasInProgress) {
+                    navigation.navigate('Book', { screen: 'VehiclesList' });
+                  }
+                },
+              })}
+            />
             <Tab.Screen name="Bookings" component={BookingsStackNavigator} options={{ tabBarLabel: 'Bookings' }} />
             <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ tabBarLabel: 'Alerts' }} />
             <Tab.Screen
