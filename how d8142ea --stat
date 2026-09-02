@@ -1,0 +1,22 @@
+[33mcommit d8142eab4b59c60ac52a62919f5391c49e5b7f46[m[33m ([m[1;31morigin/master[m[33m)[m
+Author: Jobert-glitch <jobert.ortiz@chmsu.edu.ph>
+Date:   Thu Aug 20 00:42:20 2026 +0800
+
+    feat: add bookings, payment, and vehicles screens with API integration
+    
+    - Implemented BookingsListScreen to display user's bookings with filtering options.
+    - Created PaymentScreen for handling payment submissions, including GCash and cash options.
+    - Developed VehiclesScreen to browse available vehicles with search functionality.
+    - Enhanced API service with new endpoints for bookings and payments.
+    - Added error handling and loading states across screens for better user experience.
+
+ App.tsx                             | 353 [32m+++++[m[31m-----------------[m
+ package-lock.json                   |  30 [32m+[m[31m-[m
+ package.json                        |   1 [32m+[m
+ src/screens/BookingDetailScreen.tsx | 424 [32m+++++++++++++++++++++++++++[m
+ src/screens/BookingFormScreen.tsx   | 569 [32m++++++++++++++++++++++++++++++++++++[m
+ src/screens/BookingsListScreen.tsx  | 231 [32m+++++++++++++++[m
+ src/screens/PaymentScreen.tsx       | 327 [32m+++++++++++++++++++++[m
+ src/screens/VehiclesScreen.tsx      | 238 [32m+++++++++++++++[m
+ src/services/api.ts                 |  44 [32m++[m[31m-[m
+ 9 files changed, 1924 insertions(+), 293 deletions(-)

@@ -1,32 +1,44 @@
-# JD Car Rental - Project-wide Git Ignore
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Logs
-logs
-*.log
-npm-debug.log*
-
-# Dependencies
+# dependencies
 node_modules/
+
+# Expo
 .expo/
 dist/
 web-build/
+expo-env.d.ts
 
-# Environment Files (CRITICAL)
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
 .env
-.env*
-*.env
 .env.local
 .env.*.local
-.env.postgres
-supabase/.env
-scripts/.env
-scripts/*.env
-mobile/.env
-web/.env
-
-# Keep examples
 !.env.example
 
-# OS files
-.DS_Store
-Thumbs.db
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
