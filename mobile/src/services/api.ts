@@ -71,6 +71,8 @@ export const bookingsApi = {
   createBooking: (data: any) => api.post('/customer/bookings', data),
   getBookingDetail: (id: string) => api.get(`/customer/bookings/${id}`),
   cancelBooking: (id: string) => api.patch(`/customer/bookings/${id}/cancel`),
+  getVehicleBookedDates: (vehicleId: string) =>
+    api.get(`/customer/bookings/vehicle/${vehicleId}/booked-dates`),
 };
 
 export const paymentsApi = {
