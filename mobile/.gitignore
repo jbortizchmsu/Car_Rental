@@ -1,0 +1,32 @@
+# JD Car Rental - Project-wide Git Ignore
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Environment Files (CRITICAL)
+.env
+.env*
+*.env
+.env.local
+.env.*.local
+.env.postgres
+supabase/.env
+scripts/.env
+scripts/*.env
+mobile/.env
+web/.env
+
+# Keep examples
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
