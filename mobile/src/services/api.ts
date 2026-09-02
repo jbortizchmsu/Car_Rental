@@ -95,3 +95,9 @@ export const gpsApi = {
 export const customerApi = {
   getActiveRental: () => api.get('/customer/active-rental'),
 };
+
+export const pricingApi = {
+  getQuote: (data: { vehicleId: string; startDate: string; endDate: string }) =>
+    api.post('/pricing/quote', data),
+};
+

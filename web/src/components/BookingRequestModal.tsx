@@ -9,6 +9,11 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 import ConfirmActionModal from './ConfirmActionModal';
 
+const formatApiDate = (d: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
 interface DocumentUploadCardProps {
   title: string;
   file: File | null;
@@ -677,7 +682,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                               onChange={(date: Date | null) => {
                                 setFormData(prev => ({
                                   ...prev,
-                                  start_date: date ? date.toISOString() : '',
+                                  start_date: date ? formatApiDate(date) : '',
                                   end_date: ''
                                 }));
                                 clearFieldError('start_date');
@@ -715,7 +720,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                               onChange={(date: Date | null) => {
                                 setFormData(prev => ({
                                   ...prev,
-                                  end_date: date ? date.toISOString() : ''
+                                  end_date: date ? formatApiDate(date) : ''
                                 }));
                                 clearFieldError('end_date');
                               }}

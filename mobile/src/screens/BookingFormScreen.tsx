@@ -7,7 +7,12 @@ import {
 import { ChevronLeft, ChevronRight, Check, Calendar, MapPin, User, Navigation as NavIcon, AlertCircle } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { bookingsApi } from '../services/api';
+import { bookingsApi, pricingApi } from '../services/api';
+
+const formatApiDate = (d: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
 
 // ---- Negros Island Municipalities ----
 const NEGROS_OCC = [
@@ -106,6 +111,11 @@ export default function BookingFormScreen({ route, navigation }: any) {
   const [showMunicipalityPicker, setShowMunicipalityPicker] = useState(false);
   const [muniSearch, setMuniSearch] = useState('');
 
+  // Dynamic Pricing Quote State
+  const [pricingQuote, setPricingQuote] = useState<any>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
   // Pre-fill user data
   useEffect(() => {
     AsyncStorage.getItem('jd_user').then(val => {
@@ -118,8 +128,41 @@ export default function BookingFormScreen({ route, navigation }: any) {
     });
   }, []);
 
-  const days = calcDays(pickupDate, returnDate);
+  // Fetch real pricing quote from backend when dates or vehicle change
+  useEffect(() => {
+    if (!vehicle?.id || !pickupDate || !returnDate) return;
+    if (pickupDate >= returnDate) {
+      setPricingQuote(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setQuoteLoading(true);
+      setQuoteError(null);
+      pricingApi.getQuote({
+        vehicleId: vehicle.id,
+        startDate: formatApiDate(pickupDate),
+        endDate: formatApiDate(returnDate),
+      })
+      .then(({ data }) => {
+        setPricingQuote(data);
+      })
+      .catch((err: any) => {
+        console.warn('[Pricing Quote Error]:', err?.response?.data || err?.message);
+        setQuoteError('Using base estimate');
+        setPricingQuote(null);
+      })
+      .finally(() => {
+        setQuoteLoading(false);
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [vehicle?.id, pickupDate, returnDate]);
+
+  const days = pricingQuote?.rentalDays ?? calcDays(pickupDate, returnDate);
   const estimatedTotal = days * Number(vehicle.dailyRate);
+  const displayTotal = pricingQuote?.totalPrice ?? estimatedTotal;
 
   // ---- Android two-step date+time picker ----
   const openDatePicker = (field: 'pickup' | 'return') => {
@@ -200,8 +243,8 @@ export default function BookingFormScreen({ route, navigation }: any) {
     try {
       await bookingsApi.createBooking({
         vehicleId: vehicle.id,
-        startDate: pickupDate.toISOString(),
-        endDate: returnDate.toISOString(),
+        startDate: formatApiDate(pickupDate),
+        endDate: formatApiDate(returnDate),
         pickupLocation: pickupLocation.trim(),
         destinationName: destinationName.trim(),
         destinationAddress: destinationAddress.trim(),
@@ -217,7 +260,7 @@ export default function BookingFormScreen({ route, navigation }: any) {
       Alert.alert(
         'Booking Submitted!',
         'Your booking request has been sent. Please wait for admin review. You can track it in your Bookings tab.',
-        [{ text: 'OK', onPress: () => navigation.navigate('BookingsList') }]
+        [{ text: 'OK', onPress: () => navigation.navigate('Bookings', { screen: 'BookingsList' }) }]
       );
     } catch (e: any) {
       const msg = e.response?.data?.error || 'Booking submission failed. Please try again.';
@@ -394,10 +437,24 @@ export default function BookingFormScreen({ route, navigation }: any) {
                   <Text style={styles.summaryLabel}>Duration</Text>
                   <Text style={styles.summaryValue}>{days} day{days !== 1 ? 's' : ''}</Text>
                 </View>
+                {pricingQuote?.multiplier > 1 && (
+                  <View style={styles.ruleBadgeRow}>
+                    <Text style={styles.ruleBadgeText}>
+                      ⚡ {pricingQuote.appliedRuleName || 'Weekend Rate'} ({pricingQuote.multiplier}x multiplier)
+                    </Text>
+                  </View>
+                )}
                 <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10, marginTop: 4 }]}>
-                  <Text style={[styles.summaryLabel, { fontWeight: '800' }]}>Estimated Total</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.summaryLabel, { fontWeight: '800' }]}>Estimated Total</Text>
+                    {quoteLoading ? (
+                      <Text style={{ fontSize: 11, color: '#9CA3AF' }}>Calculating rate...</Text>
+                    ) : !pricingQuote ? (
+                      <Text style={{ fontSize: 11, color: '#9CA3AF' }}>Base estimate (final total on submit)</Text>
+                    ) : null}
+                  </View>
                   <Text style={[styles.summaryValue, { fontSize: 17, fontWeight: '900', color: '#000' }]}>
-                    ₱{estimatedTotal.toLocaleString()}
+                    ₱{displayTotal.toLocaleString()}
                   </Text>
                 </View>
               </View>
@@ -566,4 +623,9 @@ const styles = StyleSheet.create({
   muniItemSelected: { backgroundColor: '#000' },
   muniItemText: { fontSize: 15, fontWeight: '600', color: '#000' },
   muniGroup: { fontSize: 11, color: '#9CA3AF' },
+  ruleBadgeRow: {
+    backgroundColor: '#FFF7ED', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 1, borderColor: '#FFEDD5', marginVertical: 6,
+  },
+  ruleBadgeText: { fontSize: 12, fontWeight: '700', color: '#C2410C' },
 });
