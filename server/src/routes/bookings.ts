@@ -135,13 +135,20 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
       return res.status(403).json({ error: 'Unauthorized to upload for this booking' });
     }
 
-    // Status check - allow upload if pending or rejected (to fix issues)
+    // Status check - allow upload if pending or rejected
     if (booking.status !== 'PENDING_REVIEW' && booking.status !== 'REJECTED') {
       return res.status(400).json({ error: 'Cannot upload documents for booking in current status' });
     }
 
     // Check if an existing document of the SAME type was already uploaded for this booking (replacement scenario)
     const existingDoc = booking.documents.find(d => d.documentType === type);
+
+    // Prevent overwriting/replacing an already-submitted document unless admin has REJECTED the document/booking
+    if (existingDoc && booking.status !== 'REJECTED') {
+      return res.status(403).json({
+        error: 'Document has already been submitted and cannot be modified while pending review or approved. Re-upload is only allowed if rejected by admin.'
+      });
+    }
 
     const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
     const filePath = `${req.user!.id}/${id}/${type}/doc-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;

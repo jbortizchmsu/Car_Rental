@@ -112,15 +112,38 @@ export async function deleteFromSupabaseStorage(
  */
 export function extractSupabaseFilePath(fileUrl: string, bucketName: string): string {
   if (!fileUrl) return '';
-  const searchPattern = `/public/${bucketName}/`;
-  if (fileUrl.includes(searchPattern)) {
-    return fileUrl.split(searchPattern)[1];
+
+  // 1. Strip query string parameters if present (e.g. ?token=... or ?v=...)
+  let clean = fileUrl.split('?')[0];
+
+  // 2. Normalize backslashes to forward slashes
+  clean = clean.replace(/\\/g, '/');
+
+  // 3. Look for standard Supabase Storage URL patterns
+  const publicPattern = `/public/${bucketName}/`;
+  if (clean.includes(publicPattern)) {
+    clean = clean.split(publicPattern)[1];
+  } else {
+    const signPattern = `/sign/${bucketName}/`;
+    if (clean.includes(signPattern)) {
+      clean = clean.split(signPattern)[1];
+    } else {
+      const altPattern = `/${bucketName}/`;
+      if (clean.includes(altPattern)) {
+        clean = clean.split(altPattern)[1];
+      }
+    }
   }
-  const altPattern = `/${bucketName}/`;
-  if (fileUrl.includes(altPattern)) {
-    return fileUrl.split(altPattern)[1];
+
+  // 4. Strip leading slash
+  clean = clean.replace(/^\/+/, '');
+
+  // 5. If the path STILL starts with `${bucketName}/`, strip the redundant bucket name prefix
+  if (clean.startsWith(`${bucketName}/`)) {
+    clean = clean.replace(new RegExp(`^${bucketName}/`), '');
   }
-  return fileUrl.replace(/^[/\\]+/, '');
+
+  return clean;
 }
 
 /**

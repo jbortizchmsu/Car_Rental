@@ -59,6 +59,18 @@ export const vehiclesApi = {
     `${API_BASE_URL || 'http://localhost:4000/api'}/vehicles/${id}/image`,
 };
 
+export const filesApi = {
+  getFileUrl: (fileId: string) => `${API_BASE_URL || 'http://localhost:4000/api'}/files/${fileId}`,
+  getSignedUrl: async (fileId: string) => {
+    const res = await api.get(`/files/${fileId}?json=true`);
+    const url = res.data?.url || res.data?.signedUrl;
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      return `${API_BASE_URL || 'http://localhost:4000/api'}/files/${fileId}`;
+    }
+    return url;
+  },
+};
+
 export const bookingsApi = {
   // Existing — do not modify
   getMyBookings: () => api.get('/customer/bookings/my'),
