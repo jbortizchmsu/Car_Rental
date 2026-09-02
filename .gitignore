@@ -32,9 +32,10 @@ yarn-error.*
 
 # local env files
 .env
-.env.local
-.env.*.local
+.env.*
+server/.env.postgres
 !.env.example
+!*.env.example
 
 # typescript
 *.tsbuildinfo
