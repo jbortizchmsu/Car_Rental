@@ -8,7 +8,7 @@ import {
   ActivityIndicator, Alert, ScrollView, RefreshControl, Image,
   Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform,
 } from 'react-native';
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X, Eye, EyeOff } from 'lucide-react-native';
 import api, { authApi, bookingsApi, gpsApi, notificationsApi, customerApi } from './src/services/api';
@@ -432,7 +432,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <NavigationContainer>
         {user ? (
           <Tab.Navigator
