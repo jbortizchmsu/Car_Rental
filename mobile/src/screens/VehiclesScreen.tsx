@@ -158,6 +158,7 @@ export default function VehiclesScreen({ navigation, route }: any) {
         </View>
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={renderVehicle}

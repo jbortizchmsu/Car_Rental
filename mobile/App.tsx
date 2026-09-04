@@ -173,24 +173,21 @@ const HomeScreen = () => {
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#AD9B8D" />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>JD Active Drive</Text>
       </View>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scrollContent, loading && { flexGrow: 1 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchActiveBooking(); }} />}
       >
-        {activeBooking ? (
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#AD9B8D" />
+          </View>
+        ) : activeBooking ? (
           <View style={{ width: '100%' }}>
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
@@ -300,10 +297,18 @@ const NotificationsScreen = () => {
         </TouchableOpacity>
       </View>
       <ScrollView
-        contentContainerStyle={{ padding: 0 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          { padding: 0 },
+          (loading || notifications.length === 0) && { flexGrow: 1 },
+        ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchNotifications(); }} />}
       >
-        {notifications.length === 0 && !loading ? (
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#AD9B8D" />
+          </View>
+        ) : notifications.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 100 }}>
             <Bell size={64} stroke="#DDD" />
             <Text style={styles.subtitle}>No notifications yet.</Text>
@@ -336,10 +341,13 @@ const NotificationsScreen = () => {
 // --- Profile Screen (unchanged) ---
 const ProfileScreen = ({ onLogout }: any) => {
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     AsyncStorage.getItem('jd_user').then(val => {
       if (val) setUser(JSON.parse(val));
+    }).finally(() => {
+      setLoading(false);
     });
   }, []);
 
@@ -354,15 +362,23 @@ const ProfileScreen = ({ onLogout }: any) => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
       </View>
-      <View style={{ padding: 20, alignItems: 'center' }}>
-        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#AD9B8D', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
-          <User size={40} stroke="#FFF" />
-        </View>
-        <Text style={{ fontSize: 22, fontWeight: '800' }}>{user?.fullName || 'JD Customer'}</Text>
-        <Text style={{ color: '#958786', marginBottom: 30 }}>{user?.email}</Text>
-        <TouchableOpacity style={[styles.button, { backgroundColor: '#EF4444' }]} onPress={handleLogout}>
-          <Text style={styles.buttonText}>Logout</Text>
-        </TouchableOpacity>
+      <View style={{ flex: 1, width: '100%' }}>
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#AD9B8D" />
+          </View>
+        ) : (
+          <View style={{ flex: 1, padding: 20, alignItems: 'center' }}>
+            <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#AD9B8D', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
+              <User size={40} stroke="#FFF" />
+            </View>
+            <Text style={{ fontSize: 22, fontWeight: '800' }}>{user?.fullName || 'JD Customer'}</Text>
+            <Text style={{ color: '#958786', marginBottom: 30 }}>{user?.email}</Text>
+            <TouchableOpacity style={[styles.button, { backgroundColor: '#EF4444' }]} onPress={handleLogout}>
+              <Text style={styles.buttonText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -371,7 +387,7 @@ const ProfileScreen = ({ onLogout }: any) => {
 // --- Navigation stacks ---
 const BookingStackNav = createStackNavigator();
 const BookingsStackNavigator = () => (
-  <BookingStackNav.Navigator screenOptions={{ headerShown: false }}>
+  <BookingStackNav.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#FDFDFD' } }}>
     <BookingStackNav.Screen name="BookingsList" component={BookingsListScreen} />
     <BookingStackNav.Screen name="BookingDetail" component={BookingDetailScreen} />
     <BookingStackNav.Screen name="PaymentSubmit" component={PaymentScreen} />
@@ -380,7 +396,7 @@ const BookingsStackNavigator = () => (
 
 const VehicleStackNav = createStackNavigator();
 const VehiclesStackNavigator = () => (
-  <VehicleStackNav.Navigator screenOptions={{ headerShown: false }}>
+  <VehicleStackNav.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: '#FDFDFD' } }}>
     <VehicleStackNav.Screen name="VehiclesList" component={VehiclesScreen} />
     <VehicleStackNav.Screen name="BookingForm" component={BookingFormScreen} />
   </VehicleStackNav.Navigator>
@@ -422,6 +438,7 @@ export default function App() {
           <Tab.Navigator
             screenOptions={({ route }) => ({
               headerShown: false,
+              sceneContainerStyle: { backgroundColor: '#FDFDFD' },
               tabBarIcon: ({ focused, color, size }) => {
                 if (route.name === 'Home') return <Car size={size} stroke={color} />;
                 if (route.name === 'Book') return <Calendar size={size} stroke={color} />;
@@ -471,6 +488,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FDFDFD' },
+  center: { flex: 1, width: '100%', justifyContent: 'center', alignItems: 'center', padding: 40 },
   scrollContent: { padding: 20, alignItems: 'center' },
   loginScrollContent: { flexGrow: 1, justifyContent: 'center' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },

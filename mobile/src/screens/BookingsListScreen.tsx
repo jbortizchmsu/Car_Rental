@@ -105,79 +105,79 @@ export default function BookingsListScreen({ navigation }: any) {
         ))}
       </ScrollView>
 
-      {loading ? (
-        <View style={styles.center}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          (loading || error || filtered.length === 0) && { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); fetchBookings(); }}
+            colors={['#AD9B8D']}
+          />
+        }
+      >
+        {loading ? (
           <ActivityIndicator size="large" color="#AD9B8D" />
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={fetchBookings}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); fetchBookings(); }}
-              colors={['#AD9B8D']}
-            />
-          }
-        >
-          {filtered.length === 0 ? (
-            <View style={styles.empty}>
-              <FileText size={56} stroke="#DDD" />
-              <Text style={styles.emptyTitle}>No bookings here</Text>
-              <Text style={styles.emptySubtitle}>
-                {filter === 'All' ? "You haven't made any bookings yet." : `No ${filter.toLowerCase()} bookings.`}
-              </Text>
-            </View>
-          ) : (
-            filtered.map(booking => (
-              <TouchableOpacity
-                key={booking.id}
-                style={styles.card}
-                onPress={() => navigation.navigate('BookingDetail', { bookingId: booking.id })}
-                activeOpacity={0.7}
-              >
-                <View style={styles.cardTop}>
-                  <View style={styles.cardLeft}>
-                    <Text style={styles.vehicleName}>
-                      {booking.vehicle?.brand} {booking.vehicle?.model}
-                    </Text>
-                    <Text style={styles.plateText}>{booking.vehicle?.licensePlate}</Text>
-                    <Text style={styles.dateText}>
-                      {formatDate(booking.startDate)} — {formatDate(booking.endDate)}
-                    </Text>
-                  </View>
-                  <View style={styles.cardRight}>
-                    <View style={[styles.badge, { backgroundColor: STATUS_COLOR[booking.status] || '#9CA3AF' }]}>
-                      <Text style={styles.badgeText}>{STATUS_LABEL[booking.status] || booking.status}</Text>
-                    </View>
-                    <Text style={styles.amountText}>₱{Number(booking.totalAmount).toLocaleString()}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.cardFooter}>
-                  <Text style={styles.footerId}>
-                    ID: {booking.id.slice(0, 8).toUpperCase()}
+        ) : error ? (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={fetchBookings}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <FileText size={56} stroke="#DDD" />
+            <Text style={styles.emptyTitle}>No bookings here</Text>
+            <Text style={styles.emptySubtitle}>
+              {filter === 'All' ? "You haven't made any bookings yet." : `No ${filter.toLowerCase()} bookings.`}
+            </Text>
+          </View>
+        ) : (
+          filtered.map(booking => (
+            <TouchableOpacity
+              key={booking.id}
+              style={styles.card}
+              onPress={() => navigation.navigate('BookingDetail', { bookingId: booking.id })}
+              activeOpacity={0.7}
+            >
+              <View style={styles.cardTop}>
+                <View style={styles.cardLeft}>
+                  <Text style={styles.vehicleName}>
+                    {booking.vehicle?.brand} {booking.vehicle?.model}
                   </Text>
-                  <View style={styles.footerRight}>
-                    <Text style={styles.footerDocs}>
-                      {booking.documents?.length || 0} docs
-                    </Text>
-                    <ChevronRight size={16} stroke="#9CA3AF" />
-                  </View>
+                  <Text style={styles.plateText}>{booking.vehicle?.licensePlate}</Text>
+                  <Text style={styles.dateText}>
+                    {formatDate(booking.startDate)} — {formatDate(booking.endDate)}
+                  </Text>
                 </View>
-              </TouchableOpacity>
-            ))
-          )}
-          <View style={{ height: 30 }} />
-        </ScrollView>
-      )}
+                <View style={styles.cardRight}>
+                  <View style={[styles.badge, { backgroundColor: STATUS_COLOR[booking.status] || '#9CA3AF' }]}>
+                    <Text style={styles.badgeText}>{STATUS_LABEL[booking.status] || booking.status}</Text>
+                  </View>
+                  <Text style={styles.amountText}>₱{Number(booking.totalAmount).toLocaleString()}</Text>
+                </View>
+              </View>
+
+              <View style={styles.cardFooter}>
+                <Text style={styles.footerId}>
+                  ID: {booking.id.slice(0, 8).toUpperCase()}
+                </Text>
+                <View style={styles.footerRight}>
+                  <Text style={styles.footerDocs}>
+                    {booking.documents?.length || 0} docs
+                  </Text>
+                  <ChevronRight size={16} stroke="#9CA3AF" />
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+        <View style={{ height: 30 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
