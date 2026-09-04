@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  ActivityIndicator, Alert, SafeAreaView, Modal, Image, Platform,
+  ActivityIndicator, Alert, Modal, Image, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ChevronLeft, Calendar, MapPin, CreditCard, CheckCircle2,
@@ -226,7 +227,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <ChevronLeft size={24} stroke="#FFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Booking Detail</Text>
@@ -243,7 +244,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <ChevronLeft size={24} stroke="#FFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Booking Detail</Text>
@@ -276,7 +277,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <ChevronLeft size={24} stroke="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Detail</Text>
@@ -761,7 +762,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
   headerTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', flex: 1, textAlign: 'center' },
-  backBtn: { width: 40 },
+  backBtn: { width: 40, height: 40, justifyContent: 'center', zIndex: 10 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, gap: 12 },
   errorText: { color: '#EF4444', textAlign: 'center' },
   retryBtn: { backgroundColor: '#AD9B8D', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
