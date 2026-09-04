@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  ActivityIndicator, Alert, SafeAreaView, TextInput,
+  ActivityIndicator, Alert, TextInput,
   KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { ChevronLeft, CheckCircle2, Upload, Smartphone, Banknote, CreditCard } from 'lucide-react-native';
 import { paymentsApi } from '../services/api';
@@ -13,6 +14,7 @@ type PaymentType = 'FULL_GCASH' | 'DOWNPAYMENT_GCASH' | 'CASH_AT_PICKUP';
 const GCASH_NUMBER = '0917-XXX-XXXX'; // Replace with actual GCash number
 
 export default function PaymentScreen({ route, navigation }: any) {
+  const insets = useSafeAreaInsets();
   const { bookingId, totalAmount } = route.params;
   const downpaymentAmount = Math.ceil(Number(totalAmount) * 0.3);
 
@@ -81,7 +83,7 @@ export default function PaymentScreen({ route, navigation }: any) {
 
   if (success) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.successContainer}>
           <CheckCircle2 size={72} stroke="#10B981" />
           <Text style={styles.successTitle}>Payment Submitted!</Text>
@@ -97,12 +99,12 @@ export default function PaymentScreen({ route, navigation }: any) {
             <Text style={styles.doneBtnText}>Back to Bookings</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <ChevronLeft size={24} stroke="#FFF" />
@@ -246,7 +248,7 @@ export default function PaymentScreen({ route, navigation }: any) {
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

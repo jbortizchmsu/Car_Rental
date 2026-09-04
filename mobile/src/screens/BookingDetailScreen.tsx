@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
   ActivityIndicator, Alert, Modal, Image, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ChevronLeft, Calendar, MapPin, CreditCard, CheckCircle2,
@@ -48,6 +48,7 @@ const formatDate = (d: string) =>
   });
 
 export default function BookingDetailScreen({ route, navigation }: any) {
+  const insets = useSafeAreaInsets();
   const { bookingId } = route.params;
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -225,7 +226,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <ChevronLeft size={24} stroke="#FFF" />
@@ -236,13 +237,13 @@ export default function BookingDetailScreen({ route, navigation }: any) {
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#AD9B8D" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (error || !booking) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <ChevronLeft size={24} stroke="#FFF" />
@@ -257,7 +258,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -275,7 +276,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
   const canEditLicense = (!licenseDoc || isRejected) && !isClosed;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <ChevronLeft size={24} stroke="#FFF" />
@@ -698,7 +699,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             onPress={closePreviewModal}
           />
 
-          <SafeAreaView style={styles.imagePreviewContainer} pointerEvents="box-none">
+          <View style={[styles.imagePreviewContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]} pointerEvents="box-none">
             <View style={styles.imagePreviewHeader}>
               <Text style={styles.imagePreviewTitle}>{viewingImageTitle || 'Document Preview'}</Text>
               <TouchableOpacity
@@ -748,10 +749,10 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             </View>
 
             <Text style={styles.imagePreviewFooterHint}>Tap background or X to close</Text>
-          </SafeAreaView>
+          </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

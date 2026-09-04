@@ -8,7 +8,7 @@ import {
   ActivityIndicator, Alert, ScrollView, RefreshControl, Image,
   Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform,
 } from 'react-native';
-import { SafeAreaView, SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X, Eye, EyeOff } from 'lucide-react-native';
 import api, { authApi, bookingsApi, gpsApi, notificationsApi, customerApi } from './src/services/api';
@@ -22,8 +22,8 @@ import VehiclesScreen from './src/screens/VehiclesScreen';
 import BookingFormScreen from './src/screens/BookingFormScreen';
 import { bookingFormStatus } from './src/services/bookingState';
 
-// --- Login Screen (unchanged) ---
 const LoginScreen = ({ onLogin }: any) => {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,7 +57,7 @@ const LoginScreen = ({ onLogin }: any) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView contentContainerStyle={styles.loginScrollContent} keyboardShouldPersistTaps="handled">
@@ -89,12 +89,13 @@ const LoginScreen = ({ onLogin }: any) => {
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 // --- Home (Active Rental + GPS) Screen (unchanged) ---
 const HomeScreen = () => {
+  const insets = useSafeAreaInsets();
   const [activeBooking, setActiveBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -174,7 +175,7 @@ const HomeScreen = () => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>JD Active Drive</Text>
       </View>
@@ -251,12 +252,13 @@ const HomeScreen = () => {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 // --- Notifications Screen (unchanged) ---
 const NotificationsScreen = () => {
+  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -289,7 +291,7 @@ const NotificationsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
         <TouchableOpacity onPress={async () => { await notificationsApi.markAllAsRead(); fetchNotifications(); }}>
@@ -334,12 +336,13 @@ const NotificationsScreen = () => {
           ))
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 // --- Profile Screen (unchanged) ---
 const ProfileScreen = ({ onLogout }: any) => {
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -358,7 +361,7 @@ const ProfileScreen = ({ onLogout }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
       </View>
@@ -380,7 +383,7 @@ const ProfileScreen = ({ onLogout }: any) => {
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

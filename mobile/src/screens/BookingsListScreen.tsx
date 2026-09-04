@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FileText, ChevronRight } from 'lucide-react-native';
 import { bookingsApi } from '../services/api';
 
@@ -50,6 +50,7 @@ const formatDate = (d: string) =>
   new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
 
 export default function BookingsListScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +80,7 @@ export default function BookingsListScreen({ navigation }: any) {
     f === 'All' ? bookings.length : bookings.filter(b => STATUS_MAP[f].includes(b.status)).length;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <Text style={styles.headerCount}>{bookings.length} total</Text>
@@ -178,7 +179,7 @@ export default function BookingsListScreen({ navigation }: any) {
         )}
         <View style={{ height: 30 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -4,7 +4,7 @@ import {
   ActivityIndicator, TextInput, Image,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, Car, Users, Fuel, Calendar } from 'lucide-react-native';
 import { vehiclesApi } from '../services/api';
 
@@ -17,6 +17,7 @@ const CATEGORY_COLOR: Record<string, string> = {
 };
 
 export default function VehiclesScreen({ navigation, route }: any) {
+  const insets = useSafeAreaInsets();
   const { pickupDate, returnDate } = route.params || {};
 
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -119,7 +120,7 @@ export default function VehiclesScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Browse Vehicles</Text>
         <Text style={styles.headerSub}>{filtered.length} available</Text>
@@ -173,7 +174,7 @@ export default function VehiclesScreen({ navigation, route }: any) {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

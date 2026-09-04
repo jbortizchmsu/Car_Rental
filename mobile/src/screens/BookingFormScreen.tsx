@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  TextInput, ActivityIndicator, Alert, SafeAreaView,
+  TextInput, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform, Modal, FlatList, Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -95,6 +96,7 @@ const stepStyles = StyleSheet.create({
 
 // ---- Main component ----
 export default function BookingFormScreen({ route, navigation }: any) {
+  const insets = useSafeAreaInsets();
   const { vehicle } = route.params;
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -623,7 +625,7 @@ export default function BookingFormScreen({ route, navigation }: any) {
 
   // ---- Render ----
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -1223,7 +1225,7 @@ export default function BookingFormScreen({ route, navigation }: any) {
           activeOpacity={1}
           onPress={() => setViewingImageUri(null)}
         >
-          <SafeAreaView style={styles.imagePreviewHeader}>
+          <View style={[styles.imagePreviewHeader, { paddingTop: insets.top }]}>
             <Text style={styles.imagePreviewTitle}>{viewingImageTitle || 'Document Preview'}</Text>
             <TouchableOpacity
               style={styles.imagePreviewCloseBtn}
@@ -1231,7 +1233,7 @@ export default function BookingFormScreen({ route, navigation }: any) {
             >
               <X size={22} stroke="#FFF" />
             </TouchableOpacity>
-          </SafeAreaView>
+          </View>
 
           <View style={styles.imagePreviewBody}>
             {viewingImageUri ? (
@@ -1246,7 +1248,7 @@ export default function BookingFormScreen({ route, navigation }: any) {
           <Text style={styles.imagePreviewFooterHint}>Tap anywhere to close</Text>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
