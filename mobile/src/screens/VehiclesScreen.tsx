@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, TextInput, SafeAreaView, Image,
+  ActivityIndicator, TextInput, Image,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Car, Users, Fuel, Calendar } from 'lucide-react-native';
 import { vehiclesApi } from '../services/api';
 

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  ActivityIndicator, RefreshControl, SafeAreaView,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileText, ChevronRight } from 'lucide-react-native';
 import { bookingsApi } from '../services/api';
 
@@ -189,8 +190,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
   headerCount: { color: '#AD9B8D', fontSize: 13, fontWeight: '600' },
-  filterScroll: { maxHeight: 52, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  filterContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row' },
+  filterScroll: { height: 52, flexGrow: 0, flexShrink: 0, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  filterContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, flexDirection: 'row', alignItems: 'center' },
   filterTab: {
     paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20,
     backgroundColor: '#F3F4F6',
