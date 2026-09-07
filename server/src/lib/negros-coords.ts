@@ -128,6 +128,36 @@ export function isPointInCircle(
   return distKm <= radiusKm;
 }
 
+/**
+ * Point-in-polygon check using the standard ray-casting (even-odd rule) algorithm:
+ * casts a ray from the point to infinity (here, in the longitude direction) and counts how many
+ * polygon edges it crosses — an odd count means the point is inside, even means outside.
+ * Treats lat/lng as plane coordinates, which is an acceptable approximation for the small,
+ * city-scale polygons this app draws (no geodesic/great-circle correction needed at this scale).
+ *
+ * Returns `false` for a degenerate polygon (fewer than 3 points) rather than throwing, since a
+ * shape with fewer than 3 vertices cannot enclose any area.
+ */
+export function isPointInPolygon(
+  lat: number, lng: number,
+  polygon: Array<{ lat: number; lng: number }>
+): boolean {
+  if (!Array.isArray(polygon) || polygon.length < 3) return false;
+
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lat, yi = polygon[i].lng;
+    const xj = polygon[j].lat, yj = polygon[j].lng;
+
+    const intersects =
+      (yi > lng) !== (yj > lng) &&
+      lat < ((xj - xi) * (lng - yi)) / (yj - yi) + xi;
+
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
 const GEOFENCE_BUFFER_KM = 20;
 
 /** Compute geofence center (the configured shop or default SHOP_LOCATION) and radius (distance + buffer). */

@@ -9,9 +9,21 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 import ConfirmActionModal from './ConfirmActionModal';
 
-const formatApiDate = (d: Date): string => {
+export const formatApiDate = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
+export const getLocalStartOfToday = (): Date => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+export const isToday = (date: Date | null): boolean => {
+  if (!date) return false;
+  const today = new Date();
+  return date.toDateString() === today.toDateString();
 };
 
 interface DocumentUploadCardProps {
@@ -421,18 +433,6 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
       delete updated[field];
       return updated;
     });
-  };
-
-  const getLocalStartOfToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  };
-
-  const isToday = (date: Date | null) => {
-    if (!date) return false;
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
   };
 
   const validateStep = (step: number): boolean => {

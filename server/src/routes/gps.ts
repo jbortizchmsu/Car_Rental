@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
 import { createAdminNotification, createNotification } from '../lib/notifications';
-import { isPointInCircle } from '../lib/negros-coords';
+import { isPointInCircle, isPointInPolygon } from '../lib/negros-coords';
 
 const router = Router();
 
@@ -79,11 +79,23 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
             break;
           }
         }
-        // Polygon-based zones without center coords: treated as "inside" for now
-        // (full polygon check can be added with @turf/turf later)
+        // Polygon-based zones (no center/radius): real point-in-polygon containment check.
         else {
-          isOutsideAllZones = false;
-          break;
+          let polygon: Array<{ lat: number; lng: number }> | null = null;
+          try {
+            const parsed = zone.polygonCoordinates ? JSON.parse(zone.polygonCoordinates) : null;
+            polygon = Array.isArray(parsed) ? parsed : null;
+          } catch (parseErr) {
+            console.error(`[Geofence] Failed to parse polygonCoordinates for zone ${zone.id}:`, parseErr);
+          }
+
+          // A zone we can't validate (malformed JSON, or fewer than 3 points) can't prove the
+          // vehicle is safe — err toward treating it as a potential breach rather than silently
+          // defaulting to "safe", since a false "safe" here is the exact gap this fix closes.
+          if (polygon && isPointInPolygon(latitude, longitude, polygon)) {
+            isOutsideAllZones = false;
+            break;
+          }
         }
       }
 

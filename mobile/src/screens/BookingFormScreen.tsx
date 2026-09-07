@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { bookingsApi, pricingApi, vehiclesApi } from '../services/api';
 import { bookingFormStatus } from '../services/bookingState';
+import { formatDateOnly, formatExpiryDisplay, calcDays } from '../utils/booking-form-utils';
 
 const formatApiDate = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -46,21 +47,6 @@ const ALL_MUNICIPALITIES = [
 // ---- Date helpers ----
 const formatDisplay = (d: Date) =>
   d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-const formatDateOnly = (d: Date): string => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-const formatExpiryDisplay = (d: Date | null): string => {
-  if (!d) return 'Select license expiry date...';
-  return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-const calcDays = (start: Date, end: Date) => {
-  const diff = end.getTime() - start.getTime();
-  return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-};
 
 // ---- Step indicator ----
 const StepIndicator = ({ current, total }: { current: number; total: number }) => (

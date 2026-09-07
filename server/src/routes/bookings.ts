@@ -354,12 +354,15 @@ router.post('/:id/approve', authenticate, authorizeAdmin, async (req, res) => {
     const existingBooking = await prisma.booking.findUnique({ where: { id: bookingId } });
     if (!existingBooking) return res.status(404).json({ error: 'Booking not found' });
 
-    // Re-check availability before approval (exclude current booking)
+    // Re-check availability before approval (exclude current booking) — re-validating this
+    // booking's own already-scheduled dates for real conflicts, not a new proposed date, so
+    // the past-date guard doesn't apply.
     const availability = await checkVehicleAvailability(
-      existingBooking.vehicleId, 
-      existingBooking.startDate, 
-      existingBooking.endDate, 
-      bookingId
+      existingBooking.vehicleId,
+      existingBooking.startDate,
+      existingBooking.endDate,
+      bookingId,
+      true
     );
 
     if (!availability.available) {
@@ -478,12 +481,14 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
       return res.status(400).json({ error: 'Release odometer is required.' });
     }
 
-    // Final conflict check before release
+    // Final conflict check before release — re-validating this booking's own already-scheduled
+    // dates for real conflicts, not a new proposed date, so the past-date guard doesn't apply.
     const availability = await checkVehicleAvailability(
       existingBooking.vehicleId,
       existingBooking.startDate,
       existingBooking.endDate,
-      id
+      id,
+      true
     );
 
     if (!availability.available) {
