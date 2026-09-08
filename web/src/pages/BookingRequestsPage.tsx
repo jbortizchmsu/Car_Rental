@@ -1059,7 +1059,7 @@ const BookingRequestsPage: React.FC = () => {
                       </div>
                       {selectedBooking.startDate && new Date() < new Date(selectedBooking.startDate) && (
                         <div style={{ padding: '0.75rem 1rem', backgroundColor: '#FEF3C7', borderRadius: '10px', border: '1px solid #FCD34D', fontSize: '0.85rem', color: '#92400E', fontWeight: 600 }}>
-                          🗓 Release available from {new Date(selectedBooking.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          🗓 Release available from {new Date(selectedBooking.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' })} at {new Date(selectedBooking.startDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila' })}
                         </div>
                       )}
                       <button

@@ -464,8 +464,11 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
       const formattedDate = existingBooking.startDate.toLocaleDateString('en-US', {
         month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila'
       });
+      const formattedTime = existingBooking.startDate.toLocaleTimeString('en-US', {
+        hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila'
+      });
       return res.status(400).json({
-        error: `Vehicle cannot be released before the scheduled pickup date. Pickup is scheduled for ${formattedDate}.`
+        error: `Vehicle cannot be released before the scheduled pickup date. Pickup is scheduled for ${formattedDate} at ${formattedTime}.`
       });
     }
 

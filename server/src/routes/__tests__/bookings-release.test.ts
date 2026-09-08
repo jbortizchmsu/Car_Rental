@@ -124,10 +124,13 @@ describe('POST /api/bookings/:id/release', () => {
     const expectedFormattedDate = futureStart.toLocaleDateString('en-US', {
       month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila',
     });
+    const expectedFormattedTime = futureStart.toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Manila',
+    });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe(
-      `Vehicle cannot be released before the scheduled pickup date. Pickup is scheduled for ${expectedFormattedDate}.`
+      `Vehicle cannot be released before the scheduled pickup date. Pickup is scheduled for ${expectedFormattedDate} at ${expectedFormattedTime}.`
     );
   });
 
