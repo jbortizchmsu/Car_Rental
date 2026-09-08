@@ -156,7 +156,7 @@ export const customerApi = {
 
 // Files API
 export const filesApi = {
-  getProtectedFileBlob: (fileId: string) => api.get(`/files/${fileId}`, { responseType: 'blob' }),
+  getProtectedFileBlob: (fileId: string) => api.get(`/files/${fileId}`, { responseType: 'blob', headers: { Accept: '*/*' } }),
 };
 
 // Maintenance API

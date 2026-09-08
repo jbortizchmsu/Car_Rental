@@ -51,7 +51,7 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
         }
 
         console.log(`[FILES_API_DEBUG] Signed URL generated successfully: "${signedUrl}"`);
-        if (req.query.json === 'true' || req.headers.accept?.includes('application/json')) {
+        if (req.query.json === 'true') {
           return res.json({ url: signedUrl });
         }
 
@@ -69,7 +69,7 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
         return res.status(404).json({ error: 'File not found on disk' });
       }
 
-      if (req.query.json === 'true' || req.headers.accept?.includes('application/json')) {
+      if (req.query.json === 'true') {
         const host = req.get('host') || 'localhost:4000';
         const protocol = req.protocol || 'http';
         const fallbackUrl = `${protocol}://${host}/api/files/${fileId}`;
@@ -110,7 +110,7 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
         }
 
         console.log(`[FILES_API_DEBUG] PaymentProof Signed URL generated successfully: "${signedUrl}"`);
-        if (req.query.json === 'true' || req.headers.accept?.includes('application/json')) {
+        if (req.query.json === 'true') {
           return res.json({ url: signedUrl });
         }
 
@@ -130,7 +130,7 @@ router.get('/:fileId', authenticate, async (req: AuthRequest, res) => {
         return res.status(404).json({ error: 'File not found on disk' });
       }
 
-      if (req.query.json === 'true' || req.headers.accept?.includes('application/json')) {
+      if (req.query.json === 'true') {
         const host = req.get('host') || 'localhost:4000';
         const protocol = req.protocol || 'http';
         const fallbackUrl = `${protocol}://${host}/api/files/${fileId}`;
