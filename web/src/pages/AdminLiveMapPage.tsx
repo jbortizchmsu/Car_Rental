@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { 
   Car, 
   AlertTriangle,
@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { adminApi, settingsApi } from '../services/api';
 import { io } from 'socket.io-client';
-import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle } from '@react-google-maps/api';
+import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polyline } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 
 interface ActiveRental {
@@ -81,6 +81,15 @@ const AdminLiveMapPage: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [geofenceZones, setGeofenceZones] = useState<ActiveGeofenceZone[]>([]);
+  // Movement trail for whichever vehicle is currently tracked (selectedRental). Separate from
+  // `selectedRental.locations`/`activeRentals[].locations`, which always hold only the single
+  // latest point used to position the marker itself — this array accumulates the full path.
+  const [trailPoints, setTrailPoints] = useState<{ lat: number; lng: number }[]>([]);
+  // Always mirrors the currently-tracked booking id. The socket listener below is wired up
+  // once (empty effect deps) and calls a handler whose closure is fixed at mount time, so it
+  // can't read fresh `selectedRental` state directly — this ref is how it finds out which
+  // booking is *currently* tracked without going stale.
+  const trackedBookingIdRef = useRef<string | null>(null);
 
   const { isLoaded, loadError } = useGoogleMaps();
   const [defaultCenter, setDefaultCenter] = useState(NEGROS_DEFAULT_CENTER);
@@ -210,7 +219,15 @@ const AdminLiveMapPage: React.FC = () => {
       }
       return rental;
     }));
-    
+
+    // Append onto the trail only if this update belongs to the vehicle currently being
+    // tracked — read via the ref (not `selectedRental` directly), since this handler's
+    // closure was fixed at mount time and would otherwise never see a fresh value. The
+    // marker's own position is updated separately below/above and is unaffected by this.
+    if (newLoc.bookingId === trackedBookingIdRef.current) {
+      setTrailPoints(prev => [...prev, { lat: newLoc.latitude, lng: newLoc.longitude }]);
+    }
+
     // Update selected rental if it's the one that moved
     setSelectedRental(prev => {
       if (prev && prev.id === newLoc.bookingId) {
@@ -267,6 +284,39 @@ const AdminLiveMapPage: React.FC = () => {
       map.setZoom(16);
     }
   }, [selectedRental, map]);
+
+  // Keep the "currently tracked booking" ref in sync for the socket handler to read.
+  useEffect(() => {
+    trackedBookingIdRef.current = selectedRental?.id ?? null;
+  }, [selectedRental?.id]);
+
+  // Seed the trail with full journey history whenever the tracked vehicle changes. Guards
+  // against a slow-arriving response for a previously-tracked booking overwriting the trail
+  // after the admin has already switched to a different vehicle.
+  useEffect(() => {
+    let cancelled = false;
+    const bookingId = selectedRental?.id ?? null;
+
+    // Clear immediately so the previous vehicle's trail never briefly shows under the newly
+    // selected one while the fresh history request is in flight.
+    setTrailPoints([]);
+
+    if (!bookingId) return;
+
+    adminApi.getGpsSession(bookingId)
+      .then((res) => {
+        if (cancelled || trackedBookingIdRef.current !== bookingId) return;
+        const points = (res.data?.locations || [])
+          .filter((l: any) => typeof l.latitude === 'number' && typeof l.longitude === 'number')
+          .map((l: any) => ({ lat: l.latitude, lng: l.longitude }));
+        setTrailPoints(points);
+      })
+      .catch((error) => {
+        if (!cancelled) console.error('Failed to fetch vehicle GPS trail history:', error);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedRental?.id]);
 
   // Imperatively re-center map when defaultCenter updates if no rental is selected
   useEffect(() => {
@@ -379,6 +429,20 @@ const AdminLiveMapPage: React.FC = () => {
             </React.Fragment>
           );
         })}
+
+        {/* Movement trail for the currently-tracked vehicle */}
+        {selectedRental && trailPoints.length > 1 && (
+          <Polyline
+            path={trailPoints}
+            options={{
+              strokeColor: '#AD9B8D',
+              strokeOpacity: 0.8,
+              strokeWeight: 3,
+              geodesic: true,
+              zIndex: 1
+            }}
+          />
+        )}
 
         {/* Shop location marker */}
         <Marker
