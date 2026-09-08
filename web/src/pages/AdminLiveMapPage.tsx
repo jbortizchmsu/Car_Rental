@@ -12,6 +12,7 @@ import { adminApi, settingsApi } from '../services/api';
 import { io } from 'socket.io-client';
 import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polyline } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
+import { buildTrail, GAP_POLYLINE_OPTIONS, RawGpsPoint } from '../utils/gps-trail';
 
 interface ActiveRental {
   id: string;
@@ -30,6 +31,7 @@ interface ActiveRental {
     batteryLevel: number | null;
   }>;
   geofenceAlerts: any[];
+  releasedAt?: string | null;
 }
 
 interface FleetStats {
@@ -84,7 +86,11 @@ const AdminLiveMapPage: React.FC = () => {
   // Movement trail for whichever vehicle is currently tracked (selectedRental). Separate from
   // `selectedRental.locations`/`activeRentals[].locations`, which always hold only the single
   // latest point used to position the marker itself — this array accumulates the full path.
-  const [trailPoints, setTrailPoints] = useState<{ lat: number; lng: number }[]>([]);
+  // Kept in the same raw {latitude, longitude, recordedAt} shape as the GET /gps/session
+  // response so both this page and AdminGpsTrackingPage feed the shared buildTrail() helper
+  // identically.
+  const [trailPoints, setTrailPoints] = useState<RawGpsPoint[]>([]);
+  const [openGapIndex, setOpenGapIndex] = useState<number | null>(null);
   // Always mirrors the currently-tracked booking id. The socket listener below is wired up
   // once (empty effect deps) and calls a handler whose closure is fixed at mount time, so it
   // can't read fresh `selectedRental` state directly — this ref is how it finds out which
@@ -225,7 +231,11 @@ const AdminLiveMapPage: React.FC = () => {
     // closure was fixed at mount time and would otherwise never see a fresh value. The
     // marker's own position is updated separately below/above and is unaffected by this.
     if (newLoc.bookingId === trackedBookingIdRef.current) {
-      setTrailPoints(prev => [...prev, { lat: newLoc.latitude, lng: newLoc.longitude }]);
+      setTrailPoints(prev => [...prev, {
+        latitude: newLoc.latitude,
+        longitude: newLoc.longitude,
+        recordedAt: newLoc.recordedAt,
+      }]);
     }
 
     // Update selected rental if it's the one that moved
@@ -300,15 +310,16 @@ const AdminLiveMapPage: React.FC = () => {
     // Clear immediately so the previous vehicle's trail never briefly shows under the newly
     // selected one while the fresh history request is in flight.
     setTrailPoints([]);
+    setOpenGapIndex(null);
 
     if (!bookingId) return;
 
     adminApi.getGpsSession(bookingId)
       .then((res) => {
         if (cancelled || trackedBookingIdRef.current !== bookingId) return;
-        const points = (res.data?.locations || [])
+        const points: RawGpsPoint[] = (res.data?.locations || [])
           .filter((l: any) => typeof l.latitude === 'number' && typeof l.longitude === 'number')
-          .map((l: any) => ({ lat: l.latitude, lng: l.longitude }));
+          .map((l: any) => ({ latitude: l.latitude, longitude: l.longitude, recordedAt: l.recordedAt }));
         setTrailPoints(points);
       })
       .catch((error) => {
@@ -317,6 +328,14 @@ const AdminLiveMapPage: React.FC = () => {
 
     return () => { cancelled = true; };
   }, [selectedRental?.id]);
+
+  // Shop-prefixed, gap-segmented trail. Purely a rendering concern — `trailPoints` itself keeps
+  // accumulating raw points untouched; this is recomputed on every render from that plus
+  // whichever booking is tracked (for its `releasedAt`).
+  const trail = useMemo(
+    () => buildTrail(trailPoints, selectedRental?.releasedAt ?? null),
+    [trailPoints, selectedRental?.releasedAt]
+  );
 
   // Imperatively re-center map when defaultCenter updates if no rental is selected
   useEffect(() => {
@@ -430,19 +449,70 @@ const AdminLiveMapPage: React.FC = () => {
           );
         })}
 
-        {/* Movement trail for the currently-tracked vehicle */}
-        {selectedRental && trailPoints.length > 1 && (
-          <Polyline
-            path={trailPoints}
-            options={{
-              strokeColor: '#AD9B8D',
-              strokeOpacity: 0.8,
-              strokeWeight: 3,
-              geodesic: true,
-              zIndex: 1
+        {/* Movement trail for the currently-tracked vehicle — solid for normal travel
+            (including the synthetic shop-departure leg), dashed for signal-loss gaps */}
+        {selectedRental && trail.segments.map((seg, idx) =>
+          seg.path.length > 1 ? (
+            <Polyline
+              key={idx}
+              path={seg.path}
+              options={
+                seg.isGap
+                  ? GAP_POLYLINE_OPTIONS
+                  : { strokeColor: '#AD9B8D', strokeOpacity: 0.8, strokeWeight: 3, geodesic: true, zIndex: 1 }
+              }
+            />
+          ) : null
+        )}
+
+        {/* Shop-departure marker — always shown when a trail was seeded (even with zero real
+            pings yet, this is the only visible indicator of the vehicle's tracked route so far) */}
+        {selectedRental && trail.shopPoint && (
+          <Marker
+            position={trail.shopPoint}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 7,
+              fillColor: '#AD9B8D',
+              fillOpacity: 1,
+              strokeColor: '#FFFFFF',
+              strokeWeight: 2,
             }}
+            title="Shop — Release Point"
           />
         )}
+
+        {/* Signal Lost markers at each gap's midpoint */}
+        {selectedRental && trail.gapMarkers.map((g, idx) => (
+          <React.Fragment key={`gap-${idx}`}>
+            <Marker
+              position={{ lat: g.lat, lng: g.lng }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 6,
+                fillColor: '#9CA3AF',
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+              }}
+              title="Signal Lost"
+              onClick={() => setOpenGapIndex(openGapIndex === idx ? null : idx)}
+            />
+            {openGapIndex === idx && (
+              <InfoWindow
+                position={{ lat: g.lat, lng: g.lng }}
+                onCloseClick={() => setOpenGapIndex(null)}
+              >
+                <div style={{ padding: '0.4rem', minWidth: '150px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#DC2626' }}>Signal Lost</div>
+                  <div style={{ fontSize: '0.7rem', color: '#6B7280', marginTop: '0.25rem' }}>
+                    {new Date(g.fromTime).toLocaleTimeString()} → {new Date(g.toTime).toLocaleTimeString()}
+                  </div>
+                </div>
+              </InfoWindow>
+            )}
+          </React.Fragment>
+        ))}
 
         {/* Shop location marker */}
         <Marker

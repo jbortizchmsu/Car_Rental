@@ -3,8 +3,9 @@ import { History, Clock, FileText, Download, Loader2, MapPin, AlertCircle } from
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { adminApi, bookingsApi, settingsApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
-import { GoogleMap, Marker, Polyline } from '@react-google-maps/api';
+import { GoogleMap, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
+import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
 
 const DEFAULT_CENTER = {
   lat: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LAT || '10.3000'),
@@ -47,6 +48,7 @@ const AdminGpsTrackingPage: React.FC = () => {
   const [loadingSession, setLoadingSession] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const [openGapIndex, setOpenGapIndex] = useState<number | null>(null);
 
   const { isLoaded, loadError } = useGoogleMaps();
   const [defaultCenter, setDefaultCenter] = useState(DEFAULT_CENTER);
@@ -92,13 +94,29 @@ const AdminGpsTrackingPage: React.FC = () => {
       .finally(() => setLoadingBookings(false));
   }, []);
 
-  // Fit map to full route when locations and map instance are both ready
+  // The booking record for the currently-selected session (carries `releasedAt`, used to seed
+  // the trail's synthetic shop-departure point — see Part A of the trail-rendering feature).
+  const selectedBooking = useMemo(
+    () => completedBookings.find((b) => b.id === selectedBookingId) ?? null,
+    [completedBookings, selectedBookingId]
+  );
+
+  // Shop-prefixed, gap-segmented trail built from the raw recorded points. Purely a rendering
+  // concern — `locations` itself (used for stats, CSV export, start/end markers) is untouched.
+  const trail = useMemo(
+    () => buildTrail(locations, selectedBooking?.releasedAt ?? null),
+    [locations, selectedBooking?.releasedAt]
+  );
+
+  // Fit map to the full trail (including the synthetic shop point, if present) when ready.
   useEffect(() => {
-    if (!mapInstance || locations.length < 2) return;
+    if (!mapInstance) return;
+    const allPoints = trail.segments.flatMap((seg) => seg.path);
+    if (allPoints.length < 2) return;
     const bounds = new window.google.maps.LatLngBounds();
-    locations.forEach((l) => bounds.extend({ lat: l.latitude, lng: l.longitude }));
+    allPoints.forEach((p) => bounds.extend(p));
     mapInstance.fitBounds(bounds);
-  }, [mapInstance, locations]);
+  }, [mapInstance, trail]);
 
   // Imperatively re-center map when defaultCenter updates if no route bounds are active
   useEffect(() => {
@@ -114,6 +132,7 @@ const AdminGpsTrackingPage: React.FC = () => {
   const handleBookingSelect = async (bookingId: string) => {
     setSelectedBookingId(bookingId);
     setLocations([]);
+    setOpenGapIndex(null);
     if (!bookingId) return;
     setLoadingSession(true);
     try {
@@ -187,7 +206,6 @@ const AdminGpsTrackingPage: React.FC = () => {
     };
   }, [locations]);
 
-  const polylinePath = locations.map((l) => ({ lat: l.latitude, lng: l.longitude }));
   const startPoint = locations[0] ?? null;
   const endPoint = locations.length > 1 ? locations[locations.length - 1] : null;
   const hasSelection = !!selectedBookingId;
@@ -457,17 +475,72 @@ const AdminGpsTrackingPage: React.FC = () => {
                     fullscreenControl: true,
                   }}
                 >
-                  {/* Route polyline — only when 2+ points */}
-                  {locations.length > 1 && (
-                    <Polyline
-                      path={polylinePath}
-                      options={{
-                        strokeColor: '#2563EB',
-                        strokeWeight: 3,
-                        strokeOpacity: 0.85,
+                  {/* Route polylines — solid segments for normal travel, dashed for signal-loss gaps */}
+                  {trail.segments.map((seg, idx) =>
+                    seg.path.length > 1 ? (
+                      <Polyline
+                        key={idx}
+                        path={seg.path}
+                        options={
+                          seg.isGap
+                            ? GAP_POLYLINE_OPTIONS
+                            : { strokeColor: '#2563EB', strokeWeight: 3, strokeOpacity: 0.85 }
+                        }
+                      />
+                    ) : null
+                  )}
+
+                  {/* Shop-departure marker — always shown when a trail was seeded (even with
+                      zero real pings recorded, e.g. an incomplete/interrupted session) */}
+                  {trail.shopPoint && (
+                    <Marker
+                      position={trail.shopPoint}
+                      icon={{
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 7,
+                        fillColor: '#2563EB',
+                        fillOpacity: 1,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 2,
                       }}
+                      title="Shop — Release Point"
                     />
                   )}
+
+                  {/* Signal Lost markers at each gap's midpoint */}
+                  {trail.gapMarkers.map((g, idx) => (
+                    <React.Fragment key={`gap-${idx}`}>
+                      <Marker
+                        position={{ lat: g.lat, lng: g.lng }}
+                        icon={{
+                          path: google.maps.SymbolPath.CIRCLE,
+                          scale: 6,
+                          fillColor: '#9CA3AF',
+                          fillOpacity: 1,
+                          strokeColor: '#FFFFFF',
+                          strokeWeight: 2,
+                        }}
+                        title="Signal Lost"
+                        onClick={() => setOpenGapIndex(openGapIndex === idx ? null : idx)}
+                      />
+                      {openGapIndex === idx && (
+                        <InfoWindow
+                          position={{ lat: g.lat, lng: g.lng }}
+                          onCloseClick={() => setOpenGapIndex(null)}
+                        >
+                          <div style={{ padding: '0.4rem', minWidth: '150px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#DC2626' }}>
+                              Signal Lost
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: '#6B7280', marginTop: '0.25rem' }}>
+                              {new Date(g.fromTime).toLocaleTimeString()} →{' '}
+                              {new Date(g.toTime).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </InfoWindow>
+                      )}
+                    </React.Fragment>
+                  ))}
 
                   {/* Start marker — green */}
                   {startPoint && (
