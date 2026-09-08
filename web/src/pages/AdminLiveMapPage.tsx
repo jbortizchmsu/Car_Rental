@@ -67,6 +67,10 @@ const AdminLiveMapPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState<ActiveRental | null>(null);
+  // Controls ONLY info-popup visibility — independent of `selectedRental`, which drives map
+  // zoom/center/tracking. Keeping these separate means closing the popup never resets zoom,
+  // and reopening it (hover or marker click) never changes zoom.
+  const [popupRentalId, setPopupRentalId] = useState<string | null>(null);
   const [isRealtime, setIsRealtime] = useState(false);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [hoveredRental, setHoveredRental] = useState<ActiveRental | null>(null);
@@ -273,6 +277,7 @@ const AdminLiveMapPage: React.FC = () => {
 
   const handleTrackVehicle = (rental: ActiveRental) => {
     setSelectedRental(rental);
+    setPopupRentalId(rental.id);
     if (rental.locations?.[0] && map) {
       map.panTo({
         lat: rental.locations[0].latitude,
@@ -335,7 +340,7 @@ const AdminLiveMapPage: React.FC = () => {
             <React.Fragment key={rental.id}>
               <Marker
                 position={{ lat: loc.latitude, lng: loc.longitude }}
-                onClick={() => setSelectedRental(rental)}
+                onClick={() => setPopupRentalId(rental.id)}
                 onMouseOver={() => setHoveredRental(rental)}
                 onMouseOut={() => setHoveredRental(null)}
                 icon={{
@@ -348,11 +353,13 @@ const AdminLiveMapPage: React.FC = () => {
                   anchor: new google.maps.Point(12, 12)
                 }}
               />
-              {(hoveredRental?.id === rental.id || selectedRental?.id === rental.id) && (
+              {(hoveredRental?.id === rental.id || popupRentalId === rental.id) && (
                 <InfoWindow
                   position={{ lat: loc.latitude, lng: loc.longitude }}
                   onCloseClick={() => {
-                    if (selectedRental?.id === rental.id) setSelectedRental(null);
+                    // Only dismisses the popup — does NOT touch `selectedRental`, so map
+                    // zoom/center and tracking state are left completely unaffected.
+                    if (popupRentalId === rental.id) setPopupRentalId(null);
                   }}
                 >
                   <div style={{ padding: '0.5rem', minWidth: '150px' }}>
@@ -516,7 +523,7 @@ const AdminLiveMapPage: React.FC = () => {
               filteredRentals.map(rental => (
                 <div 
                   key={rental.id}
-                  onClick={() => setSelectedRental(rental)}
+                  onClick={() => { setSelectedRental(rental); setPopupRentalId(rental.id); }}
                   className={`map-vehicle-card ${selectedRental?.id === rental.id ? 'map-vehicle-card-active' : ''} ${rental.geofenceAlerts?.length > 0 ? 'alert' : ''}`}
                 >
                   <div className="flex justify-between items-start mb-4">

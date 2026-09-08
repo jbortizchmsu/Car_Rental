@@ -2365,7 +2365,7 @@ h5 {
 
 .booking-list-item {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1fr) auto;
+  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1fr) minmax(0, auto);
   gap: 1.5rem;
   background: var(--white);
   border: 1px solid var(--gray-100);
@@ -2404,6 +2404,7 @@ h5 {
   align-items: center;
   gap: 1rem;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .booking-list-action {

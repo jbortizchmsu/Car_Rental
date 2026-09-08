@@ -746,7 +746,7 @@ const BookingRequestsPage: React.FC = () => {
                   </div>
 
                   {/* Right: Amount & Status */}
-                  <div className="booking-list-status" style={{ minWidth: '300px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                  <div className="booking-list-status" style={{ minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                       <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--black)' }}>₱{Number(booking.totalAmount).toLocaleString()}</span>
                       
@@ -762,11 +762,12 @@ const BookingRequestsPage: React.FC = () => {
                       )}
                     </div>
                     
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginTop: '0.25rem' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)' }}>{wf.label}</span>
-                      <button 
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                      <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)' }}>{wf.label}</span>
+                      <button
                         className={`booking-list-action ${wf.actionPriority === 'ACTION_REQUIRED' ? 'priority' : ''}`}
-                        style={{ 
+                        style={{
+                          flexShrink: 0,
                           backgroundColor: wf.actionPriority === 'ACTION_REQUIRED' ? 'var(--warm-taupe)' : 'var(--gray-100)',
                           color: wf.actionPriority === 'ACTION_REQUIRED' ? 'white' : 'var(--gray-600)',
                           border: 'none'
