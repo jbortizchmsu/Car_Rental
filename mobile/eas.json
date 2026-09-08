@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 23.2.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://carrental-production-8eae.up.railway.app/api",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://elrhgtqzaeysguckaaxg.supabase.co/rest/v1/",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscmhndHF6YWV5c2d1Y2thYXhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODIyMzMsImV4cCI6MjA5NDI1ODIzM30.-0f2g_oaEJY17oFQw9qByEzom0ctaE6IzBW2HfrNRlA",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyBsgXC1B627-BxQ1HOzCjoExUYH-1ses9g"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://carrental-production-8eae.up.railway.app/api",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://elrhgtqzaeysguckaaxg.supabase.co/rest/v1/",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscmhndHF6YWV5c2d1Y2thYXhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODIyMzMsImV4cCI6MjA5NDI1ODIzM30.-0f2g_oaEJY17oFQw9qByEzom0ctaE6IzBW2HfrNRlA",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyBsgXC1B627-BxQ1HOzCjoExUYH-1ses9g"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

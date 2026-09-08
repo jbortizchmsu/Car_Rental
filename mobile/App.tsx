@@ -68,13 +68,15 @@ const LoginScreen = ({ onLogin }: any) => {
               <View style={styles.form}>
                 <TextInput
                   onChangeText={setEmail} value={email}
-                  placeholder="email@address.com" autoCapitalize="none"
+                  placeholder="email@address.com" placeholderTextColor="#958786"
+                  autoCapitalize="none"
                   style={styles.input} keyboardType="email-address"
                 />
                 <View style={styles.passwordContainer}>
                   <TextInput
                     onChangeText={setPassword} value={password}
                     secureTextEntry={!showPassword} placeholder="Password"
+                    placeholderTextColor="#958786"
                     autoCapitalize="none" style={styles.passwordInput}
                   />
                   <TouchableOpacity style={styles.showPasswordBtn} onPress={() => setShowPassword(!showPassword)}>
@@ -500,9 +502,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: '800', marginTop: 20, color: '#000', textAlign: 'center' },
   subtitle: { fontSize: 16, color: '#958786', marginBottom: 40, textAlign: 'center' },
   form: { width: '100%', marginBottom: 20 },
-  input: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', marginBottom: 15, fontSize: 16 },
+  input: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#DDD', marginBottom: 15, fontSize: 16, color: '#1A1A1A' },
   passwordContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#DDD', marginBottom: 15 },
-  passwordInput: { flex: 1, padding: 15, fontSize: 16 },
+  passwordInput: { flex: 1, padding: 15, fontSize: 16, color: '#1A1A1A' },
   showPasswordBtn: { padding: 15, justifyContent: 'center', alignItems: 'center' },
   button: { backgroundColor: '#AD9B8D', paddingVertical: 15, paddingHorizontal: 60, borderRadius: 12, width: '100%', alignItems: 'center', height: 55, justifyContent: 'center' },
   buttonText: { color: '#FFF', fontSize: 18, fontWeight: '600' },
