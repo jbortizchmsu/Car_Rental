@@ -23,6 +23,9 @@ import usersRoutes from './routes/users';
 import settingsRoutes from './routes/settings';
 import { initializeBackgroundJobs } from './lib/background-jobs';
 import { ensureBucketsExist } from './lib/supabase';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from './lib/config';
+import { prisma } from './lib/prisma';
 
 // Load environment variables
 dotenv.config();
@@ -68,10 +71,38 @@ app.use(express.json());
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
   
-  // Allow clients to join their own private room for targeted notifications
-  socket.on('join-room', (userId) => {
-    socket.join(userId);
-    console.log(`👤 User ${userId} joined room`);
+  // Allow clients to join their own private room for targeted notifications.
+  // The room joined is always the server-verified user id from the JWT — never the
+  // client-supplied userId — so a socket can never be tricked into joining someone
+  // else's room. Admins additionally join a shared 'admin' room, verified against the
+  // current DB role (not just whatever the token claims), so admin-wide broadcasts
+  // (e.g. new booking requests) reach every connected admin.
+  socket.on('join-room', async (payload) => {
+    const token = typeof payload === 'string' ? undefined : payload?.token;
+    if (!token) {
+      console.log('⚠️ join-room rejected: no auth token provided');
+      return;
+    }
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+      if (!decoded?.id) return;
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+        select: { id: true, role: true, isActive: true }
+      });
+      if (!user || !user.isActive) return;
+
+      socket.join(user.id);
+      console.log(`👤 User ${user.id} joined room`);
+
+      if (user.role === 'admin') {
+        socket.join('admin');
+        console.log(`🛡️ Admin ${user.id} joined admin room`);
+      }
+    } catch (error) {
+      console.log('⚠️ join-room rejected: invalid or expired token');
+    }
   });
 
   socket.on('disconnect', () => {

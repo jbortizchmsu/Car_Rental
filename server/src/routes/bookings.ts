@@ -697,6 +697,13 @@ router.post('/:id/complete', authenticate, authorizeAdmin, async (req: AuthReque
       data: { status: maintenance ? 'UNDER_MAINTENANCE' : 'AVAILABLE' }
     });
 
+    // Notify customer their rental is complete
+    await createNotification(
+      booking.customerId,
+      'Rental Completed',
+      `Your rental (Booking #${id.slice(0, 8).toUpperCase()}) has been marked as completed. Thank you for renting with us!`
+    );
+
     res.json(booking);
   } catch (error) {
     res.status(500).json({ error: 'Completion failed' });

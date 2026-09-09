@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { io } from 'socket.io-client';
+import { connectAuthedSocket } from '../utils/socket';
 import { getRelativeTime, notificationTypeColors } from '../lib/notification-types';
 
 const IconMap: Record<string, React.ReactNode> = {
@@ -26,21 +26,34 @@ const NotificationPanel: React.FC = () => {
   const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
+
     fetchNotifications();
 
-    // Socket.io connection
-    const socket = io(import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:4000');
-
-    if (user) {
-      socket.emit('join-room', user.id);
-    }
+    // Socket.io connection — joins this user's authenticated room(s) on connect
+    // and again on every reconnect (see connectAuthedSocket).
+    const socket = connectAuthedSocket();
 
     socket.on('notification-created', (notification) => {
       setNotifications(prev => [notification, ...prev]);
       setUnreadCount(prev => prev + 1);
     });
 
+    // A reconnect may have missed events while disconnected — do one full refetch
+    // to resync (skip the very first 'connect', which fetchNotifications already covers).
+    let hadDisconnected = false;
+    socket.on('disconnect', () => { hadDisconnected = true; });
+    socket.on('connect', () => {
+      if (hadDisconnected) {
+        hadDisconnected = false;
+        fetchNotifications();
+      }
+    });
+
     return () => {
+      socket.off('notification-created');
+      socket.off('disconnect');
+      socket.off('connect');
       socket.disconnect();
     };
   }, [user]);

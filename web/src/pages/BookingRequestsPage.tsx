@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { bookingsApi, filesApi, paymentsApi, pricingApi } from '../services/api';
+import { useNotificationRefresh } from '../utils/socket';
 import {
   Loader2, X, FileText, User,
   Phone, MapPin, ExternalLink,
@@ -100,6 +101,13 @@ const BookingRequestsPage: React.FC = () => {
     fetchBookings();
     fetchSummaryCounts();
   }, [activeFilter]);
+
+  // Live refresh on any booking/payment lifecycle event (new request, approval,
+  // payment submitted, etc.) so admins see changes without manual reload.
+  useNotificationRefresh(() => {
+    fetchBookings();
+    fetchSummaryCounts();
+  });
 
   const fetchSummaryCounts = async () => {
     try {

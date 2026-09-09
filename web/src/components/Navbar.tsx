@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Car, User, LogOut, Bookmark, Bell, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsApi } from '../services/api';
-import { io } from 'socket.io-client';
+import { connectAuthedSocket } from '../utils/socket';
 
 const Navbar: React.FC = () => {
   const { user, profile, signOut } = useAuth();
@@ -39,15 +39,24 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     fetchUnreadCount();
 
-    // Socket.io connection for real-time updates
-    const socket = io(import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:4000');
-    
-    if (user && profile?.role === 'customer') {
-      socket.emit('join-room', user.id);
-      
+    // Socket.io connection for real-time updates — joins this user's room on
+    // connect/reconnect; only customers act on it (fetchUnreadCount already
+    // no-ops for non-customers, but skip the socket work entirely otherwise).
+    const socket = user && profile?.role === 'customer' ? connectAuthedSocket() : null;
+
+    if (socket) {
       socket.on('notification-created', (notification) => {
         console.log('🔔 New notification received:', notification);
         fetchUnreadCount();
+      });
+      // A reconnect may have missed events while disconnected — resync fully.
+      let hadDisconnected = false;
+      socket.on('disconnect', () => { hadDisconnected = true; });
+      socket.on('connect', () => {
+        if (hadDisconnected) {
+          hadDisconnected = false;
+          fetchUnreadCount();
+        }
       });
     }
 
@@ -65,7 +74,7 @@ const Navbar: React.FC = () => {
     window.addEventListener('notifications-updated', fetchUnreadCount);
 
     return () => {
-      socket.disconnect();
+      socket?.disconnect();
       clearInterval(interval);
       window.removeEventListener('focus', fetchUnreadCount);
       window.removeEventListener('notifications-updated', fetchUnreadCount);

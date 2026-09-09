@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import StatusBadge from '../components/StatusBadge';
 import { bookingsApi } from '../services/api';
+import { useNotificationRefresh } from '../utils/socket';
 import {
   Loader2, Key,
   RotateCcw, CheckCircle2, AlertTriangle,
@@ -47,6 +48,9 @@ const AdminActiveRentalsPage: React.FC = () => {
   useEffect(() => {
     fetchBookings();
   }, [activeTab]);
+
+  // Live refresh when a rental is released/returned/completed elsewhere.
+  useNotificationRefresh(() => { fetchBookings(); });
 
   const fetchBookings = async () => {
     try {

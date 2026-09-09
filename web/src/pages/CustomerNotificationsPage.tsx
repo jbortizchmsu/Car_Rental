@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Check, CheckCircle2, Clock, Info, Loader2, X } from 'lucide-react';
 import { notificationsApi } from '../services/api';
+import { useNotificationRefresh } from '../utils/socket';
 
 const CustomerNotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -23,6 +24,9 @@ const CustomerNotificationsPage: React.FC = () => {
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  // Live refresh when a new notification arrives for this customer.
+  useNotificationRefresh(() => { fetchNotifications(); });
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification);

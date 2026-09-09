@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { paymentsApi, getApiErrorMessage } from '../services/api';
+import { useNotificationRefresh } from '../utils/socket';
 import { Loader2, Download, FileText, Search, Plus, CheckCircle } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -74,6 +75,9 @@ const AdminPaymentVerificationPage: React.FC = () => {
       fetchPayments();
     }
   }, [activeTab, searchQuery, dateRangeFilter, paymentTypeFilter, customStartDate, customEndDate]);
+
+  // Live refresh when a payment is submitted/verified/rejected elsewhere.
+  useNotificationRefresh(() => { fetchPayments(); });
 
   const fetchPayments = async () => {
     try {

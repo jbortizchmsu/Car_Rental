@@ -4,6 +4,7 @@ import StatusBadge from '../components/StatusBadge';
 import { Loader2, Calendar, MapPin, ChevronRight, CreditCard, CheckCircle2, Navigation, RotateCcw, Info, X, ExternalLink, FileText, User, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { bookingsApi, filesApi, getApiErrorMessage } from '../services/api';
+import { useNotificationRefresh } from '../utils/socket';
 import VehicleImage from '../components/VehicleImage';
 import { useToast } from '../components/ToastProvider';
 import ConfirmActionModal from '../components/ConfirmActionModal';
@@ -21,6 +22,10 @@ const MyBookingsPage: React.FC = () => {
       fetchBookings();
     }
   }, [user]);
+
+  // Live refresh when this customer's booking status changes elsewhere
+  // (approved, rejected, released, returned, completed, payment verified).
+  useNotificationRefresh(() => { fetchBookings(); }, !!user);
 
   const fetchBookings = async () => {
     try {
