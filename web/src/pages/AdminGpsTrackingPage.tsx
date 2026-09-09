@@ -5,7 +5,8 @@ import { adminApi, bookingsApi, settingsApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { GoogleMap, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
-import { buildTrail, GAP_POLYLINE_OPTIONS, ShopLocation } from '../utils/gps-trail';
+import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
+import type { ShopLocation } from '../utils/gps-trail';
 
 const DEFAULT_CENTER = {
   lat: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LAT || '10.3000'),

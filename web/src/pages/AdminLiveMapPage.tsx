@@ -12,7 +12,8 @@ import { adminApi, settingsApi } from '../services/api';
 import { io } from 'socket.io-client';
 import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polyline } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
-import { buildTrail, GAP_POLYLINE_OPTIONS, RawGpsPoint, ShopLocation } from '../utils/gps-trail';
+import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
+import type { RawGpsPoint, ShopLocation } from '../utils/gps-trail';
 
 interface ActiveRental {
   id: string;
