@@ -12,7 +12,7 @@ import { adminApi, settingsApi } from '../services/api';
 import { io } from 'socket.io-client';
 import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polyline } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
-import { buildTrail, GAP_POLYLINE_OPTIONS, RawGpsPoint } from '../utils/gps-trail';
+import { buildTrail, GAP_POLYLINE_OPTIONS, RawGpsPoint, ShopLocation } from '../utils/gps-trail';
 
 interface ActiveRental {
   id: string;
@@ -100,6 +100,12 @@ const AdminLiveMapPage: React.FC = () => {
   const { isLoaded, loadError } = useGoogleMaps();
   const [defaultCenter, setDefaultCenter] = useState(NEGROS_DEFAULT_CENTER);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  // The admin's actually-configured shop location (Admin Settings → Default Map Center), used
+  // ONLY to seed the trail's shop-departure point. Deliberately kept separate from
+  // `defaultCenter` above: that one has a lenient island-wide fallback for map viewport
+  // purposes, but a trail must never start from a location that isn't real — so this stays
+  // `null` (never a fallback value) whenever settings are missing/unconfigured/malformed.
+  const [shopLocation, setShopLocation] = useState<ShopLocation | null>(null);
 
   useEffect(() => {
     settingsApi.getAll()
@@ -108,10 +114,11 @@ const AdminLiveMapPage: React.FC = () => {
         const lng = parseFloat(res.data?.map?.centerLng);
         if (!isNaN(lat) && !isNaN(lng)) {
           setDefaultCenter({ lat, lng });
+          setShopLocation({ lat, lng });
         }
       })
       .catch(() => {
-        // Fall back to NEGROS_DEFAULT_CENTER
+        // Fall back to NEGROS_DEFAULT_CENTER for the map viewport; shopLocation stays null.
       })
       .finally(() => {
         setSettingsLoaded(true);
@@ -333,8 +340,8 @@ const AdminLiveMapPage: React.FC = () => {
   // accumulating raw points untouched; this is recomputed on every render from that plus
   // whichever booking is tracked (for its `releasedAt`).
   const trail = useMemo(
-    () => buildTrail(trailPoints, selectedRental?.releasedAt ?? null),
-    [trailPoints, selectedRental?.releasedAt]
+    () => buildTrail(trailPoints, selectedRental?.releasedAt ?? null, shopLocation),
+    [trailPoints, selectedRental?.releasedAt, shopLocation]
   );
 
   // Imperatively re-center map when defaultCenter updates if no rental is selected

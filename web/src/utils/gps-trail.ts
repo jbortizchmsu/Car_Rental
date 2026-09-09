@@ -2,13 +2,10 @@
 // Purely a display-layer concern: builds the point array/segments passed to <Polyline>. Does not
 // touch the ingestion endpoint, Socket.IO broadcast payloads, or any geofence/alerting logic.
 
-/**
- * Mirrors `SHOP_LOCATION` in server/src/lib/negros-coords.ts exactly (JD Car Rental — CHMSU
- * Talisay, 10.7391 / 122.9691). web/ and server/ are separate deployable projects with no shared
- * package between them, so this value is intentionally duplicated here rather than imported —
- * keep both in sync if the real-world shop location ever changes.
- */
-export const SHOP_LOCATION = { lat: 10.7391, lng: 122.9691 };
+export interface ShopLocation {
+  lat: number;
+  lng: number;
+}
 
 /**
  * Mobile polls GPS every 15s (or 30m of movement, whichever first) — see
@@ -46,10 +43,10 @@ export interface GapMarker {
 export interface BuiltTrail {
   segments: TrailSegment[];
   gapMarkers: GapMarker[];
-  /** The synthetic shop-departure point, if one was prepended (null when `releasedAt` was
-   *  missing/invalid). Callers render an explicit marker for it — a single-point trail (booking
-   *  just released, zero real pings yet) draws no visible Polyline, so this is what makes that
-   *  state show as a marker rather than nothing at all. */
+  /** The synthetic shop-departure point, if one was prepended (null when either `releasedAt` or
+   *  `shopLocation` was missing/invalid). Callers render an explicit marker for it — a
+   *  single-point trail (booking just released, zero real pings yet) draws no visible Polyline,
+   *  so this is what makes that state show as a marker rather than nothing at all. */
   shopPoint: { lat: number; lng: number } | null;
 }
 
@@ -58,6 +55,14 @@ export interface BuiltTrail {
  * ping list, then splits the result into alternating solid/gap segments for rendering as
  * separate <Polyline>s.
  *
+ * `shopLocation` must be the admin's actually-configured shop coordinates (Admin Settings →
+ * Default Map Center, `map.centerLat`/`map.centerLng`), fetched by the caller — this function
+ * has no hardcoded fallback location of its own. If it's `null` (settings fetch failed, or the
+ * admin simply hasn't configured a shop location yet), no shop point is prepended at all — the
+ * trail degrades to its pre-existing behavior (starts from the first real ping), exactly as it
+ * already does when `releasedAt` is missing. This is deliberate: a missing/failed setting must
+ * never silently fall back to *some* location, since that location wouldn't be real.
+ *
  * Design decision: the shop → first-real-ping segment is ALWAYS rendered solid, never treated as
  * a "gap", regardless of how much time elapsed between release and the first real GPS fix. That
  * gap is a known, deliberate artifact of the synthetic starting point (the vehicle needs real
@@ -65,12 +70,12 @@ export interface BuiltTrail {
  * flagging it as one would be misleading on every single session.
  *
  * Null-safe throughout: malformed/missing lat/lng/timestamp fields are filtered out rather than
- * causing a crash; a missing/invalid `releasedAt` simply skips the shop-prepend (falls back to
- * starting the trail from the first real ping, i.e. the pre-existing behavior).
+ * causing a crash; a missing/invalid `releasedAt` or `shopLocation` simply skips the shop-prepend.
  */
 export function buildTrail(
   rawPoints: RawGpsPoint[] | null | undefined,
-  releasedAt: string | null | undefined
+  releasedAt: string | null | undefined,
+  shopLocation: ShopLocation | null | undefined
 ): BuiltTrail {
   const cleaned: NormalizedPoint[] = (rawPoints || [])
     .filter(
@@ -87,18 +92,24 @@ export function buildTrail(
 
   const releasedMs = releasedAt ? new Date(releasedAt).getTime() : NaN;
   const hasValidRelease = !isNaN(releasedMs);
+  const hasValidShopLocation =
+    !!shopLocation &&
+    typeof shopLocation.lat === 'number' &&
+    typeof shopLocation.lng === 'number' &&
+    !isNaN(shopLocation.lat) &&
+    !isNaN(shopLocation.lng);
 
   let points: NormalizedPoint[] = cleaned;
   let shopPrepended = false;
 
-  if (hasValidRelease) {
+  if (hasValidRelease && hasValidShopLocation) {
     const firstRealTime = cleaned[0]?.t ?? releasedMs;
     const shopTime = Math.min(releasedMs, firstRealTime);
-    points = [{ lat: SHOP_LOCATION.lat, lng: SHOP_LOCATION.lng, t: shopTime }, ...cleaned];
+    points = [{ lat: shopLocation!.lat, lng: shopLocation!.lng, t: shopTime }, ...cleaned];
     shopPrepended = true;
   }
 
-  const shopPoint = shopPrepended ? { lat: SHOP_LOCATION.lat, lng: SHOP_LOCATION.lng } : null;
+  const shopPoint = shopPrepended ? { lat: shopLocation!.lat, lng: shopLocation!.lng } : null;
 
   if (points.length === 0) {
     return { segments: [], gapMarkers: [], shopPoint };

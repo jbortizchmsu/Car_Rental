@@ -5,7 +5,7 @@ import { adminApi, bookingsApi, settingsApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { GoogleMap, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
-import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
+import { buildTrail, GAP_POLYLINE_OPTIONS, ShopLocation } from '../utils/gps-trail';
 
 const DEFAULT_CENTER = {
   lat: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LAT || '10.3000'),
@@ -53,6 +53,11 @@ const AdminGpsTrackingPage: React.FC = () => {
   const { isLoaded, loadError } = useGoogleMaps();
   const [defaultCenter, setDefaultCenter] = useState(DEFAULT_CENTER);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  // The admin's actually-configured shop location, used ONLY to seed the trail's shop-departure
+  // point. Kept separate from `defaultCenter`: that has a lenient island-wide fallback for map
+  // viewport purposes, but a trail must never start from a location that isn't real — so this
+  // stays `null` (never a fallback value) whenever settings are missing/unconfigured/malformed.
+  const [shopLocation, setShopLocation] = useState<ShopLocation | null>(null);
 
   useEffect(() => {
     settingsApi.getAll()
@@ -61,10 +66,11 @@ const AdminGpsTrackingPage: React.FC = () => {
         const lng = parseFloat(res.data?.map?.centerLng);
         if (!isNaN(lat) && !isNaN(lng)) {
           setDefaultCenter({ lat, lng });
+          setShopLocation({ lat, lng });
         }
       })
       .catch(() => {
-        // Fall back to DEFAULT_CENTER
+        // Fall back to DEFAULT_CENTER for the map viewport; shopLocation stays null.
       })
       .finally(() => {
         setSettingsLoaded(true);
@@ -104,8 +110,8 @@ const AdminGpsTrackingPage: React.FC = () => {
   // Shop-prefixed, gap-segmented trail built from the raw recorded points. Purely a rendering
   // concern — `locations` itself (used for stats, CSV export, start/end markers) is untouched.
   const trail = useMemo(
-    () => buildTrail(locations, selectedBooking?.releasedAt ?? null),
-    [locations, selectedBooking?.releasedAt]
+    () => buildTrail(locations, selectedBooking?.releasedAt ?? null, shopLocation),
+    [locations, selectedBooking?.releasedAt, shopLocation]
   );
 
   // Fit map to the full trail (including the synthetic shop point, if present) when ready.
