@@ -151,11 +151,23 @@ const AdminActiveRentalsPage: React.FC = () => {
     if (!odometer) return toast.warning('Odometer Required', 'Please enter the release odometer reading.');
     if (!checklistConfirmed) return toast.warning('Checklist Required', 'Please confirm the pre-release checklist.');
     if (!agreementSigned) return toast.warning('Agreement Required', 'The rental agreement must be signed.');
+    const entered = Number(odometer);
+    if (isNaN(entered) || entered < 0) return toast.warning('Invalid Odometer', 'Please enter a valid, non-negative odometer reading.');
+    const lastKnown = selectedBooking?.vehicle?.currentOdometerKm;
+    if (typeof lastKnown === 'number' && entered < lastKnown) {
+      toast.warning('Odometer Lower Than Last Known', `Vehicle's last recorded mileage was ${lastKnown} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
+    }
     openModal('RELEASE');
   };
 
   const handleReturn = () => {
     if (!odometer) return toast.warning('Odometer Required', 'Please enter the return odometer reading.');
+    const entered = Number(odometer);
+    if (isNaN(entered) || entered < 0) return toast.warning('Invalid Odometer', 'Please enter a valid, non-negative odometer reading.');
+    const releaseMileage = selectedBooking?.releaseOdometerKm;
+    if (typeof releaseMileage === 'number' && entered < releaseMileage) {
+      toast.warning('Odometer Lower Than Release Reading', `This vehicle was released at ${releaseMileage} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
+    }
     openModal('RETURN');
   };
 
@@ -292,8 +304,15 @@ const AdminActiveRentalsPage: React.FC = () => {
                       </button>
                     )}
                     {activeTab === 'ACTIVE' && (
-                      <button 
-                        onClick={() => setSelectedBooking(booking)}
+                      <button
+                        onClick={() => {
+                          setSelectedBooking(booking);
+                          // Prefill with this booking's own release mileage (not the
+                          // vehicle's overall last-known mileage) — legacy bookings
+                          // with no recorded releaseOdometerKm leave the field empty.
+                          const releaseMileage = booking.releaseOdometerKm;
+                          setOdometer(typeof releaseMileage === 'number' ? releaseMileage.toString() : '');
+                        }}
                         style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
                       >
                         <RotateCcw size={16} /> Mark Returned
