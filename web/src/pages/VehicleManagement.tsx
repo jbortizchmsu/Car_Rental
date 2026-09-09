@@ -620,7 +620,7 @@ const VehicleManagement: React.FC = () => {
 
         {/* Selected Vehicle Detail Side Panel */}
         {selectedVehicle && (
-          <div className="card" style={{ padding: '0', border: 'none', background: 'white', borderRadius: '24px', overflow: 'hidden', height: 'fit-content', position: 'sticky', top: '2rem' }}>
+          <div className="card" style={{ padding: '0', border: 'none', background: 'white', borderRadius: '24px', overflow: 'hidden', height: 'fit-content', position: 'sticky', top: 'calc(64px + 2rem)' }}>
             <div style={{ height: '200px', backgroundColor: 'var(--gray-100)', position: 'relative' }}>
               <VehicleImage vehicleId={selectedVehicle.id} brand={selectedVehicle.brand} model={selectedVehicle.model} className="w-full h-full" />
               <button 

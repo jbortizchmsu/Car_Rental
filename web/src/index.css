@@ -100,7 +100,12 @@ h5 {
 .admin-main {
   flex: 1;
   padding: 2rem;
-  overflow-y: auto;
+  /* No overflow-y here: .admin-layout only has min-height: 100vh (not a capped
+     height), so this box never actually gains its own scrollbar — the window/body
+     scrolls instead, same as .admin-header's sticky already relies on. An
+     overflow-y: auto here doesn't change that, it only makes this element the
+     (non-functional) sticky containing block for any descendant using
+     position: sticky, which breaks it — e.g. BookingRequestsPage's detail panel. */
 }
 
 .public-layout {

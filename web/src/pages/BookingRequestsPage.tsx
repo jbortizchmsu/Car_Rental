@@ -815,26 +815,31 @@ const BookingRequestsPage: React.FC = () => {
 
         {/* Details/Lifecycle Panel */}
         {selectedBooking && (
-          <div className="card booking-review-panel" style={{ 
-            padding: '2.5rem', 
+          // Sticks below the 64px .admin-header (see index.css) with a 20px gap on
+          // each side, capped to the remaining viewport height. `overflow: hidden`
+          // here (instead of overflow-y: auto) keeps the whole card's corners clipped
+          // while delegating actual scrolling to the body zone below, so the header
+          // zone (title/Transaction ID/close button) never scrolls with the content.
+          <div className="card booking-review-panel" style={{
+            padding: 0,
             position: 'sticky',
-            top: '20px',
-            maxHeight: 'calc(100vh - 100px)',
-            overflowY: 'auto',
+            top: 'calc(64px + 20px)',
+            maxHeight: 'calc(100vh - 64px - 40px)',
             boxShadow: 'var(--shadow-soft)',
             border: '1px solid var(--gray-200)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '2.5rem'
+            overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            {/* Fixed header zone — never scrolls */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '2.5rem 2.5rem 0 2.5rem', flexShrink: 0 }}>
               <div>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0 }}>Booking Overview</h2>
                 <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontWeight: 700, marginTop: '0.25rem', textTransform: 'uppercase' }}>
                   Transaction ID: {selectedBooking.id.toUpperCase()}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedBooking(null)}
                 className="btn-outline"
                 style={{ padding: '0.5rem', borderRadius: '50%', width: '40px', height: '40px' }}
@@ -843,6 +848,8 @@ const BookingRequestsPage: React.FC = () => {
               </button>
             </div>
 
+            {/* Scrollable body zone — everything below the header scrolls internally */}
+            <div key={selectedBooking.id} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '2.5rem' }}>
             <div className="booking-detail-panel">
               <section>
                 <div className="detail-section-header">
@@ -1206,6 +1213,7 @@ const BookingRequestsPage: React.FC = () => {
                   </div>
                 )}
               </section>
+            </div>
             </div>
           </div>
         )}

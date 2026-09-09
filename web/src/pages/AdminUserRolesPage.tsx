@@ -275,7 +275,7 @@ const AdminUserRolesPage: React.FC = () => {
 
         {/* Details Panel */}
         {selectedUser && (
-          <div className="card" style={{ padding: '2rem', alignSelf: 'start', position: 'sticky', top: '20px', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div className="card" style={{ padding: '2rem', alignSelf: 'start', position: 'sticky', top: 'calc(64px + 20px)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem' }}>User Details</h3>
