@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { bookingsApi, filesApi, paymentsApi, pricingApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
+import { useOdometerPrefill } from '../utils/odometer';
 import {
   Loader2, X, FileText, User,
   Phone, MapPin, ExternalLink,
@@ -49,12 +50,10 @@ const BookingRequestsPage: React.FC = () => {
   });
 
   // Release Workflow State
-  const [releaseOdometer, setReleaseOdometer] = useState('');
   const [checklistConfirmed, setChecklistConfirmed] = useState(false);
   const [agreementSigned, setAgreementSigned] = useState(false);
 
   // Return Workflow State
-  const [returnOdometer, setReturnOdometer] = useState('');
   const [returnNotes, setReturnNotes] = useState('');
   const [damageFound, setDamageFound] = useState(false);
   const [damageDetails, setDamageDetails] = useState({ type: 'GENERAL', severity: 'LOW', cost: '', desc: '' });
@@ -79,34 +78,14 @@ const BookingRequestsPage: React.FC = () => {
     return () => setPageHeader({});
   }, []);
 
-  // Prefill the release odometer with the vehicle's last known mileage whenever a
-  // READY_FOR_PICKUP booking is selected (per-booking, since selectedBooking can change
-  // without a full remount). Vehicle.currentOdometerKm is kept up to date on every
-  // return (see bookings.ts /:id/return) and defaults to 0 for a never-rented vehicle,
-  // so this never fabricates a number — it's either real prior mileage or the
-  // vehicle's registered starting value. Left editable; admin can override.
-  useEffect(() => {
-    if (selectedBooking?.status === 'READY_FOR_PICKUP') {
-      const lastKnown = selectedBooking.vehicle?.currentOdometerKm;
-      setReleaseOdometer(typeof lastKnown === 'number' ? String(lastKnown) : '');
-    } else {
-      setReleaseOdometer('');
-    }
-  }, [selectedBooking?.id, selectedBooking?.status]);
-
-  // Prefill the return odometer with THIS booking's own release mileage (recorded when
-  // it was released — see releaseOdometerKm above), not the vehicle's overall last-known
-  // mileage. Legacy bookings predating that feature simply have no releaseOdometerKm,
-  // so this leaves the field empty rather than fabricating a number. Fully editable —
-  // just a normal controlled input's default value, not locked.
-  useEffect(() => {
-    if (selectedBooking?.status === 'ACTIVE') {
-      const releaseMileage = selectedBooking.releaseOdometerKm;
-      setReturnOdometer(typeof releaseMileage === 'number' ? String(releaseMileage) : '');
-    } else {
-      setReturnOdometer('');
-    }
-  }, [selectedBooking?.id, selectedBooking?.status]);
+  // Shared mileage prefill + validation logic (see web/src/utils/odometer.ts) —
+  // release prefills from the vehicle's last-known mileage, return prefills from
+  // this booking's own release mileage. Each active only while its matching status
+  // is selected, mirroring the previous per-page effects exactly.
+  const { value: releaseOdometer, setValue: setReleaseOdometer, validate: validateReleaseOdometer } =
+    useOdometerPrefill(selectedBooking, 'release', selectedBooking?.status === 'READY_FOR_PICKUP');
+  const { value: returnOdometer, setValue: setReturnOdometer, validate: validateReturnOdometer } =
+    useOdometerPrefill(selectedBooking, 'return', selectedBooking?.status === 'ACTIVE');
 
   useEffect(() => {
     const vId = selectedBooking?.vehicleId || selectedBooking?.vehicle?.id;
@@ -327,23 +306,25 @@ const BookingRequestsPage: React.FC = () => {
   const handleReleaseVehicle = () => {
     if (!agreementSigned && !selectedBooking.agreementSignedAt) return toast.warning('Agreement required', 'Rental agreement must be signed before release.');
     if (!checklistConfirmed) return toast.warning('Checklist required', 'Release checklist must be confirmed.');
-    if (!releaseOdometer) return toast.warning('Odometer required', 'Release odometer is required.');
-    const entered = Number(releaseOdometer);
-    if (isNaN(entered) || entered < 0) return toast.warning('Invalid odometer', 'Please enter a valid, non-negative odometer reading.');
-    const lastKnown = selectedBooking.vehicle?.currentOdometerKm;
-    if (typeof lastKnown === 'number' && entered < lastKnown) {
-      toast.warning('Odometer lower than last known', `Vehicle's last recorded mileage was ${lastKnown} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
+    const result = validateReleaseOdometer();
+    if (!result.ok) {
+      if (result.reason === 'empty') return toast.warning('Odometer required', 'Release odometer is required.');
+      return toast.warning('Invalid odometer', 'Please enter a valid, non-negative odometer reading.');
+    }
+    if (result.belowReference) {
+      toast.warning('Odometer lower than last known', `Vehicle's last recorded mileage was ${result.referenceValue} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
     }
     openModal('RELEASE_VEHICLE');
   };
 
   const handleReturnVehicle = () => {
-    if (!returnOdometer) return toast.warning('Odometer required', 'Return odometer is required.');
-    const entered = Number(returnOdometer);
-    if (isNaN(entered) || entered < 0) return toast.warning('Invalid odometer', 'Please enter a valid, non-negative odometer reading.');
-    const releaseMileage = selectedBooking?.releaseOdometerKm;
-    if (typeof releaseMileage === 'number' && entered < releaseMileage) {
-      toast.warning('Odometer lower than release reading', `This vehicle was released at ${releaseMileage} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
+    const result = validateReturnOdometer();
+    if (!result.ok) {
+      if (result.reason === 'empty') return toast.warning('Odometer required', 'Return odometer is required.');
+      return toast.warning('Invalid odometer', 'Please enter a valid, non-negative odometer reading.');
+    }
+    if (result.belowReference) {
+      toast.warning('Odometer lower than release reading', `This vehicle was released at ${result.referenceValue} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
     }
     openModal('RETURN_VEHICLE');
   };

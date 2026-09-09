@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import StatusBadge from '../components/StatusBadge';
 import { bookingsApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
+import { useOdometerPrefill } from '../utils/odometer';
 import {
   Loader2, Key,
   RotateCcw, CheckCircle2, AlertTriangle,
@@ -21,7 +22,16 @@ const AdminActiveRentalsPage: React.FC = () => {
 
   // Modal states
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [odometer, setOdometer] = useState<string>('');
+  // Shared mileage prefill + validation logic (see web/src/utils/odometer.ts) — release
+  // prefills from the vehicle's last-known mileage while the PICKUP tab is being acted
+  // on, return prefills from this booking's own release mileage while the ACTIVE tab is.
+  // Previously a single `odometer` state was reused for both and manually set on each
+  // button's onClick; now each has its own hook-managed value, only one of which is
+  // ever rendered at a time (gated by activeTab, same as before).
+  const { value: releaseOdometer, setValue: setReleaseOdometer, validate: validateReleaseOdometer } =
+    useOdometerPrefill(selectedBooking, 'release', activeTab === 'PICKUP');
+  const { value: returnOdometer, setValue: setReturnOdometer, validate: validateReturnOdometer } =
+    useOdometerPrefill(selectedBooking, 'return', activeTab === 'ACTIVE');
   const [notes, setNotes] = useState('');
   const [checklistConfirmed, setChecklistConfirmed] = useState(false);
   const [agreementSigned, setAgreementSigned] = useState(false);
@@ -96,7 +106,7 @@ const AdminActiveRentalsPage: React.FC = () => {
         fetchBookings();
       } else if (modalConfig.type === 'RELEASE') {
         await bookingsApi.releaseVehicle(selectedBooking.id, {
-          odometer: parseFloat(odometer),
+          odometer: parseFloat(releaseOdometer),
           notes,
           checklistConfirmed: true
         });
@@ -105,7 +115,7 @@ const AdminActiveRentalsPage: React.FC = () => {
         fetchBookings();
       } else if (modalConfig.type === 'RETURN') {
         await bookingsApi.markReturned(selectedBooking.id, {
-          odometer: parseFloat(odometer),
+          odometer: parseFloat(returnOdometer),
           notes,
           damageFound,
           damageDetails: damageFound ? damageDetails : null
@@ -148,25 +158,25 @@ const AdminActiveRentalsPage: React.FC = () => {
   const handleConfirmCash = () => openModal('CONFIRM_CASH');
 
   const handleRelease = () => {
-    if (!odometer) return toast.warning('Odometer Required', 'Please enter the release odometer reading.');
+    const result = validateReleaseOdometer();
+    if (!result.ok && result.reason === 'empty') return toast.warning('Odometer Required', 'Please enter the release odometer reading.');
     if (!checklistConfirmed) return toast.warning('Checklist Required', 'Please confirm the pre-release checklist.');
     if (!agreementSigned) return toast.warning('Agreement Required', 'The rental agreement must be signed.');
-    const entered = Number(odometer);
-    if (isNaN(entered) || entered < 0) return toast.warning('Invalid Odometer', 'Please enter a valid, non-negative odometer reading.');
-    const lastKnown = selectedBooking?.vehicle?.currentOdometerKm;
-    if (typeof lastKnown === 'number' && entered < lastKnown) {
-      toast.warning('Odometer Lower Than Last Known', `Vehicle's last recorded mileage was ${lastKnown} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
+    if (!result.ok) return toast.warning('Invalid Odometer', 'Please enter a valid, non-negative odometer reading.');
+    if (result.belowReference) {
+      toast.warning('Odometer Lower Than Last Known', `Vehicle's last recorded mileage was ${result.referenceValue} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
     }
     openModal('RELEASE');
   };
 
   const handleReturn = () => {
-    if (!odometer) return toast.warning('Odometer Required', 'Please enter the return odometer reading.');
-    const entered = Number(odometer);
-    if (isNaN(entered) || entered < 0) return toast.warning('Invalid Odometer', 'Please enter a valid, non-negative odometer reading.');
-    const releaseMileage = selectedBooking?.releaseOdometerKm;
-    if (typeof releaseMileage === 'number' && entered < releaseMileage) {
-      toast.warning('Odometer Lower Than Release Reading', `This vehicle was released at ${releaseMileage} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
+    const result = validateReturnOdometer();
+    if (!result.ok) {
+      if (result.reason === 'empty') return toast.warning('Odometer Required', 'Please enter the return odometer reading.');
+      return toast.warning('Invalid Odometer', 'Please enter a valid, non-negative odometer reading.');
+    }
+    if (result.belowReference) {
+      toast.warning('Odometer Lower Than Release Reading', `This vehicle was released at ${result.referenceValue} km. Proceeding anyway — double-check the reading if this wasn't intentional.`);
     }
     openModal('RETURN');
   };
@@ -175,7 +185,8 @@ const AdminActiveRentalsPage: React.FC = () => {
 
   const resetForm = () => {
     setSelectedBooking(null);
-    setOdometer('');
+    setReleaseOdometer('');
+    setReturnOdometer('');
     setNotes('');
     setChecklistConfirmed(false);
     setAgreementSigned(false);
@@ -290,10 +301,9 @@ const AdminActiveRentalsPage: React.FC = () => {
                   </td>
                   <td style={{ padding: '1rem' }}>
                     {activeTab === 'PICKUP' && (
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedBooking(booking);
-                          setOdometer(booking.vehicle.currentOdometerKm.toString());
                           setAgreementSigned(!!booking.agreementSignedAt);
                           setSignerName(booking.fullName || '');
                         }}
@@ -305,14 +315,7 @@ const AdminActiveRentalsPage: React.FC = () => {
                     )}
                     {activeTab === 'ACTIVE' && (
                       <button
-                        onClick={() => {
-                          setSelectedBooking(booking);
-                          // Prefill with this booking's own release mileage (not the
-                          // vehicle's overall last-known mileage) — legacy bookings
-                          // with no recorded releaseOdometerKm leave the field empty.
-                          const releaseMileage = booking.releaseOdometerKm;
-                          setOdometer(typeof releaseMileage === 'number' ? releaseMileage.toString() : '');
-                        }}
+                        onClick={() => setSelectedBooking(booking)}
                         style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#000', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
                       >
                         <RotateCcw size={16} /> Mark Returned
@@ -433,17 +436,17 @@ const AdminActiveRentalsPage: React.FC = () => {
                   {/* Step 3: Vehicle Checklist */}
                   <section>
                     <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: checklistConfirmed && odometer ? '#16A34A' : '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>3</span>
+                      <span style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: checklistConfirmed && releaseOdometer ? '#16A34A' : '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>3</span>
                       Vehicle Inspection
                     </h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.25rem' }}>Release Odometer (km)</label>
-                          <input 
-                            type="number" 
-                            value={odometer}
-                            onChange={(e) => setOdometer(e.target.value)}
+                          <input
+                            type="number"
+                            value={releaseOdometer}
+                            onChange={(e) => setReleaseOdometer(e.target.value)}
                             style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #ddd' }}
                           />
                         </div>
@@ -484,7 +487,7 @@ const AdminActiveRentalsPage: React.FC = () => {
                     </button>
                     <button 
                       onClick={handleRelease} 
-                      disabled={actionLoading || !isFullyPaid(selectedBooking) || !agreementSigned || !checklistConfirmed || !odometer}
+                      disabled={actionLoading || !isFullyPaid(selectedBooking) || !agreementSigned || !checklistConfirmed || !releaseOdometer}
                       className="btn-primary" 
                       style={{ flex: 2, padding: '1rem', borderRadius: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                     >
@@ -496,10 +499,10 @@ const AdminActiveRentalsPage: React.FC = () => {
                 <>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>Return Odometer (km)</label>
-                    <input 
-                      type="number" 
-                      value={odometer}
-                      onChange={(e) => setOdometer(e.target.value)}
+                    <input
+                      type="number"
+                      value={returnOdometer}
+                      onChange={(e) => setReturnOdometer(e.target.value)}
                       placeholder="e.g. 12500"
                       style={{ width: '100%', padding: '1rem', borderRadius: '10px', border: '1px solid #ddd', fontSize: '1.1rem' }}
                     />
@@ -669,7 +672,7 @@ const AdminActiveRentalsPage: React.FC = () => {
           details = (
             <ul>
               <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
-              <li><strong>Release Odometer:</strong> <span>{odometer} km</span></li>
+              <li><strong>Release Odometer:</strong> <span>{releaseOdometer} km</span></li>
             </ul>
           );
         } else if (modalConfig.type === 'RETURN') {
@@ -680,7 +683,7 @@ const AdminActiveRentalsPage: React.FC = () => {
           details = (
             <ul>
               <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
-              <li><strong>Return Odometer:</strong> <span>{odometer} km</span></li>
+              <li><strong>Return Odometer:</strong> <span>{returnOdometer} km</span></li>
               <li><strong>Damage Found:</strong> <span style={{ color: damageFound ? '#DC2626' : '#16A34A' }}>{damageFound ? 'Yes' : 'No'}</span></li>
             </ul>
           );
