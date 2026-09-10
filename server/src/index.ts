@@ -21,6 +21,7 @@ import maintenanceRoutes from './routes/maintenance';
 import pricingRoutes from './routes/pricing';
 import usersRoutes from './routes/users';
 import settingsRoutes from './routes/settings';
+import webhooksRoutes from './routes/webhooks';
 import { initializeBackgroundJobs } from './lib/background-jobs';
 import { ensureBucketsExist } from './lib/supabase';
 import jwt from 'jsonwebtoken';
@@ -35,7 +36,7 @@ const PORT = process.env.PORT || 4000;
 // Allowed CORS origins — set ALLOWED_ORIGINS in .env for production (comma-separated)
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://localhost:3000', 'https://car-rental-project-5a58.vercel.app'];
+  : ['http://localhost:5173', 'http://localhost:3000', 'https://car-rental-project-5a58.vercel.app', 'https://jdcarrental.store', 'https://www.jdcarrental.store'];
 
 const app = express();
 const httpServer = createServer(app);
@@ -65,6 +66,11 @@ app.use(cors({
   },
   credentials: true
 }));
+// Resend webhook needs the RAW request body to verify the svix signature — must be
+// mounted before the global express.json() below, and only for this exact path, so
+// every other route still gets normal JSON parsing.
+app.use('/api/webhooks/resend', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 
 // Socket.io basic connection log and room joining
@@ -130,6 +136,7 @@ app.use('/api/pricing', pricingRoutes);
 app.use('/api/admin/pricing', pricingRoutes);
 app.use('/api/admin/users', usersRoutes);
 app.use('/api/admin/settings', settingsRoutes);
+app.use('/api/webhooks', webhooksRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
