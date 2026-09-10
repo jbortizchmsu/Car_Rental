@@ -26,6 +26,8 @@ model User {
   resetToken              String?
   resetTokenExpiry        DateTime?
   lastLoginAt             DateTime?
+  emailDeliveryStatus     String    @default("pending") // "pending" | "delivered" | "bounced" | "complained" — set by Resend webhook
+  emailBouncedAt          DateTime?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 

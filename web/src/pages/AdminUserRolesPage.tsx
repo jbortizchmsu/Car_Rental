@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Users, ShieldAlert, UserCheck, Search, CheckCircle2, XCircle, History } from 'lucide-react';
+import { Users, ShieldAlert, UserCheck, Search, CheckCircle2, XCircle, History, AlertTriangle } from 'lucide-react';
 import { usersApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -221,7 +221,14 @@ const AdminUserRolesPage: React.FC = () => {
                     <tr key={user.id} style={{ borderBottom: '1px solid var(--gray-100)', backgroundColor: selectedUser?.id === user.id ? 'var(--gray-50)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleSelectUser(user)}>
                       <td style={{ padding: '1rem 1.5rem' }}>
                         <div style={{ fontWeight: 800, color: 'var(--black)' }}>{user.fullName}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>{user.email}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {user.email}
+                          {user.emailDeliveryStatus === 'bounced' && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.5rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#FEF2F2', color: '#DC2626', whiteSpace: 'nowrap' }}>
+                              <AlertTriangle size={10} /> Bounced
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '1rem 1.5rem' }}>
                         <span style={{ 
@@ -314,6 +321,14 @@ const AdminUserRolesPage: React.FC = () => {
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Last Login</span>
                       <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{userDetails.lastLoginAt ? new Date(userDetails.lastLoginAt).toLocaleString() : 'Never'}</div>
                     </div>
+                    {userDetails.emailDeliveryStatus === 'bounced' && (
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Email Status</span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <AlertTriangle size={14} /> Bounced{userDetails.emailBouncedAt ? ` — ${new Date(userDetails.emailBouncedAt).toLocaleString()}` : ''}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {userDetails.role === 'admin' && (

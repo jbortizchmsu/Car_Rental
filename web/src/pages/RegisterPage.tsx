@@ -32,6 +32,9 @@ const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+  const [emailStatus, setEmailStatus] = useState<'pending' | 'delivered' | 'bounced' | 'complained' | null>(null);
+  const [pollGeneration, setPollGeneration] = useState(0);
   const [resendSent, setResendSent] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
@@ -44,6 +47,42 @@ const RegisterPage: React.FC = () => {
     const timer = setTimeout(() => navigate('/login'), 2500);
     return () => clearTimeout(timer);
   }, [isAlreadyVerified, navigate]);
+
+  // Poll delivery status for up to 2 minutes after registration, every 7s. Resend's
+  // webhook can lag slightly behind the send, so "still pending" while polling is
+  // expected and shown as no message at all — never as a false negative. Stops
+  // automatically once a terminal-ish result (bounced) is seen, or the window elapses.
+  useEffect(() => {
+    if (!registeredUserId) return;
+    setEmailStatus(null); // reset so a stale prior result never shows during a new window
+
+    const POLL_INTERVAL_MS = 7000;
+    const TIMEOUT_MS = 2 * 60 * 1000;
+    const startedAt = Date.now();
+
+    const poll = async () => {
+      try {
+        const { data } = await authApi.getEmailStatus(registeredUserId);
+        setEmailStatus(data.status);
+        if (data.status === 'bounced') {
+          clearInterval(intervalId);
+        }
+      } catch {
+        // Transient failure — just try again on the next tick, don't surface an error.
+      }
+    };
+
+    poll();
+    const intervalId = setInterval(() => {
+      if (Date.now() - startedAt >= TIMEOUT_MS) {
+        clearInterval(intervalId);
+        return;
+      }
+      poll();
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [registeredUserId, pollGeneration]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +100,7 @@ const RegisterPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      await authApi.register({
+      const { data } = await authApi.register({
         email,
         password,
         confirmPassword,
@@ -71,6 +110,7 @@ const RegisterPage: React.FC = () => {
       });
 
       setRegisteredEmail(email);
+      setRegisteredUserId(data.userId || null);
       setSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed');
@@ -87,6 +127,7 @@ const RegisterPage: React.FC = () => {
       try {
         await authApi.resendVerification(registeredEmail);
         setResendSent(true);
+        setPollGeneration(g => g + 1); // restart the polling window for the new send
         toast.success('Email sent', 'A new verification link has been sent to your inbox.');
       } catch (err: any) {
         const httpStatus = err?.response?.status;
@@ -135,6 +176,22 @@ const RegisterPage: React.FC = () => {
               <span>{isAlreadyVerified ? 'ℹ️' : resendRateLimited ? '⏳' : '⚠'}</span>
               <span>{resendError}</span>
             </div>
+          ) : emailStatus === 'bounced' ? (
+            <>
+              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px', padding: '0.875rem 1rem', color: '#B91C1C', fontSize: '0.875rem', textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '1rem' }}>
+                <span>⚠</span>
+                <span>This email address looks invalid. Please check the spelling and try registering again.</span>
+              </div>
+              <p style={{ color: '#9CA3AF', fontSize: '0.875rem' }}>
+                <button
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                  style={{ background: 'none', border: 'none', color: '#3B82F6', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', padding: 0 }}
+                >
+                  {resendLoading ? 'Sending…' : 'Resend verification email'}
+                </button>
+              </p>
+            </>
           ) : (
             <>
               <p style={{ color: '#9CA3AF', fontSize: '0.875rem' }}>

@@ -20,6 +20,7 @@ router.get('/', async (req: AuthRequest, res) => {
         isActive: true,
         createdAt: true,
         lastLoginAt: true,
+        emailDeliveryStatus: true,
         _count: {
           select: { bookings: true }
         }

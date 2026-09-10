@@ -38,6 +38,14 @@ const resendLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const emailStatusLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 60, // generous enough for the 5-10s polling window (~2 min = ~24 requests)
+  message: { error: 'Too many status checks. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 3,
@@ -97,7 +105,8 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     return res.status(201).json({
-      message: 'Registration successful. Please check your email to verify your account before logging in.'
+      message: 'Registration successful. Please check your email to verify your account before logging in.',
+      userId: user.id
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -224,7 +233,10 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
     console.log('DEBUG resend: about to update token');
     await prisma.user.update({
       where: { id: user.id },
-      data: { verificationToken, verificationTokenExpiry }
+      // Reset delivery status to 'pending' for this fresh send — otherwise a stale
+      // 'bounced' from an earlier attempt would keep showing while this new email
+      // is in flight, until the next webhook event overwrites it.
+      data: { verificationToken, verificationTokenExpiry, emailDeliveryStatus: 'pending' }
     });
 
     console.log('DEBUG resend: user found, sending email to:', user.email);
@@ -238,6 +250,22 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
   } catch (error) {
     console.error('Resend verification error:', error);
     return res.status(200).json(successResponse); // still safe response
+  }
+});
+
+// GET /auth/email-status/:userId — polled by the "Check your email" screen right
+// after registration (the user has no JWT yet, so this must stay public). Returns
+// only the minimal status field — no name, email, or any other user data.
+router.get('/email-status/:userId', emailStatusLimiter, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.userId },
+      select: { emailDeliveryStatus: true }
+    });
+    if (!user) return res.status(404).json({ error: 'Not found' });
+    return res.status(200).json({ status: user.emailDeliveryStatus });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch status' });
   }
 });
 
