@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { adminApi, settingsApi } from '../services/api';
 import { io } from 'socket.io-client';
-import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polyline } from '@react-google-maps/api';
+import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polygon, Polyline } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
 import type { RawGpsPoint, ShopLocation } from '../utils/gps-trail';
@@ -45,9 +45,10 @@ interface FleetStats {
 interface ActiveGeofenceZone {
   id: string;
   name: string;
-  centerLatitude: number;
-  centerLongitude: number;
-  radiusKm: number;
+  centerLatitude: number | null;
+  centerLongitude: number | null;
+  radiusKm: number | null;
+  polygonCoordinates: string | null;
   bookingId: string | null;
   vehicleId: string | null;
   booking?: {
@@ -63,6 +64,30 @@ const NEGROS_DEFAULT_CENTER = {
 };
 const DEFAULT_ZOOM = parseInt(import.meta.env.VITE_DEFAULT_MAP_ZOOM || '9');
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+/**
+ * Safely parses a zone's `polygonCoordinates` (a JSON-stringified array of {lat,lng},
+ * see server/prisma/schema.prisma) into a usable point list. Returns null for anything
+ * malformed or degenerate (fewer than 3 points) rather than throwing, so one bad zone
+ * can never crash the map.
+ */
+function parsePolygonPoints(raw: string | null | undefined): Array<{ lat: number; lng: number }> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length < 3) return null;
+    if (!parsed.every(p => typeof p?.lat === 'number' && typeof p?.lng === 'number')) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Simple centroid (average of vertices) — good enough for placing a zone's label marker. */
+function polygonCentroid(points: Array<{ lat: number; lng: number }>): { lat: number; lng: number } {
+  const sum = points.reduce((acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }), { lat: 0, lng: 0 });
+  return { lat: sum.lat / points.length, lng: sum.lng / points.length };
+}
 
 const AdminLiveMapPage: React.FC = () => {
   const navigate = useNavigate();
@@ -179,10 +204,16 @@ const AdminLiveMapPage: React.FC = () => {
         setUnresolvedAlerts(alertsRes.data.details.filter((a: any) => !a.resolved));
       }
 
-      // Only keep zones that have center coordinates (auto-created circle zones)
-      const zones: ActiveGeofenceZone[] = (zonesRes.data?.zones ?? []).filter(
-        (z: any) => z.centerLatitude !== null && z.centerLongitude !== null && z.radiusKm !== null
-      );
+      // Keep zones that are renderable as EITHER shape: circle (center + radius, the
+      // original auto-created zones) or polygon (destination-template-derived zones —
+      // see scripts/import-destination-geofences.ts). Anything matching neither is
+      // dropped defensively; it shouldn't happen given how zones are created, but a
+      // zone we can't draw must never crash the map.
+      const zones: ActiveGeofenceZone[] = (zonesRes.data?.zones ?? []).filter((z: any) => {
+        const hasCircle = z.centerLatitude !== null && z.centerLongitude !== null && z.radiusKm !== null;
+        const hasPolygon = parsePolygonPoints(z.polygonCoordinates) !== null;
+        return hasCircle || hasPolygon;
+      });
       setGeofenceZones(zones);
 
       setLastUpdated(new Date());
@@ -537,35 +568,78 @@ const AdminLiveMapPage: React.FC = () => {
           }}
         />
 
-        {/* Geofence zone circles */}
-        {visibleGeofenceZones.map(zone => (
-          <React.Fragment key={zone.id}>
-            <Circle
-              center={{ lat: zone.centerLatitude, lng: zone.centerLongitude }}
-              radius={zone.radiusKm * 1000}
-              options={{
-                fillColor: '#3B82F6',
-                fillOpacity: 0.12,
-                strokeColor: '#2563EB',
-                strokeOpacity: 0.7,
-                strokeWeight: 2,
-              }}
-            />
-            {/* Zone label marker */}
-            <Marker
-              position={{ lat: zone.centerLatitude, lng: zone.centerLongitude }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 6,
-                fillColor: '#2563EB',
-                fillOpacity: 0.9,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 2,
-              }}
-              title={`Geofence: ${zone.name}${zone.booking ? ` — ${zone.booking.vehicle.brand} ${zone.booking.vehicle.model}` : ''}`}
-            />
-          </React.Fragment>
-        ))}
+        {/* Geofence zones — circle (legacy auto-computed) or polygon (destination-template) */}
+        {visibleGeofenceZones.map(zone => {
+          const hasCircle = zone.centerLatitude !== null && zone.centerLongitude !== null && zone.radiusKm !== null;
+          // Polygon takes precedence if a zone somehow had both (shouldn't happen given
+          // how zones are created today — confirmed via inspection — but a polygon is
+          // the more specific/accurate shape, so prefer it defensively).
+          const polygonPoints = parsePolygonPoints(zone.polygonCoordinates);
+          const label = `Geofence: ${zone.name}${zone.booking ? ` — ${zone.booking.vehicle.brand} ${zone.booking.vehicle.model}` : ''}`;
+
+          if (polygonPoints) {
+            const center = polygonCentroid(polygonPoints);
+            return (
+              <React.Fragment key={zone.id}>
+                <Polygon
+                  paths={polygonPoints}
+                  options={{
+                    fillColor: '#7C3AED',
+                    fillOpacity: 0.12,
+                    strokeColor: '#6D28D9',
+                    strokeOpacity: 0.7,
+                    strokeWeight: 2,
+                  }}
+                />
+                <Marker
+                  position={center}
+                  icon={{
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: '#6D28D9',
+                    fillOpacity: 0.9,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 2,
+                  }}
+                  title={label}
+                />
+              </React.Fragment>
+            );
+          }
+
+          if (hasCircle) {
+            return (
+              <React.Fragment key={zone.id}>
+                <Circle
+                  center={{ lat: zone.centerLatitude as number, lng: zone.centerLongitude as number }}
+                  radius={(zone.radiusKm as number) * 1000}
+                  options={{
+                    fillColor: '#3B82F6',
+                    fillOpacity: 0.12,
+                    strokeColor: '#2563EB',
+                    strokeOpacity: 0.7,
+                    strokeWeight: 2,
+                  }}
+                />
+                {/* Zone label marker */}
+                <Marker
+                  position={{ lat: zone.centerLatitude as number, lng: zone.centerLongitude as number }}
+                  icon={{
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: '#2563EB',
+                    fillOpacity: 0.9,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 2,
+                  }}
+                  title={label}
+                />
+              </React.Fragment>
+            );
+          }
+
+          return null;
+        })}
       </GoogleMap>
     );
   };
