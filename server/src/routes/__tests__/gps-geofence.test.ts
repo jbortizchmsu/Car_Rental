@@ -191,14 +191,62 @@ describe('POST /api/gps/location — geofence-breach alerting block', () => {
         ]),
       } as any,
     ]);
+    // Being inside a polygon zone also runs the "arrived at destination" dedup check
+    // (a separate feature) — simulate "already notified" so this test stays focused
+    // purely on the breach-detection behavior it was written for.
+    prismaMock.geofenceAlert.findFirst.mockResolvedValue({ id: 'existing-arrival' } as any);
 
     // Point comfortably inside the square above.
     const res = await locationRequest({ lat: 10.675, lng: 122.955 });
 
     expect(res.status).toBe(201);
-    expect(prismaMock.geofenceAlert.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.geofenceAlert.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ alertType: 'ARRIVED_AT_DESTINATION' }) })
+    );
     expect(prismaMock.geofenceAlert.create).not.toHaveBeenCalled();
     expect(createAdminNotificationMock).not.toHaveBeenCalled();
+  });
+
+  test('POLYGON-type zone: first ping inside → creates an ARRIVED_AT_DESTINATION alert (resolved) and notifies admin exactly once', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
+    prismaMock.geofenceZone.findMany.mockResolvedValue([
+      {
+        id: 'zone-poly-1',
+        bookingId: 'booking-1',
+        vehicleId: 'veh-1',
+        centerLatitude: null,
+        centerLongitude: null,
+        radiusKm: null,
+        polygonCoordinates: JSON.stringify([
+          { lat: 10.68, lng: 122.95 },
+          { lat: 10.68, lng: 122.96 },
+          { lat: 10.67, lng: 122.96 },
+          { lat: 10.67, lng: 122.95 },
+        ]),
+      } as any,
+    ]);
+    prismaMock.geofenceAlert.findFirst.mockResolvedValue(null); // no prior arrival
+    const createdArrival = { id: 'arrival-1', bookingId: 'booking-1', alertType: 'ARRIVED_AT_DESTINATION' };
+    prismaMock.geofenceAlert.create.mockResolvedValue(createdArrival as any);
+
+    const res = await locationRequest({ lat: 10.675, lng: 122.955 });
+
+    expect(res.status).toBe(201);
+    expect(prismaMock.geofenceAlert.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          bookingId: 'booking-1',
+          alertType: 'ARRIVED_AT_DESTINATION',
+          severity: 'INFO',
+          resolved: true,
+        }),
+      })
+    );
+    expect(createAdminNotificationMock).toHaveBeenCalledWith(
+      'Vehicle Arrived at Destination',
+      expect.stringContaining('ABC-1234')
+    );
+    expect(ioEmitMock).toHaveBeenCalledWith('geofence-alert-created', createdArrival);
   });
 
   test('multiple zones: point outside the first zone but inside a second zone → still no breach (loop checks all zones, not just the first)', async () => {

@@ -67,8 +67,15 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
         }
       });
 
-      // Check if vehicle is outside ALL active geofence zones
+      // Check if vehicle is outside ALL active geofence zones (circle OR polygon —
+      // being inside either one counts as "fine", only failing every zone is a
+      // breach). A booking released to a destination with a template now has BOTH
+      // a circle (enforcement) and a polygon (the real destination shape) zone, so
+      // we deliberately do NOT `break` on the first match — every zone is checked,
+      // both to confirm the OR-across-zones result and to detect a polygon-specific
+      // "arrived at destination" match below.
       let isOutsideAllZones = zones.length > 0;
+      let arrivedZone: typeof zones[number] | null = null;
       for (const zone of zones) {
         if (
           zone.centerLatitude !== null && zone.centerLongitude !== null && zone.radiusKm !== null
@@ -76,7 +83,6 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
           // Circle-based check (used for auto-created zones)
           if (isPointInCircle(latitude, longitude, zone.centerLatitude, zone.centerLongitude, zone.radiusKm)) {
             isOutsideAllZones = false;
-            break;
           }
         }
         // Polygon-based zones (no center/radius): real point-in-polygon containment check.
@@ -94,8 +100,47 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
           // defaulting to "safe", since a false "safe" here is the exact gap this fix closes.
           if (polygon && isPointInPolygon(latitude, longitude, polygon)) {
             isOutsideAllZones = false;
-            break;
+            arrivedZone = zone;
           }
+        }
+      }
+
+      // "Arrived at destination" — fires once per booking, the first time a ping lands
+      // inside the destination POLYGON specifically (not the circle, which covers the
+      // whole route and would trigger on this the moment the trip starts). Reuses the
+      // existing GeofenceAlert table as a simple, no-schema-change way to track
+      // "already notified": a distinct alertType, created resolved:true so it never
+      // shows up as an outstanding item in the admin alerts list or the /live
+      // red-marker check (both of which only look at `resolved: false`). Leaving the
+      // polygon and re-entering does NOT re-trigger — the existence check below has
+      // no `resolved` filter, so the very first arrival record permanently satisfies it.
+      if (arrivedZone) {
+        const existingArrival = await prisma.geofenceAlert.findFirst({
+          where: { bookingId, alertType: 'ARRIVED_AT_DESTINATION' }
+        });
+
+        if (!existingArrival) {
+          const arrivalAlert = await prisma.geofenceAlert.create({
+            data: {
+              bookingId,
+              vehicleId,
+              trackingSessionId,
+              geofenceZoneId: arrivedZone.id,
+              message: `Vehicle ${booking.vehicle.licensePlate} has arrived at ${booking.destinationName || 'the destination'}.`,
+              latitude,
+              longitude,
+              alertType: 'ARRIVED_AT_DESTINATION',
+              severity: 'INFO',
+              resolved: true
+            }
+          });
+
+          await createAdminNotification(
+            'Vehicle Arrived at Destination',
+            `${booking.vehicle.brand} ${booking.vehicle.model} (${booking.vehicle.licensePlate}) has arrived at ${booking.destinationName || 'the destination'}.`
+          );
+
+          io.emit('geofence-alert-created', arrivalAlert);
         }
       }
 

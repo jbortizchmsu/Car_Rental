@@ -528,17 +528,17 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
       data: { status: 'RENTED' }
     });
 
-    // Create geofence zone if destination is set
+    // Create geofence zone(s) if destination is set. Dual-zone design: the circle is
+    // the actual ENFORCEMENT boundary (proven to correctly cover the full shop→destination
+    // route — unchanged from the original, pre-polygon-work logic), and — additionally,
+    // not instead — the destination's real polygon (if a template exists) is created
+    // as a SECOND, co-existing zone for map display and "arrived at destination"
+    // detection (gps.ts). Being inside EITHER zone counts as "not breached" (see
+    // gps.ts's updated OR-across-zones loop). A destination without a template
+    // (e.g. Bacolod) gets only the circle, exactly as the original fallback always did.
     if (existingBooking.destinationName) {
       try {
-        // `zoneData` holds whichever shape wins — the pre-imported official-boundary
-        // polygon template if one exists for this destination (scripts/import-destination-geofences.ts),
-        // otherwise the original shop-centered-circle computation. Building this up
-        // first (without touching the DB) means the vehicle's prior zone is only ever
-        // deactivated once we actually have a new zone ready to replace it with —
-        // exactly the same guarantee the old code gave when it only deactivated
-        // inside `if (geo)`.
-        let zoneData: {
+        type ZoneCreateData = {
           bookingId: string;
           vehicleId: string;
           name: string;
@@ -548,12 +548,34 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
           radiusKm?: number;
           isActive: boolean;
           activatedAt: Date;
-        } | null = null;
+        };
 
-        // Prefer a real, admin-imported municipal boundary if one exists for this
-        // destination. Any failure here — no template row, malformed JSON, a DB
-        // error — falls through to the circle fallback below; it must never throw
-        // out of this block.
+        // 1. The circle — computed exactly as the original, pre-polygon-work logic did.
+        //    This is unconditional whenever destinationName resolves to known coordinates;
+        //    it is never replaced by the polygon, only ever supplemented by it.
+        let circleZoneData: ZoneCreateData | null = null;
+        const shopCenter = await getShopCenterFromSettings();
+        const geo = computeGeofence(existingBooking.destinationName, shopCenter);
+        if (geo) {
+          const circlePolygon = generateCirclePolygon(geo.centerLat, geo.centerLng, geo.radiusKm);
+          circleZoneData = {
+            bookingId: booking.id,
+            vehicleId: booking.vehicleId,
+            name: existingBooking.destinationName,
+            polygonCoordinates: JSON.stringify(circlePolygon),
+            centerLatitude: geo.centerLat,
+            centerLongitude: geo.centerLng,
+            radiusKm: geo.radiusKm,
+            isActive: true,
+            activatedAt: new Date(),
+          };
+        }
+
+        // 2. The destination polygon — only if a real, admin-imported municipal
+        //    boundary template exists for this destination. Any failure here (no
+        //    template row, malformed JSON, a DB error) simply means no second zone
+        //    is created; it must never affect the circle above.
+        let polygonZoneData: ZoneCreateData | null = null;
         try {
           const template = await prisma.geofenceZone.findUnique({
             where: { destinationName: existingBooking.destinationName },
@@ -562,65 +584,57 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
           if (template) {
             const parsedPolygon = JSON.parse(template.polygonCoordinates);
             if (Array.isArray(parsedPolygon) && parsedPolygon.length >= 3) {
-              zoneData = {
+              polygonZoneData = {
                 bookingId: booking.id,
                 vehicleId: booking.vehicleId,
                 name: `${existingBooking.destinationName} (Official Boundary)`,
                 polygonCoordinates: template.polygonCoordinates,
                 // Deliberately no centerLatitude/centerLongitude/radiusKm — leaving
-                // these null is what makes gps.ts's breach check take the real
-                // point-in-polygon branch instead of the circle branch.
+                // these null is what makes gps.ts's breach check (and the "arrived"
+                // detection) take the real point-in-polygon branch, distinguishing
+                // this zone from the circle above.
                 isActive: true,
                 activatedAt: new Date(),
               };
             } else {
-              console.error(`[Geofence] Template for "${existingBooking.destinationName}" has invalid polygonCoordinates, falling back to circle.`);
+              console.error(`[Geofence] Template for "${existingBooking.destinationName}" has invalid polygonCoordinates — skipping the polygon zone, circle still applies.`);
             }
           }
         } catch (templateErr) {
-          console.error('[Geofence] Destination-template lookup failed, falling back to circle:', templateErr);
+          console.error('[Geofence] Destination-template lookup failed — skipping the polygon zone, circle still applies:', templateErr);
         }
 
-        // Fallback: no usable template — reproduce the original shop-centered-circle
-        // logic exactly, unchanged, so any destination without an imported polygon
-        // (including the known Bacolod gap) keeps working exactly as it did before
-        // this feature existed.
-        if (!zoneData) {
-          const shopCenter = await getShopCenterFromSettings();
-          const geo = computeGeofence(existingBooking.destinationName, shopCenter);
-          if (geo) {
-            const circlePolygon = generateCirclePolygon(geo.centerLat, geo.centerLng, geo.radiusKm);
-            zoneData = {
-              bookingId: booking.id,
-              vehicleId: booking.vehicleId,
-              name: existingBooking.destinationName,
-              polygonCoordinates: JSON.stringify(circlePolygon),
-              centerLatitude: geo.centerLat,
-              centerLongitude: geo.centerLng,
-              radiusKm: geo.radiusKm,
-              isActive: true,
-              activatedAt: new Date(),
-            };
-          }
-        }
-
-        if (zoneData) {
+        if (circleZoneData || polygonZoneData) {
           await prisma.geofenceZone.updateMany({
             where: { vehicleId: existingBooking.vehicleId, isActive: true },
             data: { isActive: false },
           });
 
-          const geofenceZone = await prisma.geofenceZone.create({ data: zoneData });
+          // approvedGeofenceZoneId stays pointed at the circle (the enforcement zone) —
+          // consistent with every other reader of this field (e.g. rentals.ts) and with
+          // Bacolod-style bookings, which only ever have a circle. The polygon zone (if
+          // any) is looked up separately by bookingId, not through this single FK.
+          let primaryZoneId: string | null = null;
 
-          await prisma.booking.update({
-            where: { id: booking.id },
-            data: {
-              approvedGeofenceZoneId: geofenceZone.id,
-            },
-          });
+          if (circleZoneData) {
+            const circleZone = await prisma.geofenceZone.create({ data: circleZoneData });
+            primaryZoneId = circleZone.id;
+          }
+          if (polygonZoneData) {
+            await prisma.geofenceZone.create({ data: polygonZoneData });
+          }
+
+          if (primaryZoneId) {
+            await prisma.booking.update({
+              where: { id: booking.id },
+              data: {
+                approvedGeofenceZoneId: primaryZoneId,
+              },
+            });
+          }
         }
       } catch (geofenceErr) {
-        console.error('[Geofence] Failed to create geofence zone on release:', geofenceErr);
+        console.error('[Geofence] Failed to create geofence zone(s) on release:', geofenceErr);
       }
     }
 
