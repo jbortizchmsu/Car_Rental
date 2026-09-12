@@ -172,8 +172,11 @@ const AdminLiveMapPage: React.FC = () => {
   }, [selectedRental, activeRentals]);
 
   const visibleGeofenceZones = useMemo(() => {
+    // No vehicle tracked → no geofence shapes at all (markers only). Only render a
+    // zone once a specific vehicle/booking is selected, and only that booking's own
+    // zones — never every active booking's zones at once.
     if (!selectedRental) {
-      return geofenceZones;
+      return [];
     }
     return geofenceZones.filter(
       zone => zone.bookingId === selectedRental.id || zone.booking?.id === selectedRental.id
