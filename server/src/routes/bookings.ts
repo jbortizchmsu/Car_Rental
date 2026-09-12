@@ -190,8 +190,13 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
     const isCompleteSet = remainingOtherDocs.length > 0;
 
     console.log(`✅ Document saved: ${doc.id} (Set complete: ${isCompleteSet})`);
+    // Never return the raw storage URL to the client — it's meaningless to the
+    // frontend anyway (documents are always fetched via the signed-URL endpoint,
+    // GET /api/files/:fileId) and would otherwise leak a permanent link to a
+    // sensitive ID document.
+    const { fileUrl: _omitFileUrl, ...docSafe } = doc;
     res.json({
-      ...doc,
+      ...docSafe,
       isDocumentSetComplete: isCompleteSet,
       message: `${type === 'valid_id' ? 'Valid ID' : "Driver's License"} uploaded successfully.`
     });
@@ -206,7 +211,9 @@ router.get('/:id/documents', authenticate, async (req: AuthRequest, res) => {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
-      include: { documents: true }
+      // select (not include) — never return the raw storage fileUrl; the frontend
+      // fetches document content via the signed-URL endpoint (GET /api/files/:fileId).
+      include: { documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } } }
     });
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
@@ -227,10 +234,10 @@ router.get('/my', authenticate, async (req: AuthRequest, res) => {
   try {
     const bookings = await prisma.booking.findMany({
       where: { customerId: req.user!.id },
-      include: { 
+      include: {
         vehicle: true,
         payments: true,
-        documents: true,
+        documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
         damageReports: true,
         pricingRule: true
       },
@@ -247,10 +254,10 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const bookings = await prisma.booking.findMany({
       where: { customerId: req.user!.id },
-      include: { 
+      include: {
         vehicle: true,
         payments: true,
-        documents: true,
+        documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
         damageReports: true,
         pricingRule: true
       },
@@ -270,7 +277,7 @@ router.get('/pending', authenticate, authorizeAdmin, async (req, res) => {
       include: { 
         vehicle: true, 
         customer: { select: { id: true, fullName: true, email: true, phoneNumber: true } },
-        documents: true,
+        documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
         pricingRule: true
       },
       orderBy: { createdAt: 'asc' }
@@ -298,9 +305,9 @@ router.get('/active-list', authenticate, authorizeAdmin, async (req, res) => {
         vehicle: true, 
         customer: { select: { id: true, fullName: true, email: true, phoneNumber: true } },
         payments: {
-          include: { proofs: true }
+          include: { proofs: { select: { id: true, paymentId: true, referenceNumber: true, createdAt: true } } }
         },
-        documents: true,
+        documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
         pricingRule: true
       },
       orderBy: { startDate: 'asc' }
@@ -318,11 +325,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { 
+      include: {
         vehicle: true,
-        documents: true,
+        documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
         payments: {
-          include: { proofs: true }
+          include: { proofs: { select: { id: true, paymentId: true, referenceNumber: true, createdAt: true } } }
         },
         damageReports: true,
         pricingRule: true,

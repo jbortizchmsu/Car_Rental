@@ -23,26 +23,45 @@ export const BUCKETS = {
   PAYMENT_PROOFS: 'payment-proofs',
 } as const;
 
+// Only vehicle photos are meant to be publicly browsable (shown to all customers on
+// the vehicle listing pages). Booking documents (IDs, driver's licenses) and payment
+// proofs are sensitive PII/financial records — those buckets must be private, with
+// access only via the short-lived signed URLs generated in routes/files.ts.
+const BUCKET_IS_PUBLIC: Record<string, boolean> = {
+  [BUCKETS.VEHICLE_IMAGES]: true,
+  [BUCKETS.BOOKING_DOCUMENTS]: false,
+  [BUCKETS.PAYMENT_PROOFS]: false,
+};
+
 /**
- * Ensures all required public storage buckets exist in Supabase.
+ * Ensures all required storage buckets exist in Supabase, with the correct
+ * public/private visibility per bucket (see BUCKET_IS_PUBLIC above).
+ *
+ * NOTE: this only sets visibility at CREATION time — Supabase does not let you
+ * change an already-existing bucket's public/private flag through this API, only
+ * through the Supabase dashboard (or a one-off admin script using the Storage
+ * management API). If these buckets already exist as public in production, running
+ * this code again will NOT retroactively make them private — see the deployment
+ * notes in the PR/report for the required manual dashboard step.
  */
 export async function ensureBucketsExist(): Promise<void> {
   const client = getSupabaseClient();
   const requiredBuckets = Object.values(BUCKETS);
 
   for (const bucketName of requiredBuckets) {
+    const isPublic = BUCKET_IS_PUBLIC[bucketName] ?? false;
     try {
       const { data: bucket, error: getError } = await client.storage.getBucket(bucketName);
       if (getError || !bucket) {
-        console.log(`[Supabase Storage] Bucket "${bucketName}" not found. Creating public bucket...`);
+        console.log(`[Supabase Storage] Bucket "${bucketName}" not found. Creating ${isPublic ? 'public' : 'private'} bucket...`);
         const { error: createError } = await client.storage.createBucket(bucketName, {
-          public: true,
+          public: isPublic,
           fileSizeLimit: 10485760, // 10MB limit
         });
         if (createError) {
           console.warn(`[Supabase Storage] Warning creating bucket "${bucketName}":`, createError.message);
         } else {
-          console.log(`[Supabase Storage] Successfully created public bucket "${bucketName}".`);
+          console.log(`[Supabase Storage] Successfully created ${isPublic ? 'public' : 'private'} bucket "${bucketName}".`);
         }
       }
     } catch (err: any) {

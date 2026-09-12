@@ -137,7 +137,7 @@ router.get('/list', authenticate, authorizeAdmin, async (req, res) => {
             vehicle: true 
           } 
         },
-        proofs: true
+        proofs: { select: { id: true, paymentId: true, referenceNumber: true, createdAt: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -523,7 +523,7 @@ router.get('/export', authenticate, authorizeAdmin, async (req, res) => {
             vehicle: { select: { brand: true, model: true, licensePlate: true } }
           }
         },
-        proofs: true,
+        proofs: { select: { id: true, paymentId: true, referenceNumber: true, createdAt: true } },
         verifiedBy: { select: { fullName: true } }
       },
       orderBy: { createdAt: 'desc' }
