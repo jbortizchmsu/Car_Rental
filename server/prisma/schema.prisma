@@ -221,6 +221,14 @@ model GeofenceZone {
   name               String
   vehicleId          String?
   bookingId          String?
+  // Set ONLY on a permanent, reusable per-destination template zone (vehicleId AND
+  // bookingId both null) — one official-boundary polygon per dropdown destination,
+  // imported once (see scripts/import-destination-geofences.ts). @unique enforces
+  // "one template per destination name". Booking-specific zones cloned from a
+  // template at release time (see bookings.ts) must leave this null, exactly like
+  // today's per-booking circle zones — never set it alongside a bookingId/vehicleId,
+  // or the uniqueness constraint would block a second booking to the same place.
+  destinationName    String?   @unique
   polygonCoordinates String    // JSON stringified array of {lat, lng}
   // Circle-based fields — populated for auto-created zones on vehicle release
   centerLatitude     Float?

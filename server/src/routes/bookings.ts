@@ -531,18 +531,66 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
     // Create geofence zone if destination is set
     if (existingBooking.destinationName) {
       try {
-        const shopCenter = await getShopCenterFromSettings();
-        const geo = computeGeofence(existingBooking.destinationName, shopCenter);
-        if (geo) {
-          await prisma.geofenceZone.updateMany({
-            where: { vehicleId: existingBooking.vehicleId, isActive: true },
-            data: { isActive: false },
+        // `zoneData` holds whichever shape wins — the pre-imported official-boundary
+        // polygon template if one exists for this destination (scripts/import-destination-geofences.ts),
+        // otherwise the original shop-centered-circle computation. Building this up
+        // first (without touching the DB) means the vehicle's prior zone is only ever
+        // deactivated once we actually have a new zone ready to replace it with —
+        // exactly the same guarantee the old code gave when it only deactivated
+        // inside `if (geo)`.
+        let zoneData: {
+          bookingId: string;
+          vehicleId: string;
+          name: string;
+          polygonCoordinates: string;
+          centerLatitude?: number;
+          centerLongitude?: number;
+          radiusKm?: number;
+          isActive: boolean;
+          activatedAt: Date;
+        } | null = null;
+
+        // Prefer a real, admin-imported municipal boundary if one exists for this
+        // destination. Any failure here — no template row, malformed JSON, a DB
+        // error — falls through to the circle fallback below; it must never throw
+        // out of this block.
+        try {
+          const template = await prisma.geofenceZone.findUnique({
+            where: { destinationName: existingBooking.destinationName },
           });
 
-          const circlePolygon = generateCirclePolygon(geo.centerLat, geo.centerLng, geo.radiusKm);
+          if (template) {
+            const parsedPolygon = JSON.parse(template.polygonCoordinates);
+            if (Array.isArray(parsedPolygon) && parsedPolygon.length >= 3) {
+              zoneData = {
+                bookingId: booking.id,
+                vehicleId: booking.vehicleId,
+                name: `${existingBooking.destinationName} (Official Boundary)`,
+                polygonCoordinates: template.polygonCoordinates,
+                // Deliberately no centerLatitude/centerLongitude/radiusKm — leaving
+                // these null is what makes gps.ts's breach check take the real
+                // point-in-polygon branch instead of the circle branch.
+                isActive: true,
+                activatedAt: new Date(),
+              };
+            } else {
+              console.error(`[Geofence] Template for "${existingBooking.destinationName}" has invalid polygonCoordinates, falling back to circle.`);
+            }
+          }
+        } catch (templateErr) {
+          console.error('[Geofence] Destination-template lookup failed, falling back to circle:', templateErr);
+        }
 
-          const geofenceZone = await prisma.geofenceZone.create({
-            data: {
+        // Fallback: no usable template — reproduce the original shop-centered-circle
+        // logic exactly, unchanged, so any destination without an imported polygon
+        // (including the known Bacolod gap) keeps working exactly as it did before
+        // this feature existed.
+        if (!zoneData) {
+          const shopCenter = await getShopCenterFromSettings();
+          const geo = computeGeofence(existingBooking.destinationName, shopCenter);
+          if (geo) {
+            const circlePolygon = generateCirclePolygon(geo.centerLat, geo.centerLng, geo.radiusKm);
+            zoneData = {
               bookingId: booking.id,
               vehicleId: booking.vehicleId,
               name: existingBooking.destinationName,
@@ -552,8 +600,17 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
               radiusKm: geo.radiusKm,
               isActive: true,
               activatedAt: new Date(),
-            },
+            };
+          }
+        }
+
+        if (zoneData) {
+          await prisma.geofenceZone.updateMany({
+            where: { vehicleId: existingBooking.vehicleId, isActive: true },
+            data: { isActive: false },
           });
+
+          const geofenceZone = await prisma.geofenceZone.create({ data: zoneData });
 
           await prisma.booking.update({
             where: { id: booking.id },
