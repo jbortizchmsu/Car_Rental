@@ -251,7 +251,13 @@ router.get('/active-geofence-zones', authenticate, authorizeAdmin, async (req, r
         isActive: true,
         OR: [
           { booking: { status: 'ACTIVE' } },
-          { bookingId: null }
+          // bookingId: null also matches the 56 inert destination-template rows
+          // (scripts/import-destination-geofences.ts) — those exist only to be looked
+          // up and cloned at release time, never to be displayed on their own, so
+          // exclude any row that also has destinationName set. A genuine pre-existing
+          // global zone (created via AdminGeofencePage.tsx, which never sets
+          // destinationName) still matches and still displays as before.
+          { bookingId: null, destinationName: null }
         ]
       },
       include: {
