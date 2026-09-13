@@ -295,18 +295,55 @@ router.get('/geofences', authenticate, authorizeAdmin, async (req, res) => {
 // Admin: Create Geofence Zone
 router.post('/geofences', authenticate, authorizeAdmin, async (req, res) => {
   const { name, vehicleId, polygonCoordinates, isActive } = req.body;
+
+  // polygonCoordinates arrives as a real array (the frontend already JSON.parse()s its
+  // textarea before calling this) — the schema column is a JSON-stringified String, so
+  // this must be validated and stringified here, not passed through as-is (passing a
+  // raw array straight to Prisma's String field fails at the DB layer).
+  if (!Array.isArray(polygonCoordinates) || polygonCoordinates.length < 3) {
+    return res.status(400).json({ error: 'polygonCoordinates must be an array of at least 3 {lat,lng} points.' });
+  }
+
   try {
     const zone = await prisma.geofenceZone.create({
       data: {
         name,
         vehicleId: vehicleId || null,
-        polygonCoordinates,
+        polygonCoordinates: JSON.stringify(polygonCoordinates),
         isActive: isActive !== undefined ? isActive : true
       }
     });
     res.json(zone);
   } catch (error) {
+    console.error('[Geofence] Failed to create zone:', error);
     res.status(500).json({ error: 'Failed to create geofence' });
+  }
+});
+
+// Admin: Update Geofence Zone (name/vehicleId/polygonCoordinates) — deliberately never
+// touches destinationName, so editing one of the 56 destination-template zones (e.g.
+// to refine its imported polygon) can never accidentally null it out and orphan the
+// zone from the release-time destination lookup.
+router.put('/geofences/:id', authenticate, authorizeAdmin, async (req, res) => {
+  const { name, vehicleId, polygonCoordinates } = req.body;
+
+  if (!Array.isArray(polygonCoordinates) || polygonCoordinates.length < 3) {
+    return res.status(400).json({ error: 'polygonCoordinates must be an array of at least 3 {lat,lng} points.' });
+  }
+
+  try {
+    const zone = await prisma.geofenceZone.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        vehicleId: vehicleId || null,
+        polygonCoordinates: JSON.stringify(polygonCoordinates),
+      }
+    });
+    res.json(zone);
+  } catch (error) {
+    console.error('[Geofence] Failed to update zone:', error);
+    res.status(500).json({ error: 'Failed to update geofence' });
   }
 });
 

@@ -136,6 +136,7 @@ export const adminApi = {
   exportGpsSession: (bookingId: string) => api.get(`/gps/session/${bookingId}/export`, { responseType: 'blob' }),
   getGeofences: () => api.get('/gps/geofences'),
   saveGeofence: (data: any) => api.post('/gps/geofences', data),
+  updateGeofence: (id: string, data: any) => api.put(`/gps/geofences/${id}`, data),
   deleteGeofence: (id: string) => api.delete(`/gps/geofences/${id}`),
   toggleGeofence: (id: string, active: boolean) => api.patch(`/gps/geofences/${id}/toggle`, { active }),
   getActiveGeofenceZones: () => api.get('/gps/active-geofence-zones'),
