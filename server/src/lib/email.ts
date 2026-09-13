@@ -60,16 +60,7 @@ export const sendVerificationEmail = async (
   fullName: string,
   token: string
 ): Promise<void> => {
-  console.log('Attempting to send email to:', email);
   const verificationUrl = `${APP_URL}/verify-email?token=${token}`;
-
-  // TEMP DIAGNOSTIC — remove once the APP_URL mismatch is confirmed/resolved.
-  // Logs both the live process.env read and the module-level constant so we can
-  // tell whether Railway's env var itself is wrong at runtime, or whether this
-  // module was loaded before the env var was updated (stale process, no restart).
-  console.log('[DEBUG] process.env.APP_URL at send time:', process.env.APP_URL);
-  console.log('[DEBUG] module-level APP_URL constant:', APP_URL);
-  console.log('[DEBUG] Verification link:', verificationUrl);
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,

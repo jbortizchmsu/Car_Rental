@@ -4,6 +4,7 @@ import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import { createNotification, createAdminNotification } from '../lib/notifications';
 import { checkVehicleAvailability } from '../lib/booking-availability';
+import { paymentTypeSchema } from '../lib/validation';
 
 const router = Router();
 
@@ -25,6 +26,14 @@ router.post('/:id/submit', authenticate, upload.single('proof'), async (req: Aut
     // Ownership check
     if (booking.customerId !== req.user!.id) {
       return res.status(403).json({ error: 'Unauthorized to submit payment for this booking' });
+    }
+
+    // Validate paymentType — the existing code had no check here at all; an
+    // unrecognized value would silently be treated as a full payment, and a
+    // missing value would throw later (paymentType.replace(...)) as an opaque 500.
+    const paymentTypeCheck = paymentTypeSchema.safeParse(paymentType);
+    if (!paymentTypeCheck.success) {
+      return res.status(400).json({ error: paymentTypeCheck.error.issues[0].message });
     }
 
     // Re-check availability before payment

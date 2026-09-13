@@ -6,6 +6,7 @@ import { checkVehicleOilChangeDue } from '../lib/maintenance-alerts';
 import { checkVehicleAvailability } from '../lib/booking-availability';
 import { calculateBookingPrice } from '../lib/pricing';
 import { computeGeofence, generateCirclePolygon } from '../lib/negros-coords';
+import { bookingDateRangeSchema } from '../lib/validation';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -52,6 +53,14 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 
     if (!destinationName) {
       return res.status(400).json({ error: 'Please provide your intended travel area or destination.' });
+    }
+
+    // Stricter date validation, additive on top of the presence check above — catches
+    // unparseable date strings and a reversed/equal date range, neither of which the
+    // check above (which only tests truthiness) ever caught.
+    const dateCheck = bookingDateRangeSchema.safeParse({ startDate, endDate });
+    if (!dateCheck.success) {
+      return res.status(400).json({ error: dateCheck.error.issues[0].message });
     }
 
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });

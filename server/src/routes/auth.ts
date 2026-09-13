@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { JWT_SECRET } from '../lib/config';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/email';
+import { registerSchema } from '../lib/validation';
 
 const router = Router();
 
@@ -72,6 +73,16 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
+    // Stricter format/required-field validation, layered on top of the checks above —
+    // catches malformed emails, missing/malformed phone numbers, and missing name/address,
+    // none of which the manual checks above ever caught. Purely additive: any request
+    // that already failed a check above never reaches this, so those exact messages
+    // are unchanged for the cases they already handled.
+    const parsed = registerSchema.safeParse({ email, fullName, phoneNumber, address });
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -230,7 +241,6 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    console.log('DEBUG resend: about to update token');
     await prisma.user.update({
       where: { id: user.id },
       // Reset delivery status to 'pending' for this fresh send — otherwise a stale
@@ -239,7 +249,6 @@ router.post('/resend-verification', resendLimiter, async (req, res) => {
       data: { verificationToken, verificationTokenExpiry, emailDeliveryStatus: 'pending' }
     });
 
-    console.log('DEBUG resend: user found, sending email to:', user.email);
     try {
       await sendVerificationEmail(user.email, user.fullName, verificationToken);
     } catch (emailErr) {
