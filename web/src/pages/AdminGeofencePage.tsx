@@ -184,18 +184,29 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
     ];
   };
 
-  const applyPathToPolygon = (points: Array<{ lat: number; lng: number }>, fitBounds = false) => {
+  const applyPathToPolygon = (points: Array<{ lat: number; lng: number }>) => {
     if (!polygonRef.current || !window.google) return;
     const path = new window.google.maps.MVCArray(
       points.map(p => new window.google.maps.LatLng(p.lat, p.lng))
     );
     polygonRef.current.setPath(path);
     attachPathListeners(path);
-    if (fitBounds && mapRef.current && points.length > 0) {
-      const bounds = new window.google.maps.LatLngBounds();
-      points.forEach(p => bounds.extend(p));
-      mapRef.current.fitBounds(bounds, 40);
-    }
+  };
+
+  // Fits the map to the polygon's current path. Called from BOTH onMapLoad and
+  // onPolygonLoad (whichever fires second wins) because the library's GoogleMap is a
+  // class component whose componentDidMount does setState({map}, onLoadCallback) —
+  // React commits the state update (mounting the Polygon child, which fires its OWN
+  // onLoad) before the setState callback runs our onMapLoad. So Polygon's onLoad is
+  // observed to fire BEFORE the map's onLoad on every open, meaning mapRef.current is
+  // still null at that point if fitBounds were only attempted from onPolygonLoad.
+  const tryFitBounds = () => {
+    if (!mapRef.current || !polygonRef.current) return;
+    const path = polygonRef.current.getPath();
+    if (path.getLength() === 0) return;
+    const bounds = new window.google.maps.LatLngBounds();
+    path.forEach(latLng => bounds.extend(latLng));
+    mapRef.current.fitBounds(bounds, 40);
   };
 
   // Reads the polygon's current path (after a vertex drag/add/remove) back into the same
@@ -212,12 +223,14 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
 
   const onMapLoad = (map: google.maps.Map) => {
     mapRef.current = map;
+    tryFitBounds();
   };
 
   const onPolygonLoad = (polygon: google.maps.Polygon) => {
     polygonRef.current = polygon;
     const points = parsePolygonPoints(coordsJson) || [];
-    applyPathToPolygon(points, true);
+    applyPathToPolygon(points);
+    tryFitBounds();
   };
 
   // Keeps the map's shape in sync whenever coordsJson changes from the textarea (manual
@@ -231,7 +244,7 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
     if (!polygonRef.current) return;
     const points = parsePolygonPoints(coordsJson);
     if (points && points.length >= 3) {
-      applyPathToPolygon(points, false);
+      applyPathToPolygon(points);
     }
   }, [coordsJson]);
 
