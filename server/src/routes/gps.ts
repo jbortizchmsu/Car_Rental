@@ -1,11 +1,19 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
-import { createAdminNotification, createNotification } from '../lib/notifications';
-import { isPointInCircle, isPointInPolygon } from '../lib/negros-coords';
+import { createNotification } from '../lib/notifications';
+import { runGeofenceCheck } from '../lib/geofence-check';
 
 const router = Router();
+
+const MAX_BATCH_SIZE = 500;
+// Queued points on an already-returned/completed booking are still saved (for
+// historical trail completeness) as long as they were recorded within this many hours
+// of the booking's returnedAt — a device that was offline for a very long time
+// shouldn't be able to inject arbitrarily old, unverifiable location history.
+const RETURNED_BOOKING_GRACE_HOURS = 48;
 
 // Mobile: Update Location
 router.post('/location', authenticate, async (req: AuthRequest, res) => {
@@ -55,130 +63,170 @@ router.post('/location', authenticate, async (req: AuthRequest, res) => {
       customerName: req.user!.fullName
     });
 
-    // 4. Geofence Check
-    if (booking.geofenceActivatedAt && !booking.geofenceEndedAt) {
-      const zones = await prisma.geofenceZone.findMany({
-        where: {
-          isActive: true,
-          OR: [
-            { bookingId: booking.id },
-            { vehicleId: booking.vehicleId, bookingId: null },
-          ]
-        }
-      });
-
-      // Check if vehicle is outside ALL active geofence zones (circle OR polygon —
-      // being inside either one counts as "fine", only failing every zone is a
-      // breach). A booking released to a destination with a template now has BOTH
-      // a circle (enforcement) and a polygon (the real destination shape) zone, so
-      // we deliberately do NOT `break` on the first match — every zone is checked,
-      // both to confirm the OR-across-zones result and to detect a polygon-specific
-      // "arrived at destination" match below.
-      let isOutsideAllZones = zones.length > 0;
-      let arrivedZone: typeof zones[number] | null = null;
-      for (const zone of zones) {
-        if (
-          zone.centerLatitude !== null && zone.centerLongitude !== null && zone.radiusKm !== null
-        ) {
-          // Circle-based check (used for auto-created zones)
-          if (isPointInCircle(latitude, longitude, zone.centerLatitude, zone.centerLongitude, zone.radiusKm)) {
-            isOutsideAllZones = false;
-          }
-        }
-        // Polygon-based zones (no center/radius): real point-in-polygon containment check.
-        else {
-          let polygon: Array<{ lat: number; lng: number }> | null = null;
-          try {
-            const parsed = zone.polygonCoordinates ? JSON.parse(zone.polygonCoordinates) : null;
-            polygon = Array.isArray(parsed) ? parsed : null;
-          } catch (parseErr) {
-            console.error(`[Geofence] Failed to parse polygonCoordinates for zone ${zone.id}:`, parseErr);
-          }
-
-          // A zone we can't validate (malformed JSON, or fewer than 3 points) can't prove the
-          // vehicle is safe — err toward treating it as a potential breach rather than silently
-          // defaulting to "safe", since a false "safe" here is the exact gap this fix closes.
-          if (polygon && isPointInPolygon(latitude, longitude, polygon)) {
-            isOutsideAllZones = false;
-            arrivedZone = zone;
-          }
-        }
-      }
-
-      // "Arrived at destination" — fires once per booking, the first time a ping lands
-      // inside the destination POLYGON specifically (not the circle, which covers the
-      // whole route and would trigger on this the moment the trip starts). Reuses the
-      // existing GeofenceAlert table as a simple, no-schema-change way to track
-      // "already notified": a distinct alertType, created resolved:true so it never
-      // shows up as an outstanding item in the admin alerts list or the /live
-      // red-marker check (both of which only look at `resolved: false`). Leaving the
-      // polygon and re-entering does NOT re-trigger — the existence check below has
-      // no `resolved` filter, so the very first arrival record permanently satisfies it.
-      if (arrivedZone) {
-        const existingArrival = await prisma.geofenceAlert.findFirst({
-          where: { bookingId, alertType: 'ARRIVED_AT_DESTINATION' }
-        });
-
-        if (!existingArrival) {
-          const arrivalAlert = await prisma.geofenceAlert.create({
-            data: {
-              bookingId,
-              vehicleId,
-              trackingSessionId,
-              geofenceZoneId: arrivedZone.id,
-              message: `Vehicle ${booking.vehicle.licensePlate} has arrived at ${booking.destinationName || 'the destination'}.`,
-              latitude,
-              longitude,
-              alertType: 'ARRIVED_AT_DESTINATION',
-              severity: 'INFO',
-              resolved: true
-            }
-          });
-
-          await createAdminNotification(
-            'Vehicle Arrived at Destination',
-            `${booking.vehicle.brand} ${booking.vehicle.model} (${booking.vehicle.licensePlate}) has arrived at ${booking.destinationName || 'the destination'}.`
-          );
-
-          io.emit('geofence-alert-created', arrivalAlert);
-        }
-      }
-
-      if (isOutsideAllZones) {
-        // Prevent duplicate spam: only create a new alert if no unresolved one exists
-        const existingAlert = await prisma.geofenceAlert.findFirst({
-          where: { bookingId, alertType: 'OUT_OF_ZONE', resolved: false }
-        });
-
-        if (!existingAlert) {
-          const alert = await prisma.geofenceAlert.create({
-            data: {
-              bookingId,
-              vehicleId,
-              trackingSessionId,
-              geofenceZoneId: zones[0]?.id ?? null,
-              message: `Vehicle ${booking.vehicle.brand} ${booking.vehicle.model} is outside the allowed zone (Dest: ${booking.destinationName || 'Unknown'})!`,
-              latitude,
-              longitude,
-              alertType: 'OUT_OF_ZONE',
-              severity: 'CRITICAL'
-            }
-          });
-
-          await createAdminNotification(
-            'Geofence Breach',
-            `CRITICAL: ${booking.vehicle.brand} (${booking.vehicle.licensePlate}) is outside the allowed area near ${booking.destinationName || 'destination'}!`
-          );
-
-          io.emit('geofence-alert-created', alert);
-        }
-      }
-    }
+    // 4. Geofence Check — shared with the batch endpoint, see lib/geofence-check.ts
+    await runGeofenceCheck({
+      booking,
+      bookingId,
+      vehicleId,
+      trackingSessionId,
+      latitude,
+      longitude,
+    });
 
     res.status(201).json(location);
   } catch (error) {
     console.error('GPS Record Error:', error);
     res.status(500).json({ error: 'Failed to record location' });
+  }
+});
+
+interface BatchGpsPoint {
+  trackingSessionId?: string;
+  bookingId?: string;
+  vehicleId?: string;
+  latitude?: number;
+  longitude?: number;
+  speed?: number;
+  heading?: number;
+  accuracy?: number;
+  recordedAt?: string;
+}
+
+interface RejectedPoint {
+  point: BatchGpsPoint;
+  reason: string;
+}
+
+// Mobile: Batch-upload GPS points queued locally while offline. Reuses the exact same
+// per-point save + geofence-check logic as POST /location (via runGeofenceCheck) — the
+// only new behavior here is: accepting many points at once, processing them in
+// chronological order (not array order, since alert dedup correctness depends on
+// evaluating points in the order they actually happened), and tolerating a booking
+// that's no longer ACTIVE by the time a delayed point finally arrives.
+router.post('/location/batch', authenticate, async (req: AuthRequest, res) => {
+  const { points } = req.body as { points?: BatchGpsPoint[] };
+
+  if (!Array.isArray(points) || points.length === 0) {
+    return res.status(400).json({ error: 'points must be a non-empty array' });
+  }
+  if (points.length > MAX_BATCH_SIZE) {
+    return res.status(400).json({ error: `Batch too large — maximum ${MAX_BATCH_SIZE} points per request` });
+  }
+
+  const rejected: RejectedPoint[] = [];
+  let saved = 0;
+
+  try {
+    // Sort ascending by recordedAt — do not trust array order. A point with a
+    // missing/unparseable recordedAt is treated as invalid below, not sorted at all.
+    const sorted = [...points].sort((a, b) => {
+      const ta = a.recordedAt ? Date.parse(a.recordedAt) : NaN;
+      const tb = b.recordedAt ? Date.parse(b.recordedAt) : NaN;
+      return (isNaN(ta) ? 0 : ta) - (isNaN(tb) ? 0 : tb);
+    });
+
+    // Memoize booking lookups — in practice a single offline period produces points
+    // for exactly one booking, but points are validated independently regardless.
+    type BookingWithRelations = Prisma.BookingGetPayload<{ include: { trackingSession: true; vehicle: true } }>;
+    const bookingCache = new Map<string, BookingWithRelations | null>();
+
+    for (const point of sorted) {
+      const { trackingSessionId, bookingId, vehicleId, latitude, longitude, speed, heading, accuracy, recordedAt } = point;
+
+      if (!trackingSessionId || !bookingId || !vehicleId || typeof latitude !== 'number' || typeof longitude !== 'number' || !recordedAt || isNaN(Date.parse(recordedAt))) {
+        rejected.push({ point, reason: 'Malformed point — missing or invalid required field' });
+        continue;
+      }
+
+      try {
+        let booking = bookingCache.get(bookingId);
+        if (booking === undefined) {
+          booking = await prisma.booking.findUnique({
+            where: { id: bookingId },
+            include: { trackingSession: true, vehicle: true }
+          });
+          bookingCache.set(bookingId, booking);
+        }
+
+        if (!booking || booking.customerId !== req.user!.id) {
+          rejected.push({ point, reason: 'Booking not found or not owned by this user' });
+          continue;
+        }
+
+        const recordedAtDate = new Date(recordedAt);
+        let skipGeofenceCheck = false;
+
+        if (booking.status === 'ACTIVE' && booking.trackingSession?.isActive) {
+          // Normal case — identical to the single-point endpoint's own gate.
+        } else if (booking.returnedAt) {
+          // A legitimate backfilled point is normally recorded BEFORE returnedAt (the
+          // device was offline in the run-up to drop-off) — that difference is
+          // negative under (recordedAt - returnedAt), which is why this compares the
+          // absolute difference, not a one-sided one. Anything more than the grace
+          // window away from the return moment, in either direction, is too stale/
+          // implausible to trust as this booking's real trail data.
+          const hoursFromReturn = Math.abs(recordedAtDate.getTime() - booking.returnedAt.getTime()) / (1000 * 60 * 60);
+          if (hoursFromReturn > RETURNED_BOOKING_GRACE_HOURS) {
+            rejected.push({ point, reason: `Booking already returned — point outside the ${RETURNED_BOOKING_GRACE_HOURS}-hour grace window` });
+            continue;
+          }
+          // Within the grace window: save for historical trail completeness, but an
+          // already-returned vehicle shouldn't generate breach/arrival alerts.
+          skipGeofenceCheck = true;
+        } else {
+          rejected.push({ point, reason: `Tracking is not active for this booking (status: ${booking.status})` });
+          continue;
+        }
+
+        const location = await prisma.vehicleLocation.create({
+          data: {
+            trackingSessionId,
+            bookingId,
+            vehicleId,
+            customerId: req.user!.id,
+            latitude,
+            longitude,
+            speed,
+            heading,
+            accuracy,
+            recordedAt: recordedAtDate
+          }
+        });
+
+        io.emit('vehicle-location-updated', {
+          bookingId,
+          vehicleId,
+          trackingSessionId,
+          latitude,
+          longitude,
+          speed,
+          heading,
+          recordedAt: location.recordedAt,
+          customerName: req.user!.fullName
+        });
+
+        if (!skipGeofenceCheck) {
+          await runGeofenceCheck({
+            booking,
+            bookingId,
+            vehicleId,
+            trackingSessionId,
+            latitude,
+            longitude,
+          });
+        }
+
+        saved++;
+      } catch (pointErr) {
+        console.error('[GPS Batch] Failed to process point:', pointErr);
+        rejected.push({ point, reason: 'Internal error while processing this point' });
+      }
+    }
+
+    res.status(201).json({ saved, rejected });
+  } catch (error) {
+    console.error('GPS Batch Record Error:', error);
+    res.status(500).json({ error: 'Failed to record batch' });
   }
 });
 

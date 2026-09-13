@@ -104,6 +104,7 @@ export const notificationsApi = {
 
 export const gpsApi = {
   sendLocation: (data: any) => api.post('/gps/location', data),
+  sendLocationBatch: (points: any[]) => api.post('/gps/location/batch', { points }),
 };
 
 export const customerApi = {

@@ -13,6 +13,8 @@ import * as Location from 'expo-location';
 import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X, Eye, EyeOff } from 'lucide-react-native';
 import api, { authApi, bookingsApi, gpsApi, notificationsApi, customerApi } from './src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { enqueue as enqueueGpsPoint } from './src/services/gpsQueue';
+import { startGpsSyncListener } from './src/services/gpsSync';
 
 // New screen imports
 import BookingsListScreen from './src/screens/BookingsListScreen';
@@ -142,20 +144,32 @@ const HomeScreen = () => {
             { accuracy: Location.Accuracy.Balanced, timeInterval: 15000, distanceInterval: 30 },
             async (location) => {
               setLastLocation(location);
+              const point = {
+                trackingSessionId: trackingSession.id,
+                bookingId: activeBooking.id,
+                vehicleId: activeBooking.vehicleId,
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                speed: location.coords.speed,
+                heading: location.coords.heading,
+                accuracy: location.coords.accuracy,
+                recordedAt: new Date(location.timestamp).toISOString(),
+              };
               try {
-                await gpsApi.sendLocation({
-                  trackingSessionId: trackingSession.id,
-                  bookingId: activeBooking.id,
-                  vehicleId: activeBooking.vehicleId,
-                  latitude: location.coords.latitude,
-                  longitude: location.coords.longitude,
-                  speed: location.coords.speed,
-                  heading: location.coords.heading,
-                  accuracy: location.coords.accuracy,
-                  recordedAt: new Date(location.timestamp).toISOString(),
-                });
-              } catch (err) {
-                console.error('GPS Upload Error:', err);
+                await gpsApi.sendLocation(point);
+              } catch (err: any) {
+                // No response received at all (offline, timeout, DNS failure, etc.) is a
+                // genuine connectivity failure — queue the point locally for later sync.
+                // A response WAS received (e.g. a 400 from a legitimate server-side
+                // rejection) means the server is reachable and actively rejected this
+                // point — that's not a connectivity problem, so it must NOT be queued/
+                // retried, exactly like it wasn't retried before this feature existed.
+                if (!err?.response) {
+                  console.error('GPS Upload Error (offline — point queued):', err);
+                  await enqueueGpsPoint(point);
+                } else {
+                  console.error('GPS Upload Error (server rejected — not queued):', err);
+                }
               }
             }
           );
@@ -169,6 +183,16 @@ const HomeScreen = () => {
     startTracking();
     return () => locationSubscription?.remove();
   }, [activeBooking, trackingSession]);
+
+  // GPS offline-queue sync: listens for connectivity coming back online and for the
+  // app returning to the foreground, flushing any locally-queued points via the batch
+  // endpoint. Independent of whether a booking is currently active/loaded yet, so a
+  // queue left over from a previous session (e.g. app was force-closed while offline)
+  // still gets a chance to flush as soon as the app starts back up.
+  useEffect(() => {
+    const stopSyncListener = startGpsSyncListener();
+    return () => stopSyncListener();
+  }, []);
 
   useEffect(() => {
     fetchActiveBooking();
