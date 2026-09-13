@@ -12,8 +12,7 @@ import {
   BarChart3, 
   LogOut,
   Wrench,
-  Settings,
-  ShieldAlert
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -34,7 +33,6 @@ const Sidebar: React.FC = () => {
     { path: '/admin/dynamic-pricing', icon: DollarSign, label: 'Dynamic Pricing' },
     { path: '/admin/gps-tracking', icon: Navigation, label: 'GPS Tracking' },
     { path: '/admin/map-dashboard', icon: MapIcon, label: 'Map Dashboard', alternates: ['/admin/live-map'] },
-    { path: '/admin/geofences', icon: ShieldAlert, label: 'Geofence Zones' },
     { path: '/admin/payments', icon: CreditCard, label: 'Payments Ledger', alternates: ['/admin/payment-verification'] },
     { path: '/admin/reports', icon: BarChart3, label: 'Reports & Analytics' },
     { path: '/admin/user-roles', icon: Shield, label: 'User Roles' },
