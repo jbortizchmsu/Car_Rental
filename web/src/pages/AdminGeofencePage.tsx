@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { adminApi, vehiclesApi } from '../services/api';
+import { GoogleMap, Polygon } from '@react-google-maps/api';
+import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import {
   Shield, Trash2, Pencil, Plus,
   Car, Info, Loader2, MapPin,
@@ -9,6 +11,28 @@ import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
+
+// Same fallback shop region used by AdminLiveMapPage when no Default Map Center has
+// been configured in Admin Settings — reused here so a brand-new zone starts near the
+// actual operating area instead of a generic Manila square.
+const DEFAULT_MAP_CENTER = {
+  lat: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LAT || '10.3000'),
+  lng: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LNG || '123.0000'),
+};
+// A small (~6km-wide) starter square around that center for CREATE mode — gives the
+// admin an immediately visible, draggable shape rather than an empty map with no way
+// to add brand-new standalone vertices (the editable Polygon only supports dragging
+// existing vertices / dragging the whole shape / right-click-removing a vertex; adding
+// vertices beyond a starting shape isn't supported without a separate DrawingManager,
+// which was judged unnecessary complexity for this — the textarea remains available
+// for precise/manual coordinate entry).
+const STARTER_SQUARE = [
+  { lat: DEFAULT_MAP_CENTER.lat + 0.03, lng: DEFAULT_MAP_CENTER.lng - 0.03 },
+  { lat: DEFAULT_MAP_CENTER.lat + 0.03, lng: DEFAULT_MAP_CENTER.lng + 0.03 },
+  { lat: DEFAULT_MAP_CENTER.lat - 0.03, lng: DEFAULT_MAP_CENTER.lng + 0.03 },
+  { lat: DEFAULT_MAP_CENTER.lat - 0.03, lng: DEFAULT_MAP_CENTER.lng - 0.03 },
+];
+const STARTER_SQUARE_JSON = JSON.stringify(STARTER_SQUARE, null, 2);
 
 interface Geofence {
   id: string;
@@ -55,11 +79,25 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState('');
-  const [coordsJson, setCoordsJson] = useState('[\n  {"lat": 14.5995, "lng": 120.9842},\n  {"lat": 14.6760, "lng": 121.0437},\n  {"lat": 14.5547, "lng": 121.0244}\n]');
+  const [coordsJson, setCoordsJson] = useState(STARTER_SQUARE_JSON);
   const [saving, setSaving] = useState(false);
 
   const toast = useToast();
   const { setPageHeader } = usePageHeader();
+  const { isLoaded: mapsLoaded, loadError: mapsLoadError } = useGoogleMaps();
+
+  // Map + Polygon instance refs (uncontrolled — path is pushed to the Polygon
+  // imperatively instead of via a reactive `path` prop, so we fully control when
+  // setPath() runs and never fight the map's own vertex-drag mutations).
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const polygonRef = useRef<google.maps.Polygon | null>(null);
+  // google.maps.MapsEventListener handles for the current path's set_at/insert_at/
+  // remove_at listeners, so they can be cleanly removed before attaching new ones
+  // whenever the path is replaced (manual textarea edit or modal open).
+  const pathListenersRef = useRef<google.maps.MapsEventListener[]>([]);
+  // Guards against the map->textarea sync effect re-parsing and re-applying its own
+  // just-emitted JSON back onto the polygon (which would fight an in-progress drag).
+  const syncingFromMapRef = useRef(false);
 
   // Delete/deactivate confirmation — shared for both ordinary zones (unchanged
   // behavior) and destination-template zones (extra warning text appended).
@@ -106,7 +144,7 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
     setEditingId(null);
     setName('');
     setSelectedVehicle('');
-    setCoordsJson('[\n  {"lat": 14.5995, "lng": 120.9842},\n  {"lat": 14.6760, "lng": 121.0437},\n  {"lat": 14.5547, "lng": 121.0244}\n]');
+    setCoordsJson(STARTER_SQUARE_JSON);
     setIsModalOpen(true);
   };
 
@@ -130,7 +168,72 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
     if (saving) return;
     setIsModalOpen(false);
     setEditingId(null);
+    mapRef.current = null;
+    polygonRef.current = null;
   };
+
+  // Replaces the polygon's live path (a fresh google.maps.MVCArray) and re-attaches the
+  // set_at/insert_at/remove_at listeners to it — the old listeners stay bound to the
+  // discarded MVCArray and are removed first so they can't pile up across edits.
+  const attachPathListeners = (path: google.maps.MVCArray<google.maps.LatLng>) => {
+    pathListenersRef.current.forEach(l => l.remove());
+    pathListenersRef.current = [
+      path.addListener('set_at', syncPathToTextarea),
+      path.addListener('insert_at', syncPathToTextarea),
+      path.addListener('remove_at', syncPathToTextarea),
+    ];
+  };
+
+  const applyPathToPolygon = (points: Array<{ lat: number; lng: number }>, fitBounds = false) => {
+    if (!polygonRef.current || !window.google) return;
+    const path = new window.google.maps.MVCArray(
+      points.map(p => new window.google.maps.LatLng(p.lat, p.lng))
+    );
+    polygonRef.current.setPath(path);
+    attachPathListeners(path);
+    if (fitBounds && mapRef.current && points.length > 0) {
+      const bounds = new window.google.maps.LatLngBounds();
+      points.forEach(p => bounds.extend(p));
+      mapRef.current.fitBounds(bounds, 40);
+    }
+  };
+
+  // Reads the polygon's current path (after a vertex drag/add/remove) back into the same
+  // coordsJson state the textarea renders — the one source of truth handleSave reads from.
+  const syncPathToTextarea = () => {
+    if (!polygonRef.current) return;
+    const points = polygonRef.current.getPath().getArray().map(latLng => ({
+      lat: Number(latLng.lat().toFixed(6)),
+      lng: Number(latLng.lng().toFixed(6)),
+    }));
+    syncingFromMapRef.current = true;
+    setCoordsJson(JSON.stringify(points, null, 2));
+  };
+
+  const onMapLoad = (map: google.maps.Map) => {
+    mapRef.current = map;
+  };
+
+  const onPolygonLoad = (polygon: google.maps.Polygon) => {
+    polygonRef.current = polygon;
+    const points = parsePolygonPoints(coordsJson) || [];
+    applyPathToPolygon(points, true);
+  };
+
+  // Keeps the map's shape in sync whenever coordsJson changes from the textarea (manual
+  // edit) — but not when the change originated from the map itself (a drag), which would
+  // otherwise immediately setPath() over the in-progress gesture.
+  useEffect(() => {
+    if (syncingFromMapRef.current) {
+      syncingFromMapRef.current = false;
+      return;
+    }
+    if (!polygonRef.current) return;
+    const points = parsePolygonPoints(coordsJson);
+    if (points && points.length >= 3) {
+      applyPathToPolygon(points, false);
+    }
+  }, [coordsJson]);
 
   const handleSave = async () => {
     try {
@@ -370,11 +473,45 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>Polygon Coordinates (JSON)</label>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>Zone Shape</label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: '#6B7280', marginBottom: '0.5rem' }}>
+                  <Info size={14} />
+                  <span>Drag a corner to reshape the zone. Right-click a corner to remove it.</span>
+                </div>
+                {mapsLoadError ? (
+                  <div style={{ padding: '1rem', borderRadius: '10px', backgroundColor: '#FEF2F2', color: '#991B1B', fontSize: '0.85rem' }}>
+                    Map failed to load — use the JSON field below to edit this zone's shape instead.
+                  </div>
+                ) : !mapsLoaded ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem', backgroundColor: '#F9FAFB', borderRadius: '10px' }}>
+                    <Loader2 className="animate-spin" size={24} color="var(--warm-taupe)" />
+                  </div>
+                ) : (
+                  <GoogleMap
+                    mapContainerStyle={{ width: '100%', height: '300px', borderRadius: '10px' }}
+                    center={DEFAULT_MAP_CENTER}
+                    zoom={12}
+                    onLoad={onMapLoad}
+                    options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+                  >
+                    <Polygon
+                      onLoad={onPolygonLoad}
+                      editable
+                      draggable
+                      onDragEnd={syncPathToTextarea}
+                      onMouseUp={syncPathToTextarea}
+                      options={{ fillColor: '#8B5CF6', fillOpacity: 0.2, strokeColor: '#6D28D9', strokeWeight: 2 }}
+                    />
+                  </GoogleMap>
+                )}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>Advanced / Manual Edit (JSON)</label>
                 <div style={{ backgroundColor: '#F8F9FA', padding: '1rem', borderRadius: '10px', marginBottom: '0.5rem', border: '1px solid #E5E7EB' }}>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: '#6B7280' }}>
                     <Info size={14} />
-                    <span>Enter an array of latitude/longitude objects.</span>
+                    <span>Stays in sync with the map above. Edit directly for precise coordinates.</span>
                   </div>
                 </div>
                 <textarea
