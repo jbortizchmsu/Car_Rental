@@ -20,6 +20,7 @@ import AdminDynamicPricingPage from './pages/AdminDynamicPricingPage';
 import AdminGpsTrackingPage from './pages/AdminGpsTrackingPage';
 import AdminUserRolesPage from './pages/AdminUserRolesPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
+import AdminGeofencePage from './pages/AdminGeofencePage';
 import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -86,6 +87,7 @@ function App() {
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="user-roles" element={<AdminUserRolesPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
+            <Route path="geofences" element={<AdminGeofencePage />} />
 
             {/* Redirects for backward compatibility */}
             <Route path="vehicles" element={<Navigate to="/admin/fleet" replace />} />
@@ -94,8 +96,7 @@ function App() {
             <Route path="live-map" element={<Navigate to="/admin/map-dashboard" replace />} />
             <Route path="pickup" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="active-rentals" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="geofences" element={<Navigate to="/admin/map-dashboard" replace />} />
-            
+
             <Route index element={<AdminDashboard />} />
             <Route path="*" element={<AdminDashboard />} />
           </Route>

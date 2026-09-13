@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Shield, Bell, Save, Loader2, CreditCard, MapPin, Navigation, AlertCircle, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Settings, Shield, Bell, Save, Loader2, CreditCard, MapPin, Navigation, AlertCircle, CheckCircle, ShieldAlert, ArrowRight } from 'lucide-react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { settingsApi, adminApi, getApiErrorMessage } from '../services/api';
@@ -52,6 +53,7 @@ type SettingsKey = keyof typeof DEFAULT_SETTINGS;
 const AdminSettingsPage: React.FC = () => {
   const { setPageHeader } = usePageHeader();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
@@ -961,6 +963,29 @@ const AdminSettingsPage: React.FC = () => {
         >
           {saving === 'security' ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={18} />}
           Save Changes
+        </button>
+      </div>
+
+      {/* Geofence Zones — links out to the dedicated management page rather than
+          duplicating its CRUD/edit logic inline (this page has no tab pattern to
+          host it as a section, so a clear link card is the least-disruptive fit). */}
+      <div className="card" style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{ backgroundColor: 'var(--soft-beige)', padding: '0.75rem', borderRadius: '12px' }}>
+            <ShieldAlert size={24} color="var(--warm-taupe)" />
+          </div>
+          <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Geofence Zones</h3>
+        </div>
+        <p style={{ color: 'var(--gray-500)', marginBottom: '1.5rem' }}>
+          Manage the geofence boundaries used for vehicle tracking and destination alerts —
+          including the imported destination-template zones and any manually-defined zones.
+        </p>
+        <button
+          className="btn btn-brand"
+          onClick={() => navigate('/admin/geofences')}
+          style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
+          Manage Geofence Zones <ArrowRight size={18} />
         </button>
       </div>
     </div>
