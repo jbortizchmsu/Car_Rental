@@ -6,6 +6,7 @@ import { usePageHeader } from '../contexts/PageHeaderContext';
 import { settingsApi, adminApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
+import AdminGeofencePage from './AdminGeofencePage';
 
 // Default settings values
 const DEFAULT_SETTINGS = {
@@ -966,27 +967,33 @@ const AdminSettingsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Geofence Zones — links out to the dedicated management page rather than
-          duplicating its CRUD/edit logic inline (this page has no tab pattern to
-          host it as a section, so a clear link card is the least-disruptive fit). */}
+      {/* Geofence Zones — the full management UI (AdminGeofencePage) rendered inline,
+          `embedded` so it doesn't overwrite this page's own header (both components
+          read/write the same shared PageHeaderContext). The standalone /admin/geofences
+          route + sidebar entry are kept as-is; this is an additional access path, not
+          a replacement for it. */}
       <div className="card" style={{ padding: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-          <div style={{ backgroundColor: 'var(--soft-beige)', padding: '0.75rem', borderRadius: '12px' }}>
-            <ShieldAlert size={24} color="var(--warm-taupe)" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ backgroundColor: 'var(--soft-beige)', padding: '0.75rem', borderRadius: '12px' }}>
+              <ShieldAlert size={24} color="var(--warm-taupe)" />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Geofence Zones</h3>
+              <p style={{ margin: '0.25rem 0 0 0', color: 'var(--gray-500)', fontSize: '0.9rem' }}>
+                Manage tracking boundaries and destination-template zones.
+              </p>
+            </div>
           </div>
-          <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Geofence Zones</h3>
+          <button
+            onClick={() => navigate('/admin/geofences')}
+            style={{ background: 'none', border: 'none', color: 'var(--warm-taupe)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+          >
+            Open full page <ArrowRight size={14} />
+          </button>
         </div>
-        <p style={{ color: 'var(--gray-500)', marginBottom: '1.5rem' }}>
-          Manage the geofence boundaries used for vehicle tracking and destination alerts —
-          including the imported destination-template zones and any manually-defined zones.
-        </p>
-        <button
-          className="btn btn-brand"
-          onClick={() => navigate('/admin/geofences')}
-          style={{ padding: '0.75rem 1.5rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          Manage Geofence Zones <ArrowRight size={18} />
-        </button>
+
+        <AdminGeofencePage embedded />
       </div>
     </div>
   );

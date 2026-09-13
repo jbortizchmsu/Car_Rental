@@ -36,7 +36,16 @@ function parsePolygonPoints(raw: string): Array<{ lat: number; lng: number }> | 
   }
 }
 
-const AdminGeofencePage: React.FC = () => {
+interface AdminGeofencePageProps {
+  /** When true (e.g. rendered inline inside AdminSettingsPage), skips setting the
+   * top-level admin page header — otherwise this component's own "Geofence
+   * Management" title would overwrite whichever page it's embedded in (both read/write
+   * the same shared PageHeaderContext). The component is otherwise fully self-contained
+   * (no route params, no router dependency) and safe to render as a plain child. */
+  embedded?: boolean;
+}
+
+const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false }) => {
   const [geofences, setGeofences] = useState<Geofence[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,12 +72,13 @@ const AdminGeofencePage: React.FC = () => {
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (embedded) return;
     setPageHeader({
       title: 'Geofence Management',
       subtitle: 'Define operational zones and location boundaries'
     });
     return () => setPageHeader({});
-  }, [setPageHeader]);
+  }, [setPageHeader, embedded]);
 
   useEffect(() => {
     fetchData();
