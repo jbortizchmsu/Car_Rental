@@ -249,6 +249,14 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
         </div>
       )}
 
+      {/* When embedded (inside AdminSettingsPage's collapsible card), the list scrolls
+          within a fixed-height box instead of growing Settings' total page length —
+          the "Create New Zone" button above stays outside this box, always visible.
+          The standalone /admin/geofences page keeps its normal unconstrained layout
+          (no maxHeight/overflow), exactly as before. Plain overflow-y: auto here does
+          NOT establish a new CSS containing block (only transform/filter/will-change
+          do), so the modals' position: fixed behavior below is unaffected either way. */}
+      <div style={embedded ? { maxHeight: '550px', overflowY: 'auto', paddingRight: '0.5rem' } : undefined}>
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
           <Loader2 className="animate-spin" size={48} color="var(--warm-taupe)" />
@@ -324,6 +332,7 @@ const AdminGeofencePage: React.FC<AdminGeofencePageProps> = ({ embedded = false 
           })}
         </div>
       )}
+      </div>
 
       {/* Create/Edit Modal */}
       {isModalOpen && (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Shield, Bell, Save, Loader2, CreditCard, MapPin, Navigation, AlertCircle, CheckCircle, ShieldAlert, ArrowRight } from 'lucide-react';
+import { Settings, Shield, Bell, Save, Loader2, CreditCard, MapPin, Navigation, AlertCircle, CheckCircle, ShieldAlert, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { settingsApi, adminApi, getApiErrorMessage } from '../services/api';
@@ -72,6 +72,20 @@ const AdminSettingsPage: React.FC = () => {
   const [detectingGps, setDetectingGps] = useState(false);
   const [locationStatusMessage, setLocationStatusMessage] = useState<string | null>(null);
   const [locationStatusType, setLocationStatusType] = useState<'info' | 'error' | 'success' | null>(null);
+
+  // Geofence Zones section is collapsed by default (56+ zones make Settings very
+  // long otherwise) — the count is fetched independently and lightly, just for the
+  // toggle label, so it's visible even before the admin expands the full embedded UI.
+  // AdminGeofencePage itself is only mounted while expanded, so it doesn't fetch/hold
+  // the full zone list at all until the admin actually opens the section.
+  const [geofenceSectionExpanded, setGeofenceSectionExpanded] = useState(false);
+  const [geofenceCount, setGeofenceCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    adminApi.getGeofences()
+      .then(({ data }) => setGeofenceCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => setGeofenceCount(null)); // toggle just falls back to no count shown
+  }, []);
 
   const { isLoaded, loadError } = useGoogleMaps();
 
@@ -993,7 +1007,31 @@ const AdminSettingsPage: React.FC = () => {
           </button>
         </div>
 
-        <AdminGeofencePage embedded />
+        <button
+          onClick={() => setGeofenceSectionExpanded((v) => !v)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.75rem 1rem',
+            borderRadius: '10px',
+            border: '1px solid var(--gray-200)',
+            backgroundColor: 'var(--gray-50)',
+            fontWeight: 700,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            marginBottom: geofenceSectionExpanded ? '1.5rem' : 0,
+          }}
+        >
+          <span>
+            {geofenceSectionExpanded ? 'Hide' : 'Show'} Geofence Zones
+            {geofenceCount !== null ? ` (${geofenceCount})` : ''}
+          </span>
+          {geofenceSectionExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+
+        {geofenceSectionExpanded && <AdminGeofencePage embedded />}
       </div>
     </div>
   );
