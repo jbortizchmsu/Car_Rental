@@ -22,14 +22,54 @@ import BookingDetailScreen from './src/screens/BookingDetailScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import VehiclesScreen from './src/screens/VehiclesScreen';
 import BookingFormScreen from './src/screens/BookingFormScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
 import { bookingFormStatus } from './src/services/bookingState';
+import { useGoogleIdTokenAuthRequest, isGoogleSignInConfigured } from './src/services/googleAuth';
 
-const LoginScreen = ({ onLogin }: any) => {
+const LoginScreen = ({ onLogin, navigation }: any) => {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Rules of hooks: this must always be called, even while unconfigured — the button
+  // itself is what's conditionally rendered (via isGoogleSignInConfigured), not this call.
+  const [googleRequest, googleResponse, promptGoogleSignIn] = useGoogleIdTokenAuthRequest();
+
+  async function handleGoogleIdToken(idToken: string) {
+    setGoogleLoading(true);
+    try {
+      const response = await authApi.google(idToken);
+      const { token, user } = response.data;
+      await AsyncStorage.setItem('jd_token', token);
+      await AsyncStorage.setItem('jd_user', JSON.stringify(user));
+      onLogin(user);
+    } catch (error: any) {
+      if (!error.response) {
+        Alert.alert('Google Sign-In Failed', 'Cannot connect to server. Check your connection and try again.');
+      } else {
+        Alert.alert('Google Sign-In Failed', error.response?.data?.error || 'An unexpected error occurred.');
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const idToken = googleResponse.params?.id_token;
+      if (idToken) {
+        handleGoogleIdToken(idToken);
+      } else {
+        Alert.alert('Google Sign-In Failed', 'No ID token was returned. Please try again.');
+      }
+    } else if (googleResponse?.type === 'error') {
+      Alert.alert('Google Sign-In Failed', 'Something went wrong during sign-in. Please try again.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleResponse]);
 
   async function signInWithEmail() {
     if (!email || !password) {
@@ -88,6 +128,32 @@ const LoginScreen = ({ onLogin }: any) => {
               </View>
               <TouchableOpacity style={styles.button} disabled={loading} onPress={signInWithEmail}>
                 {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Login</Text>}
+              </TouchableOpacity>
+
+              {isGoogleSignInConfigured && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 20 }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+                    <Text style={{ marginHorizontal: 10, color: '#958786', fontSize: 13 }}>or</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.button, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', marginTop: 20, flexDirection: 'row', gap: 10 }]}
+                    disabled={!googleRequest || googleLoading}
+                    onPress={() => promptGoogleSignIn()}
+                  >
+                    {googleLoading
+                      ? <ActivityIndicator color="#AD9B8D" />
+                      : <Text style={{ color: '#1A1A1A', fontSize: 16, fontWeight: '600' }}>Sign in with Google</Text>}
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <TouchableOpacity onPress={() => navigation.navigate('Register')} style={{ marginTop: 20 }}>
+                <Text style={{ color: '#958786', fontSize: 14, textAlign: 'center' }}>
+                  Don't have an account? <Text style={{ color: '#AD9B8D', fontWeight: '700' }}>Register</Text>
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -508,6 +574,7 @@ export default function App() {
             <AuthStack.Screen name="Login">
               {(props) => <LoginScreen {...props} onLogin={(u: any) => setUser(u)} />}
             </AuthStack.Screen>
+            <AuthStack.Screen name="Register" component={RegisterScreen} />
           </AuthStack.Navigator>
         )}
       </NavigationContainer>
