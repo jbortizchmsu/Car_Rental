@@ -11,6 +11,20 @@ jest.mock('../../lib/prisma', () => ({
 
 jest.mock('bcrypt');
 
+// google-auth-library's real OAuth2Client makes network calls to Google's public keys
+// to verify a token's signature — entirely untestable without a real, live-signed
+// Google ID token, which this environment cannot produce. Mocking verifyIdToken lets
+// these tests deterministically exercise the linking/rejection/creation branches in
+// POST /auth/google that a real token would otherwise select, without touching the
+// network or trusting an unverified payload. The route's own signature-verification
+// CALL is what's mocked here, not skipped — a real deployment still always calls it.
+const verifyIdTokenMock = jest.fn();
+jest.mock('google-auth-library', () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({
+    verifyIdToken: verifyIdTokenMock,
+  })),
+}));
+
 // auth.ts also imports sendVerificationEmail/sendPasswordResetEmail from lib/email.ts, which
 // constructs a real Resend client at module-load time. jest.setup.ts sets a placeholder
 // RESEND_API_KEY so that module-load no longer crashes (see the auth login round's findings),
@@ -266,5 +280,163 @@ describe('POST /api/auth/register', () => {
     expect(res.body).not.toHaveProperty('passwordHash');
     expect(JSON.stringify(res.body)).not.toContain('hashed-password-value');
     expect(JSON.stringify(res.body)).not.toContain(validPayload.password);
+  });
+});
+
+describe('POST /api/auth/google', () => {
+  const validPayload = {
+    sub: 'google-sub-999',
+    email: 'googleuser@example.com',
+    email_verified: true,
+    name: 'Google User',
+  };
+
+  beforeEach(() => {
+    verifyIdTokenMock.mockReset();
+  });
+
+  test('missing idToken → 400, never calls verifyIdToken', async () => {
+    const res = await request(app).post('/api/auth/google').send({});
+
+    expect(res.status).toBe(400);
+    expect(verifyIdTokenMock).not.toHaveBeenCalled();
+  });
+
+  test('token fails verification (e.g. bad signature/expired) → 401, does not crash, does not touch the database', async () => {
+    verifyIdTokenMock.mockRejectedValue(new Error('Token used too late'));
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'whatever' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('Google sign-in failed. Please try again.');
+    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+  });
+
+  test('verified payload, existing user already linked by googleId → 200, returning-user path, no create/update-link', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    const linkedUser = makeUser({ id: 'user-linked', email: validPayload.email, googleId: validPayload.sub, passwordHash: null });
+    prismaMock.user.findUnique.mockResolvedValueOnce(linkedUser); // findUnique({ where: { googleId } })
+    prismaMock.user.update.mockResolvedValue(linkedUser); // lastLoginAt update
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    expect(res.status).toBe(200);
+    expect(typeof res.body.token).toBe('string');
+    expect(res.body.user).toEqual({
+      id: linkedUser.id, email: linkedUser.email, fullName: linkedUser.fullName, role: linkedUser.role,
+    });
+    expect(prismaMock.user.findUnique).toHaveBeenCalledTimes(1);
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+  });
+
+  test('verified payload, no user by googleId, existing VERIFIED account with same email → links (sets googleId), does not create a duplicate', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    const existing = makeUser({ id: 'user-existing-verified', email: validPayload.email, emailVerified: true, googleId: null });
+    const linked = { ...existing, googleId: validPayload.sub };
+
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // by googleId — not found
+      .mockResolvedValueOnce(existing); // by email — found, verified
+    prismaMock.user.update
+      .mockResolvedValueOnce(linked) // the googleId-link update
+      .mockResolvedValueOnce(linked); // the lastLoginAt update
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: existing.id },
+      data: { googleId: validPayload.sub },
+    });
+    expect(res.body.user.email).toBe(validPayload.email);
+  });
+
+  test('verified payload, no user by googleId, existing UNVERIFIED account with same email → 409, does NOT link, does NOT create', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    const existingUnverified = makeUser({ id: 'user-existing-unverified', email: validPayload.email, emailVerified: false, googleId: null });
+
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // by googleId
+      .mockResolvedValueOnce(existingUnverified); // by email
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('EXISTING_UNVERIFIED_ACCOUNT');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(prismaMock.user.create).not.toHaveBeenCalled();
+  });
+
+  test('verified payload, no user by googleId, no user by email → creates a new user with passwordHash: null, emailVerified: true, role: customer', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    const created = makeUser({
+      id: 'user-new-google', email: validPayload.email, fullName: validPayload.name,
+      googleId: validPayload.sub, passwordHash: null, emailVerified: true, role: 'customer',
+    });
+
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // by googleId
+      .mockResolvedValueOnce(null); // by email
+    prismaMock.user.create.mockResolvedValue(created);
+    prismaMock.user.update.mockResolvedValue(created); // lastLoginAt update
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.user.create).toHaveBeenCalledWith({
+      data: {
+        email: validPayload.email,
+        fullName: validPayload.name,
+        googleId: validPayload.sub,
+        passwordHash: null,
+        emailVerified: true,
+        role: 'customer',
+        authProvider: 'google',
+      },
+    });
+    expect(res.body.user).toEqual({
+      id: created.id, email: created.email, fullName: created.fullName, role: created.role,
+    });
+    const decoded = jwt.verify(res.body.token, JWT_SECRET) as any;
+    expect(decoded.id).toBe(created.id);
+    expect(decoded.role).toBe('customer');
+  });
+
+  test('verified payload but email_verified: false on the Google token itself → 401, never touches the database', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => ({ ...validPayload, email_verified: false }) });
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  test('GOOGLE_CLIENT_ID unconfigured → 503, and this must NEVER prevent the module from loading or other routes from working', async () => {
+    // Deliberately re-imports the route module with GOOGLE_CLIENT_ID deleted, proving the
+    // unconfigured case is a clean per-request 503 — not a throw at import time (which would
+    // take down every other route mounted alongside it, e.g. /login, /register).
+    const originalValue = process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_ID;
+    jest.resetModules();
+
+    const freshApp = express();
+    freshApp.set('trust proxy', 1);
+    freshApp.use(express.json());
+    const freshAuthRouter = require('../auth').default;
+    freshApp.use('/api/auth', freshAuthRouter);
+
+    const googleRes = await request(freshApp).post('/api/auth/google').send({ idToken: 'whatever' });
+    expect(googleRes.status).toBe(503);
+
+    // The rest of the router — mounted from the SAME fresh import — must still work normally.
+    prismaMock.user.findUnique.mockResolvedValue(null);
+    const loginRes = await request(freshApp).post('/api/auth/login').send({ email: 'x@example.com', password: 'y' });
+    expect(loginRes.status).toBe(401);
+    expect(loginRes.body.error).toBe('Invalid credentials');
+
+    process.env.GOOGLE_CLIENT_ID = originalValue;
+    jest.resetModules();
   });
 });

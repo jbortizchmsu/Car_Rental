@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Globe, MessageCircle } from 'lucide-react';
 
 const Footer: React.FC = () => {
@@ -27,8 +28,8 @@ const Footer: React.FC = () => {
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <li><a href="#" style={{ color: 'var(--muted-mauve)' }}>About Us</a></li>
               <li><a href="#" style={{ color: 'var(--muted-mauve)' }}>Our Fleet</a></li>
-              <li><a href="#" style={{ color: 'var(--muted-mauve)' }}>Terms of Service</a></li>
-              <li><a href="#" style={{ color: 'var(--muted-mauve)' }}>Privacy Policy</a></li>
+              <li><Link to="/terms-of-service" style={{ color: 'var(--muted-mauve)' }}>Terms of Service</Link></li>
+              <li><Link to="/privacy-policy" style={{ color: 'var(--muted-mauve)' }}>Privacy Policy</Link></li>
             </ul>
           </div>
 

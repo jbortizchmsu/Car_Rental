@@ -3,13 +3,20 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
+import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { JWT_SECRET } from '../lib/config';
+import { JWT_SECRET, GOOGLE_CLIENT_ID } from '../lib/config';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/email';
 import { registerSchema } from '../lib/validation';
 
 const router = Router();
+
+// Built once at module load from whatever GOOGLE_CLIENT_ID currently holds (undefined
+// if unset — OAuth2Client accepts that fine, it just never validates an audience,
+// which is why POST /auth/google below separately re-checks GOOGLE_CLIENT_ID itself
+// before ever calling verifyIdToken).
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -45,6 +52,15 @@ const emailStatusLimiter = rateLimit({
   message: { error: 'Too many status checks. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
+});
+
+const googleAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many sign-in attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
 
 const forgotPasswordLimiter = rateLimit({
@@ -139,7 +155,13 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Your account has been disabled. Please contact the administrator.' });
     }
 
-    const validPassword = await bcrypt.compare(password, user.passwordHash);
+    // A Google-only account (created via POST /auth/google) has passwordHash: null —
+    // bcrypt.compare(x, null) would throw, so short-circuit to the same generic
+    // rejection every other invalid-credentials case returns, rather than crash or
+    // reveal that this email is a Google-only account.
+    const validPassword = user.passwordHash
+      ? await bcrypt.compare(password, user.passwordHash)
+      : false;
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -166,6 +188,98 @@ router.post('/login', loginLimiter, async (req, res) => {
     res.json({ user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role }, token });
   } catch (error) {
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// POST /auth/google  { idToken } — Google Identity Services client-side sign-in.
+// The frontend never decodes the token itself; it is sent here as-is and verified
+// against Google's public keys via google-auth-library, so only a genuinely
+// Google-signed token for OUR client ID can ever authenticate a request.
+router.post('/google', googleAuthLimiter, async (req, res) => {
+  const { idToken } = req.body;
+
+  if (!idToken || typeof idToken !== 'string') {
+    return res.status(400).json({ error: 'Google ID token is required.' });
+  }
+
+  // Fails cleanly, request-by-request, if Google Sign-In was never configured —
+  // never throws at module load (see lib/config.ts), so every other route on this
+  // server keeps working perfectly even if this env var is missing or wrong.
+  if (!GOOGLE_CLIENT_ID) {
+    console.error('[Google Sign-In] GOOGLE_CLIENT_ID is not configured on the server — rejecting request.');
+    return res.status(503).json({ error: 'Google Sign-In is not available right now. Please use email and password instead.' });
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email || !payload.sub) {
+      return res.status(401).json({ error: 'Invalid Google sign-in token.' });
+    }
+    if (payload.email_verified === false) {
+      return res.status(401).json({ error: "Your Google account's email address is not verified." });
+    }
+
+    const googleId = payload.sub;
+    const email = payload.email;
+    const fullName = payload.name || email;
+
+    let user = await prisma.user.findUnique({ where: { googleId } });
+
+    if (!user) {
+      const existingByEmail = await prisma.user.findUnique({ where: { email } });
+
+      if (existingByEmail) {
+        // Only link into an account that has itself already proven ownership of this
+        // email address (emailVerified === true) — linking into an unverified account
+        // would let a Google sign-in silently take over a row nobody has confirmed yet.
+        if (!existingByEmail.emailVerified) {
+          return res.status(409).json({
+            error: "An account with this email exists but hasn't been verified. Please verify it first, or contact support.",
+            code: 'EXISTING_UNVERIFIED_ACCOUNT',
+          });
+        }
+        user = await prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: { googleId },
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            email,
+            fullName,
+            googleId,
+            passwordHash: null,
+            emailVerified: true,
+            role: 'customer',
+            authProvider: 'google',
+          },
+        });
+      }
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Your account has been disabled. Please contact the administrator.' });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    });
+
+    // Identical shape/signing to every other login path — POST /login issues the
+    // exact same jwt.sign(...) call with the exact same payload and expiry.
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return res.json({ user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role }, token });
+  } catch (error) {
+    console.error('[Google Sign-In] verification/login error:', error);
+    return res.status(401).json({ error: 'Google sign-in failed. Please try again.' });
   }
 });
 
@@ -384,6 +498,10 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
 
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (!user.passwordHash) {
+      return res.status(400).json({ error: 'This account uses Google Sign-In and has no password to change.' });
     }
 
     const isValid = await bcrypt.compare(currentPassword, user.passwordHash);

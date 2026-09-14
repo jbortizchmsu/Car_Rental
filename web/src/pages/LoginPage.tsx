@@ -3,6 +3,9 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Car, Loader2, AlertCircle, Eye, EyeOff, Info, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../services/api';
+import GoogleSignInButton from '../components/GoogleSignInButton';
+
+const GOOGLE_SIGNIN_ENABLED = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +21,9 @@ const LoginPage: React.FC = () => {
   
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, profile, signIn, loading: authLoading } = useAuth();
+  const { user, profile, signIn, signInWithGoogle, loading: authLoading } = useAuth();
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const message = location.state?.message;
 
@@ -59,6 +64,24 @@ const LoginPage: React.FC = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleIdToken = async (idToken: string) => {
+    setGoogleError(null);
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle(idToken);
+      const storedUser = JSON.parse(localStorage.getItem('jd_user') || '{}');
+      if (storedUser.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
+    } catch (err: any) {
+      setGoogleError(err.message);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -180,6 +203,38 @@ const LoginPage: React.FC = () => {
               </div>
             )}
           </div>
+        )}
+
+        {googleError && (
+          <div style={{
+            backgroundColor: '#FFEBEE',
+            color: '#C62828',
+            padding: '1rem',
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            textAlign: 'left',
+            fontSize: '0.9rem'
+          }}>
+            <AlertCircle size={18} />
+            {googleError}
+          </div>
+        )}
+
+        {GOOGLE_SIGNIN_ENABLED && (
+          <>
+            <div style={{ marginBottom: '1.5rem', opacity: googleLoading ? 0.6 : 1, pointerEvents: googleLoading ? 'none' : 'auto' }}>
+              <GoogleSignInButton onIdToken={handleGoogleIdToken} disabled={googleLoading} />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ flex: 1, height: '1px', backgroundColor: '#E5E7EB' }} />
+              <span style={{ color: 'var(--muted-mauve)', fontSize: '0.85rem' }}>or</span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: '#E5E7EB' }} />
+            </div>
+          </>
         )}
 
         <form onSubmit={handleLogin} style={{ textAlign: 'left' }}>

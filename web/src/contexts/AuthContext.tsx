@@ -18,6 +18,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   signIn: (credentials: any) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -97,6 +98,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Near-identical to signIn() above — same localStorage keys, same state, same
+  // profile-shape formatting — so every existing component reading auth state via
+  // useAuth() needs zero changes; it can't tell which method logged the user in.
+  const signInWithGoogle = async (idToken: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { data } = await authApi.google(idToken);
+
+      localStorage.setItem('jd_token', data.token);
+      localStorage.setItem('jd_user', JSON.stringify(data.user));
+
+      const formattedProfile = {
+        ...data.user,
+        full_name: data.user.fullName,
+        phone_number: data.user.phoneNumber,
+        address: data.user.address,
+        avatar_url: data.user.avatarUrl
+      };
+
+      setUser(data.user);
+      setProfile(formattedProfile);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Google sign-in failed';
+      setError(msg);
+      const thrown: any = new Error(msg);
+      thrown.code = err.response?.data?.code;
+      throw thrown;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     localStorage.removeItem('jd_token');
     localStorage.removeItem('jd_user');
@@ -105,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, error, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, error, signIn, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

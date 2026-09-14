@@ -12,3 +12,11 @@ if (!process.env.JWT_SECRET) {
 if (!process.env.RESEND_API_KEY) {
   process.env.RESEND_API_KEY = 're_test_placeholder_not_a_real_key';
 }
+
+// GOOGLE_CLIENT_ID is intentionally NOT fail-fast in lib/config.ts (Google Sign-In is
+// optional/additive — see that file's comment), so tests that want to exercise the
+// "unconfigured" 503 path unset this themselves via jest.resetModules() + delete, not
+// by leaving it unset here.
+if (!process.env.GOOGLE_CLIENT_ID) {
+  process.env.GOOGLE_CLIENT_ID = 'test-google-client-id.apps.googleusercontent.com';
+}
