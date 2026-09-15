@@ -21,6 +21,7 @@
     "axios": "^1.16.1",
     "expo": "~54.0.33",
     "expo-auth-session": "^57.0.12",
+    "expo-dev-client": "~6.0.21",
     "expo-image-picker": "~17.0.11",
     "expo-location": "~19.0.8",
     "expo-secure-store": "~15.0.8",
