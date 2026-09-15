@@ -29,7 +29,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
