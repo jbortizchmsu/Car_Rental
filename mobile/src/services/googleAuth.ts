@@ -1,45 +1,65 @@
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 
-// Required once per app so the system browser correctly hands control back to this app
-// after the OAuth redirect completes (a no-op on native if called more than once).
-WebBrowser.maybeCompleteAuthSession();
-
-// Android-only for now (see this session's inspection report) — created manually in
-// Google Cloud Console as an "Android" type OAuth client (package com.jdcarrental.mobile
-// + the dev/EAS build's SHA-1 fingerprint). This is NOT the same client ID the backend
-// verifies against — it only identifies this app to Google for the on-device sign-in
-// handshake. The ID token Google returns still carries the WEB client ID as its
-// audience (see webClientId below), which is what POST /api/auth/google verifies —
-// identical to web's flow, no backend change needed.
-const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
-
-// The same web client ID used by the website (VITE_GOOGLE_CLIENT_ID / server's
-// GOOGLE_CLIENT_ID) — passed here so Google issues an ID token whose `aud` claim
-// matches what the backend already verifies against, unchanged.
+// The same web-type OAuth client used by the website (VITE_GOOGLE_CLIENT_ID / server's
+// GOOGLE_CLIENT_ID). Passed to GoogleSignin.configure() as `webClientId` so the ID
+// token this library returns is audienced to that same client — exactly what
+// POST /api/auth/google already verifies against. No backend change needed.
+//
+// Note what's deliberately NOT here: the Android-type OAuth client (package
+// com.jdcarrental.mobile + SHA-1, already created in Google Cloud Console) is never
+// referenced anywhere in this file, or passed as any parameter at all. That's by
+// design — Android-type clients aren't used via a client_id-style parameter the way
+// expo-auth-session's browser-redirect flow (the previous, now-removed approach)
+// assumed. Google Play Services matches the signed-in app to that Android client
+// automatically, out-of-band, by inspecting the installed APK's actual package name
+// and signing certificate — confirmed as the intended mechanism by this session's
+// research into why the previous approach failed with "invalid_request".
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
-/** True once both client IDs are configured — until then, Google Sign-In stays hidden
- * on the Login screen rather than rendering a button that would just fail on tap. */
-export const isGoogleSignInConfigured = Boolean(ANDROID_CLIENT_ID && WEB_CLIENT_ID);
+/** True once the web client ID is configured — until then, Google Sign-In stays
+ * hidden on the Login screen rather than rendering a button that would just fail. */
+export const isGoogleSignInConfigured = Boolean(WEB_CLIENT_ID);
+
+let configured = false;
+function ensureConfigured() {
+  if (configured || !WEB_CLIENT_ID) return;
+  GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
+  configured = true;
+}
 
 /**
- * Wraps expo-auth-session's Google provider. NOTE (found via inspection, not assumed):
- * the installed expo-auth-session (57.0.12) marks GoogleAuthRequestConfig/this whole
- * provider module as @deprecated in its own type declarations, pointing to Expo's
- * general "Google authentication" guide rather than this specific helper. It still
- * functions and is what this task explicitly asked for, but a future pass may want to
- * migrate to a plain AuthRequest built against Google's discovery document directly
- * instead of this provider — flagging this now so it isn't mistaken for an oversight
- * later.
- *
- * Must still be called unconditionally (rules of hooks) even when unconfigured — the
- * screen using this decides whether to render a button based on
- * `isGoogleSignInConfigured`, not by conditionally calling this hook.
+ * Runs the native Google Sign-In flow (Android Credential Manager via Google Play
+ * Services — requires Play Services to be present on the device/emulator). Returns
+ * the verified ID token on success, or null if the user cancelled (not an error).
+ * Throws for any other failure — callers should catch and show a message via
+ * getGoogleSignInErrorMessage().
  */
-export function useGoogleIdTokenAuthRequest() {
-  return Google.useIdTokenAuthRequest({
-    androidClientId: ANDROID_CLIENT_ID,
-    webClientId: WEB_CLIENT_ID,
-  });
+export async function signInWithGoogleNative(): Promise<string | null> {
+  ensureConfigured();
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  const response = await GoogleSignin.signIn();
+  if (isSuccessResponse(response)) {
+    return response.data.idToken;
+  }
+  return null;
+}
+
+/** Maps a thrown GoogleSignin error to a user-facing message. */
+export function getGoogleSignInErrorMessage(error: unknown): string {
+  if (isErrorWithCode(error)) {
+    switch (error.code) {
+      case statusCodes.IN_PROGRESS:
+        return 'A sign-in is already in progress.';
+      case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+        return 'Google Play Services is not available or is out of date on this device.';
+      default:
+        return 'Google sign-in failed. Please try again.';
+    }
+  }
+  return 'Google sign-in failed. Please try again.';
 }

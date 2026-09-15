@@ -24,7 +24,7 @@ import VehiclesScreen from './src/screens/VehiclesScreen';
 import BookingFormScreen from './src/screens/BookingFormScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import { bookingFormStatus } from './src/services/bookingState';
-import { useGoogleIdTokenAuthRequest, isGoogleSignInConfigured } from './src/services/googleAuth';
+import { signInWithGoogleNative, getGoogleSignInErrorMessage, isGoogleSignInConfigured } from './src/services/googleAuth';
 
 const LoginScreen = ({ onLogin, navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -34,42 +34,35 @@ const LoginScreen = ({ onLogin, navigation }: any) => {
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Rules of hooks: this must always be called, even while unconfigured — the button
-  // itself is what's conditionally rendered (via isGoogleSignInConfigured), not this call.
-  const [googleRequest, googleResponse, promptGoogleSignIn] = useGoogleIdTokenAuthRequest();
-
-  async function handleGoogleIdToken(idToken: string) {
+  async function handleGoogleSignIn() {
     setGoogleLoading(true);
     try {
+      const idToken = await signInWithGoogleNative();
+      if (!idToken) {
+        // User cancelled the native sign-in sheet — not an error, no alert.
+        return;
+      }
       const response = await authApi.google(idToken);
       const { token, user } = response.data;
       await AsyncStorage.setItem('jd_token', token);
       await AsyncStorage.setItem('jd_user', JSON.stringify(user));
       onLogin(user);
     } catch (error: any) {
-      if (!error.response) {
-        Alert.alert('Google Sign-In Failed', 'Cannot connect to server. Check your connection and try again.');
+      if (error?.isAxiosError) {
+        // Failed at our own backend (POST /auth/google), not at the native sign-in step.
+        if (!error.response) {
+          Alert.alert('Google Sign-In Failed', 'Cannot connect to server. Check your connection and try again.');
+        } else {
+          Alert.alert('Google Sign-In Failed', error.response?.data?.error || 'An unexpected error occurred.');
+        }
       } else {
-        Alert.alert('Google Sign-In Failed', error.response?.data?.error || 'An unexpected error occurred.');
+        // Failed at the native GoogleSignin step (e.g. Play Services missing).
+        Alert.alert('Google Sign-In Failed', getGoogleSignInErrorMessage(error));
       }
     } finally {
       setGoogleLoading(false);
     }
   }
-
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const idToken = googleResponse.params?.id_token;
-      if (idToken) {
-        handleGoogleIdToken(idToken);
-      } else {
-        Alert.alert('Google Sign-In Failed', 'No ID token was returned. Please try again.');
-      }
-    } else if (googleResponse?.type === 'error') {
-      Alert.alert('Google Sign-In Failed', 'Something went wrong during sign-in. Please try again.');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleResponse]);
 
   async function signInWithEmail() {
     if (!email || !password) {
@@ -140,8 +133,8 @@ const LoginScreen = ({ onLogin, navigation }: any) => {
 
                   <TouchableOpacity
                     style={[styles.button, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#DDD', marginTop: 20, flexDirection: 'row', gap: 10 }]}
-                    disabled={!googleRequest || googleLoading}
-                    onPress={() => promptGoogleSignIn()}
+                    disabled={googleLoading}
+                    onPress={handleGoogleSignIn}
                   >
                     {googleLoading
                       ? <ActivityIndicator color="#AD9B8D" />
@@ -528,57 +521,72 @@ export default function App() {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <NavigationContainer>
-        {user ? (
-          <Tab.Navigator
-            screenOptions={({ route }) => ({
-              headerShown: false,
-              sceneContainerStyle: { backgroundColor: '#FDFDFD' },
-              tabBarIcon: ({ focused, color, size }) => {
-                if (route.name === 'Home') return <Car size={size} stroke={color} />;
-                if (route.name === 'Book') return <Calendar size={size} stroke={color} />;
-                if (route.name === 'Bookings') return <FileText size={size} stroke={color} />;
-                if (route.name === 'Alerts') return <Bell size={size} stroke={color} />;
-                if (route.name === 'Profile') return <User size={size} stroke={color} />;
-                return null;
-              },
-              tabBarActiveTintColor: '#AD9B8D',
-              tabBarInactiveTintColor: '#958786',
-              tabBarStyle: { height: 60, paddingBottom: 10 },
-            })}
-          >
-            <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Active' }} />
-            <Tab.Screen
-              name="Book"
-              component={VehiclesStackNavigator}
-              options={{ tabBarLabel: 'Book' }}
-              listeners={({ navigation }) => ({
-                tabPress: () => {
-                  if (!bookingFormStatus.hasInProgress) {
-                    navigation.navigate('Book', { screen: 'VehiclesList' });
-                  }
-                },
-              })}
-            />
-            <Tab.Screen name="Bookings" component={BookingsStackNavigator} options={{ tabBarLabel: 'Bookings' }} />
-            <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ tabBarLabel: 'Alerts' }} />
-            <Tab.Screen
-              name="Profile"
-              options={{ tabBarLabel: 'Profile' }}
-            >
-              {(props) => <ProfileScreen {...props} onLogout={() => setUser(null)} />}
-            </Tab.Screen>
-          </Tab.Navigator>
-        ) : (
-          <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-            <AuthStack.Screen name="Login">
-              {(props) => <LoginScreen {...props} onLogin={(u: any) => setUser(u)} />}
-            </AuthStack.Screen>
-            <AuthStack.Screen name="Register" component={RegisterScreen} />
-          </AuthStack.Navigator>
-        )}
-      </NavigationContainer>
+      <AppNavigator user={user} setUser={setUser} />
     </SafeAreaProvider>
+  );
+}
+
+// Split out from App() because useSafeAreaInsets() only returns real (non-zero)
+// values once called from a component that's actually a descendant of
+// SafeAreaProvider — calling it directly in App() (a sibling/ancestor of the
+// provider, not a child of it) would just return zeros.
+function AppNavigator({ user, setUser }: { user: any; setUser: (u: any) => void }) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <NavigationContainer>
+      {user ? (
+        <Tab.Navigator
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            sceneContainerStyle: { backgroundColor: '#FDFDFD' },
+            tabBarIcon: ({ focused, color, size }) => {
+              if (route.name === 'Home') return <Car size={size} stroke={color} />;
+              if (route.name === 'Book') return <Calendar size={size} stroke={color} />;
+              if (route.name === 'Bookings') return <FileText size={size} stroke={color} />;
+              if (route.name === 'Alerts') return <Bell size={size} stroke={color} />;
+              if (route.name === 'Profile') return <User size={size} stroke={color} />;
+              return null;
+            },
+            tabBarActiveTintColor: '#AD9B8D',
+            tabBarInactiveTintColor: '#958786',
+            // Grows the bar by the device's actual bottom inset (0 on old 3-button nav
+            // devices with no inset, larger on gesture-nav devices) instead of a fixed
+            // guess, so the tabs never sit under the system nav bar on any device.
+            tabBarStyle: { height: 60 + insets.bottom, paddingBottom: insets.bottom + 10 },
+          })}
+        >
+          <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Active' }} />
+          <Tab.Screen
+            name="Book"
+            component={VehiclesStackNavigator}
+            options={{ tabBarLabel: 'Book' }}
+            listeners={({ navigation }) => ({
+              tabPress: () => {
+                if (!bookingFormStatus.hasInProgress) {
+                  navigation.navigate('Book', { screen: 'VehiclesList' });
+                }
+              },
+            })}
+          />
+          <Tab.Screen name="Bookings" component={BookingsStackNavigator} options={{ tabBarLabel: 'Bookings' }} />
+          <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ tabBarLabel: 'Alerts' }} />
+          <Tab.Screen
+            name="Profile"
+            options={{ tabBarLabel: 'Profile' }}
+          >
+            {(props) => <ProfileScreen {...props} onLogout={() => setUser(null)} />}
+          </Tab.Screen>
+        </Tab.Navigator>
+      ) : (
+        <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+          <AuthStack.Screen name="Login">
+            {(props) => <LoginScreen {...props} onLogin={(u: any) => setUser(u)} />}
+          </AuthStack.Screen>
+          <AuthStack.Screen name="Register" component={RegisterScreen} />
+        </AuthStack.Navigator>
+      )}
+    </NavigationContainer>
   );
 }
 

@@ -31,7 +31,7 @@
     "plugins": [
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "expo-web-browser"
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {
