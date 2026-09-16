@@ -26,6 +26,193 @@ export const isToday = (date: Date | null): boolean => {
   return date.toDateString() === today.toDateString();
 };
 
+/**
+ * Shared local-file preview state/logic — extracted from what DocumentUploadCard
+ * already did inline, so both it (step 3) and the step 4 review list can open the
+ * same kind of preview for a File already sitting in memory (no remote fetch).
+ * Revokes the previous object URL whenever a new one is created or the preview
+ * closes, and on unmount — same cleanup guarantee the original inline version had.
+ */
+function useLocalFilePreview() {
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const openPreview = (file: File) => {
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+    setPreviewFile(file);
+  };
+
+  const closePreview = () => {
+    setPreviewUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPreviewFile(null);
+  };
+
+  // Belt-and-suspenders: also revoke on unmount, matching the original
+  // DocumentUploadCard behavior exactly.
+  useEffect(() => {
+    return () => {
+      setPreviewUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return prev;
+      });
+    };
+  }, []);
+
+  return { previewFile, previewUrl, openPreview, closePreview };
+}
+
+interface LocalFilePreviewModalProps {
+  file: File;
+  url: string;
+  onClose: () => void;
+}
+
+/** The preview modal body itself — identical markup/behavior to what
+ * DocumentUploadCard rendered inline before this was extracted. */
+const LocalFilePreviewModal: React.FC<LocalFilePreviewModalProps> = ({ file, url, onClose }) => (
+  <div className="modal-overlay" style={{ zIndex: 2200 }} onClick={onClose}>
+    <div
+      className="modal-container"
+      style={{
+        maxWidth: '800px',
+        width: '100%',
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: 'var(--white)',
+        borderRadius: '16px',
+        overflow: 'hidden'
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="modal-header" style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)' }}>
+        <div>
+          <h3 className="modal-title" style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Document Preview</h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--muted-mauve)', margin: '2px 0 0' }}>{file.name}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', color: 'var(--gray-500)' }}
+        >
+          <X size={22} />
+        </button>
+      </div>
+      <div
+        className="modal-content"
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          backgroundColor: '#f8fafc',
+          minHeight: '350px'
+        }}
+      >
+        {file.type.startsWith('image/') ? (
+          <img
+            src={url}
+            alt={file.name}
+            style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+          />
+        ) : file.type === 'application/pdf' ? (
+          <iframe
+            src={url}
+            title={file.name}
+            style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }}
+          />
+        ) : (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <FileText size={56} color="var(--muted-mauve)" style={{ margin: '0 auto 1rem' }} />
+            <p style={{ fontWeight: 600 }}>{file.name}</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)', marginTop: '0.25rem' }}>
+              Preview is available for JPG, PNG, WEBP, and PDF files.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+interface PriceBreakdownQuote {
+  baseDailyRate: number;
+  rentalDays: number;
+  subtotal: number;
+  multiplier: number;
+  appliedRuleName: string | null;
+  appliedRuleDescription: string | null;
+  totalPrice: number;
+}
+
+/**
+ * The row-by-row price breakdown — extracted so step 1 (live estimate) and step 4
+ * (review, same numbers shown again for confirmation) render identically using the
+ * same .price-row/.price-total classes, rather than two copies that could drift.
+ * Must be rendered inside a `.booking-modal-price-summary` ancestor — that's what
+ * actually scopes .price-row/.price-total's styling in index.css.
+ */
+const PriceBreakdown: React.FC<{ quote: PriceBreakdownQuote }> = ({ quote }) => (
+  <>
+    <div className="price-row">
+      <span>Base Daily Rate</span>
+      <strong>₱{quote.baseDailyRate.toLocaleString()}</strong>
+    </div>
+    <div className="price-row">
+      <span>Rental Duration</span>
+      <strong>{quote.rentalDays} {quote.rentalDays === 1 ? 'Day' : 'Days'}</strong>
+    </div>
+    <div className="price-row">
+      <span>Subtotal</span>
+      <strong>₱{quote.subtotal.toLocaleString()}</strong>
+    </div>
+    <div className={`price-row ${quote.multiplier > 1 ? 'highlight' : ''}`}>
+      <span>Pricing Multiplier</span>
+      <strong style={{ color: quote.multiplier > 1 ? '#EA580C' : undefined }}>
+        {quote.multiplier}x
+      </strong>
+    </div>
+
+    {/* Active rule badge */}
+    {quote.appliedRuleName && quote.multiplier > 1 ? (
+      <div style={{ marginTop: '0.4rem', backgroundColor: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '8px', padding: '0.55rem 0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+          <span style={{ color: '#EA580C', fontSize: '0.75rem', lineHeight: '1.4' }}>⚡</span>
+          <div>
+            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9A3412', margin: 0 }}>
+              {quote.appliedRuleName} pricing active
+            </p>
+            {quote.appliedRuleDescription && (
+              <p style={{ fontSize: '0.7rem', color: '#C2410C', margin: '2px 0 0' }}>
+                {quote.appliedRuleDescription}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div style={{ marginTop: '0.4rem', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '0.55rem 0.75rem' }}>
+        <p style={{ fontSize: '0.75rem', color: '#15803D', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <span>✓</span> Standard rate — no surcharge for selected dates
+        </p>
+      </div>
+    )}
+    <div className="price-total">
+      <span>Total Amount</span>
+      <strong>₱{quote.totalPrice.toLocaleString()}</strong>
+    </div>
+  </>
+);
+
 interface DocumentUploadCardProps {
   title: string;
   file: File | null;
@@ -44,7 +231,7 @@ const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
   onClearError
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const { previewFile, previewUrl, openPreview, closePreview } = useLocalFilePreview();
 
   const handleCardClick = () => {
     if (!file) {
@@ -62,15 +249,7 @@ const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
   const handlePreviewClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-  };
-
-  const handleClosePreview = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setPreviewUrl(null);
+    openPreview(file);
   };
 
   const handleChangeClick = (e: React.MouseEvent) => {
@@ -80,14 +259,6 @@ const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
     }
     fileInputRef.current?.click();
   };
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
 
   return (
     <>
@@ -214,72 +385,8 @@ const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
       )}
 
       {/* Local Preview Modal */}
-      {previewUrl && file && (
-        <div className="modal-overlay" style={{ zIndex: 2200 }} onClick={handleClosePreview}>
-          <div
-            className="modal-container"
-            style={{
-              maxWidth: '800px',
-              width: '100%',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              backgroundColor: 'var(--white)',
-              borderRadius: '16px',
-              overflow: 'hidden'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="modal-header" style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)' }}>
-              <div>
-                <h3 className="modal-title" style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Document Preview</h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--muted-mauve)', margin: '2px 0 0' }}>{file.name}</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleClosePreview}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', color: 'var(--gray-500)' }}
-              >
-                <X size={22} />
-              </button>
-            </div>
-            <div
-              className="modal-content"
-              style={{
-                flex: 1,
-                overflow: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '1.5rem',
-                backgroundColor: '#f8fafc',
-                minHeight: '350px'
-              }}
-            >
-              {file.type.startsWith('image/') ? (
-                <img
-                  src={previewUrl}
-                  alt={file.name}
-                  style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                />
-              ) : file.type === 'application/pdf' ? (
-                <iframe
-                  src={previewUrl}
-                  title={file.name}
-                  style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }}
-                />
-              ) : (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                  <FileText size={56} color="var(--muted-mauve)" style={{ margin: '0 auto 1rem' }} />
-                  <p style={{ fontWeight: 600 }}>{file.name}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)', marginTop: '0.25rem' }}>
-                    Preview is available for JPG, PNG, WEBP, and PDF files.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {previewUrl && previewFile && (
+        <LocalFilePreviewModal file={previewFile} url={previewUrl} onClose={closePreview} />
       )}
     </>
   );
@@ -333,6 +440,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const step4MountedAtRef = useRef<number>(0);
+  const reviewFilePreview = useLocalFilePreview();
 
   // Reset state when modal opens/closes or profile changes
   useEffect(() => {
@@ -840,49 +948,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         {pricingQuote ? (
                           <div className="booking-modal-price-summary">
                             <h4><Calculator size={16} /> Estimated Price</h4>
-                            <div className="price-row">
-                              <span>Base Daily Rate</span>
-                              <strong>₱{pricingQuote.baseDailyRate.toLocaleString()}</strong>
-                            </div>
-                            <div className="price-row">
-                              <span>Rental Duration</span>
-                              <strong>{pricingQuote.rentalDays} {pricingQuote.rentalDays === 1 ? 'Day' : 'Days'}</strong>
-                            </div>
-                            <div className={`price-row ${pricingQuote.multiplier > 1 ? 'highlight' : ''}`}>
-                              <span>Pricing Multiplier</span>
-                              <strong style={{ color: pricingQuote.multiplier > 1 ? '#EA580C' : undefined }}>
-                                {pricingQuote.multiplier}x
-                              </strong>
-                            </div>
-
-                            {/* Active rule badge */}
-                            {pricingQuote.appliedRuleName && pricingQuote.multiplier > 1 ? (
-                              <div style={{ marginTop: '0.4rem', backgroundColor: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '8px', padding: '0.55rem 0.75rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
-                                  <span style={{ color: '#EA580C', fontSize: '0.75rem', lineHeight: '1.4' }}>⚡</span>
-                                  <div>
-                                    <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9A3412', margin: 0 }}>
-                                      {pricingQuote.appliedRuleName} pricing active
-                                    </p>
-                                    {pricingQuote.appliedRuleDescription && (
-                                      <p style={{ fontSize: '0.7rem', color: '#C2410C', margin: '2px 0 0' }}>
-                                        {pricingQuote.appliedRuleDescription}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{ marginTop: '0.4rem', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '0.55rem 0.75rem' }}>
-                                <p style={{ fontSize: '0.75rem', color: '#15803D', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                  <span>✓</span> Standard rate — no surcharge for selected dates
-                                </p>
-                              </div>
-                            )}
-                            <div className="price-total">
-                              <span>Total Amount</span>
-                              <strong>₱{pricingQuote.totalPrice.toLocaleString()}</strong>
-                            </div>
+                            <PriceBreakdown quote={pricingQuote} />
                           </div>
                         ) : (
                           <div className="booking-modal-price-summary empty">
@@ -1055,12 +1121,17 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <span className="booking-review-label">Destination</span>
                         <span className="booking-review-value">{formData.destinationName} {formData.destinationAddress ? `(${formData.destinationAddress})` : ''}</span>
                       </div>
-                      <div className="booking-review-row">
-                        <span className="booking-review-label">Total Estimate</span>
-                        <span className="booking-review-value" style={{ color: '#2E7D32', fontSize: '1.1rem' }}>
-                          ₱{pricingQuote?.totalPrice?.toLocaleString() || 'N/A'}
-                        </span>
-                      </div>
+                    </div>
+
+                    <div className="booking-review-card">
+                      <div className="booking-review-header"><Calculator size={18} /> Price Breakdown</div>
+                      {pricingQuote ? (
+                        <div className="booking-modal-price-summary" style={{ border: 'none', padding: 0 }}>
+                          <PriceBreakdown quote={pricingQuote} />
+                        </div>
+                      ) : (
+                        <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem' }}>Price estimate unavailable.</p>
+                      )}
                     </div>
 
                     <div className="booking-review-card">
@@ -1081,15 +1152,50 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
 
                     <div className="booking-review-card" style={{ marginBottom: '1rem' }}>
                       <div className="booking-review-header"><ShieldCheck size={18} /> Uploaded Documents</div>
-                      <div className="booking-review-row">
-                        <span className="booking-review-label">Valid ID</span>
-                        <span className="booking-review-value" style={{ color: '#2E7D32' }}><Check size={14} /> {files.valid_id?.name}</span>
-                      </div>
-                      <div className="booking-review-row">
-                        <span className="booking-review-label">Driver's License</span>
-                        <span className="booking-review-value" style={{ color: '#2E7D32' }}><Check size={14} /> {files.drivers_license?.name}</span>
-                      </div>
+                      {([
+                        { label: 'Valid ID', file: files.valid_id },
+                        { label: "Driver's License", file: files.drivers_license },
+                      ] as const).map(({ label, file }) => (
+                        <div
+                          key={label}
+                          className="booking-review-row"
+                          onClick={() => file && reviewFilePreview.openPreview(file)}
+                          style={file ? { cursor: 'pointer' } : undefined}
+                          title={file ? 'Click to preview' : undefined}
+                        >
+                          <span className="booking-review-label">{label}</span>
+                          <span className="booking-review-value" style={{ color: '#2E7D32' }}>
+                            <Check size={14} /> {file?.name}
+                            {file && (
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  color: '#15803d',
+                                  backgroundColor: '#dcfce7',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                  marginLeft: '0.35rem'
+                                }}
+                              >
+                                <Eye size={11} /> Preview
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
                     </div>
+
+                    {reviewFilePreview.previewUrl && reviewFilePreview.previewFile && (
+                      <LocalFilePreviewModal
+                        file={reviewFilePreview.previewFile}
+                        url={reviewFilePreview.previewUrl}
+                        onClose={reviewFilePreview.closePreview}
+                      />
+                    )}
 
                     <label
                       ref={checkboxRef}
