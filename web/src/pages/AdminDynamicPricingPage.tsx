@@ -453,6 +453,10 @@ const AdminDynamicPricingPage: React.FC = () => {
                   <span style={{ fontWeight: 700 }}>{previewResult.rentalDays} {previewResult.rentalDays === 1 ? 'Day' : 'Days'}</span>
                 </div>
                 <div className="pricing-breakdown-row">
+                  <span style={{ color: 'var(--gray-500)', fontSize: '0.9rem' }}>Subtotal</span>
+                  <span style={{ fontWeight: 700 }}>₱{(previewResult.baseDailyRate * previewResult.rentalDays).toLocaleString()}</span>
+                </div>
+                <div className="pricing-breakdown-row">
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)', fontSize: '0.9rem' }}>
                     <Tag size={14} /> Applied Multiplier
                   </span>

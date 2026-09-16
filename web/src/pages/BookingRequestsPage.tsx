@@ -1010,6 +1010,12 @@ const BookingRequestsPage: React.FC = () => {
                             <span>{days} {days === 1 ? 'Day' : 'Days'}</span>
                           </div>
                         ) : null}
+                        {days ? (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                            <span>Subtotal:</span>
+                            <span>₱{(baseRate * days).toLocaleString()}</span>
+                          </div>
+                        ) : null}
                         {multiplier > 1 ? (
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#FCD34D', fontWeight: 700, marginBottom: '0.5rem' }}>
                             <span>⚡ Rule Applied: {ruleName || 'Dynamic Pricing'}</span>
