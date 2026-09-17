@@ -1,10 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ajyniipqfemngmayqodd.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqeW5paXBxZmVtbmdtYXlxb2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4Njg2ODMsImV4cCI6MjA4MzQ0NDY4M30.default_placeholder';
+import { SUPABASE_URL, SUPABASE_KEY } from './config';
 
 let supabaseClient: SupabaseClient | null = null;
 
