@@ -13,6 +13,7 @@ jest.mock('../../lib/notifications', () => ({
   __esModule: true,
   createNotification: jest.fn().mockResolvedValue(undefined),
   createAdminNotification: jest.fn().mockResolvedValue(undefined),
+  createTypedNotification: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../lib/supabase', () => ({
@@ -25,12 +26,15 @@ jest.mock('../../lib/supabase', () => ({
 
 import { prisma } from '../../lib/prisma';
 import { uploadToSupabaseStorage, deleteFromSupabaseStorage } from '../../lib/supabase';
+import { createTypedNotification } from '../../lib/notifications';
+import { NotificationType } from '../../lib/notification-types';
 import { JWT_SECRET } from '../../lib/config';
 import bookingsRouter from '../bookings';
 
 const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>;
 const uploadMock = uploadToSupabaseStorage as jest.Mock;
 const deleteMock = deleteFromSupabaseStorage as jest.Mock;
+const createTypedNotificationMock = createTypedNotification as jest.Mock;
 
 const app = express();
 app.use(express.json());
@@ -67,6 +71,7 @@ beforeEach(() => {
   mockReset(prismaMock);
   uploadMock.mockClear();
   deleteMock.mockClear();
+  createTypedNotificationMock.mockClear();
   uploadMock.mockResolvedValue('https://example.test/fake-doc.jpg');
   prismaMock.user.findUnique.mockImplementation(((args: any) => {
     if (args?.where?.id === CUSTOMER_USER.id) return Promise.resolve(CUSTOMER_USER as any);
@@ -170,5 +175,37 @@ describe('POST /api/bookings/:id/documents', () => {
     expect(res.status).toBe(500);
     expect(res.text).toContain('Only images (jpeg, jpg, png, webp) and PDFs up to 10MB are allowed');
     expect(prismaMock.bookingDocument.create).not.toHaveBeenCalled();
+  });
+
+  // Proves the admin live-refresh signal (added to fix the "admin sees booking but not
+  // its document until a hard refresh" bug): BookingRequestsPage.tsx already refetches on
+  // any 'notification-created' event, and createTypedNotification is what actually emits
+  // that event server-side — so a successful document save must trigger it, and a failed
+  // one must not.
+  test('successful document upload triggers createTypedNotification(DOCUMENT_UPLOADED) with the booking as referenceId', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking({ status: 'PENDING_REVIEW', documents: [] }));
+    prismaMock.bookingDocument.create.mockResolvedValue({ id: 'doc-new', documentType: 'valid_id', fileUrl: 'https://example.test/fake-doc.jpg' } as any);
+
+    const res = await uploadRequest(customerToken, { type: 'valid_id' });
+
+    expect(res.status).toBe(200);
+    expect(createTypedNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createTypedNotificationMock).toHaveBeenCalledWith(
+      NotificationType.DOCUMENT_UPLOADED,
+      { customerName: CUSTOMER_USER.fullName, bookingId: 'booking-1' },
+      'booking-1',
+      'booking'
+    );
+  });
+
+  test('storage upload failure (502) does NOT trigger createTypedNotification, and no document row is created', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking({ status: 'PENDING_REVIEW', documents: [] }));
+    uploadMock.mockRejectedValueOnce(new Error('simulated Supabase Storage failure'));
+
+    const res = await uploadRequest(customerToken, { type: 'valid_id' });
+
+    expect(res.status).toBe(502);
+    expect(prismaMock.bookingDocument.create).not.toHaveBeenCalled();
+    expect(createTypedNotificationMock).not.toHaveBeenCalled();
   });
 });

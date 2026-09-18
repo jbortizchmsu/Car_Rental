@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
-import { createNotification, createAdminNotification } from '../lib/notifications';
+import { createNotification, createAdminNotification, createTypedNotification } from '../lib/notifications';
+import { NotificationType } from '../lib/notification-types';
 import { checkVehicleOilChangeDue } from '../lib/maintenance-alerts';
 import { checkVehicleAvailability } from '../lib/booking-availability';
 import { calculateBookingPrice } from '../lib/pricing';
@@ -193,6 +194,26 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req: A
         fileUrl: publicUrl
       }
     });
+
+    // Live-refresh signal for admins: the admin bookings page (BookingRequestsPage.tsx)
+    // already refetches on any 'notification-created' event via useNotificationRefresh —
+    // this reuses that exact same, already-working mechanism rather than adding a new
+    // socket event/listener. createTypedNotification's built-in dedup (same type +
+    // referenceId within 24h, see lib/notifications.ts) means uploading a second document
+    // for the same booking shortly after the first does NOT create a second notification
+    // or a second bell entry — only the first upload's event fires. This is intentional,
+    // not a gap: by the time an admin actually opens the request (human reaction time),
+    // both documents have almost always already finished uploading server-side (they're
+    // sequential awaited calls, seconds apart at most), so the single refetch triggered by
+    // document #1's event reads whatever is in the DB at that moment — including document
+    // #2, if it has landed by then. Placed AFTER the DB write succeeds, so a failed upload
+    // (which returns earlier, at the storage-error or DB-error branches) never fires this.
+    await createTypedNotification(
+      NotificationType.DOCUMENT_UPLOADED,
+      { customerName: req.user!.fullName, bookingId: booking.id },
+      booking.id,
+      'booking'
+    );
 
     // Check total distinct document types now attached to this booking
     const remainingOtherDocs = booking.documents.filter(d => d.documentType !== type);
