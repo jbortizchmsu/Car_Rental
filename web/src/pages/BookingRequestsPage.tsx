@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { bookingsApi, filesApi, paymentsApi, pricingApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
 import { useOdometerPrefill } from '../utils/odometer';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonGroup, SkeletonListRow } from '../components/Skeleton';
 import {
-  Loader2, X, FileText, User,
+  X, FileText, User,
   Phone, MapPin, ExternalLink,
   Smartphone, CreditCard, Clock, Search,
   ArrowUpDown, CheckCircle2,
@@ -31,6 +33,9 @@ interface StatusCounts {
 const BookingRequestsPage: React.FC = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // True only for the very first fetch — never true again on a live/socket refetch,
+  // so the list stays visible (not replaced by a spinner) when a booking event arrives.
+  const isInitialLoad = useInitialLoad(loading);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<WorkflowFilter>('ALL_ACTIVE');
   const [remarks, setRemarks] = useState('');
@@ -728,11 +733,10 @@ const BookingRequestsPage: React.FC = () => {
       <div className={`booking-layout-grid ${selectedBooking ? 'has-selection' : ''}`}>
         {/* Requests List */}
         <div className="booking-list">
-          {loading ? (
-            <div className="card" style={{ padding: '5rem', textAlign: 'center' }}>
-              <Loader2 className="animate-spin" size={48} style={{ margin: '0 auto', color: 'var(--warm-taupe)' }} />
-              <p style={{ marginTop: '1rem', color: 'var(--gray-500)', fontWeight: 600 }}>Loading bookings...</p>
-            </div>
+          {isInitialLoad ? (
+            <SkeletonGroup>
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonListRow key={i} />)}
+            </SkeletonGroup>
           ) : filteredBookings.length === 0 ? (
             renderEmptyState()
           ) : (

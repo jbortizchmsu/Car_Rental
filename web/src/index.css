@@ -1059,6 +1059,31 @@ h5 {
   }
 }
 
+/* Loading skeletons (first-load only — see web/src/components/Skeleton.tsx and
+   web/src/utils/useInitialLoad.ts). Separate keyframes from .live-ping's `pulse`
+   above — that one is a scale+opacity effect tuned for a 6px dot, not a full-width
+   block, so a distinct name avoids fighting it. */
+.skeleton-pulse {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-pulse {
+    animation: none;
+    opacity: 0.75;
+  }
+}
+
 /* Admin Sidebar Navigation */
 .admin-sidebar {
   width: 280px;

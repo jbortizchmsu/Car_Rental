@@ -5,6 +5,8 @@ import { Loader2, Calendar, MapPin, ChevronRight, CreditCard, CheckCircle2, Navi
 import { Link } from 'react-router-dom';
 import { bookingsApi, filesApi, getApiErrorMessage } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonGroup, SkeletonCard } from '../components/Skeleton';
 import VehicleImage from '../components/VehicleImage';
 import { useToast } from '../components/ToastProvider';
 import ConfirmActionModal from '../components/ConfirmActionModal';
@@ -16,6 +18,9 @@ const MyBookingsPage: React.FC = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // True only for the very first fetch — never true again on a live/socket refetch,
+  // so the list stays visible (not replaced by a spinner) when a status changes.
+  const isInitialLoad = useInitialLoad(loading);
 
   useEffect(() => {
     if (user) {
@@ -127,11 +132,10 @@ const MyBookingsPage: React.FC = () => {
             <p style={{ color: 'var(--muted-mauve)' }}>Track your booking requests and active journeys.</p>
           </div>
 
-          {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '5rem' }}>
-              <Loader2 className="animate-spin" size={48} color="var(--warm-taupe)" />
-              <p style={{ marginTop: '1rem', color: 'var(--muted-mauve)' }}>Loading your bookings...</p>
-            </div>
+          {isInitialLoad ? (
+            <SkeletonGroup style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
+            </SkeletonGroup>
           ) : error ? (
             <div style={{ 
               backgroundColor: '#FFF2F2', 

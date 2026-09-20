@@ -3,6 +3,8 @@ import StatusBadge from '../components/StatusBadge';
 import { bookingsApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
 import { useOdometerPrefill } from '../utils/odometer';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonBlock } from '../components/Skeleton';
 import {
   Loader2, Key,
   RotateCcw, CheckCircle2, AlertTriangle,
@@ -18,6 +20,9 @@ const AdminActiveRentalsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'PICKUP' | 'ACTIVE' | 'RETURNED'>('PICKUP');
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // True only for the very first fetch — never true again on a live/socket refetch,
+  // so the table rows stay visible (not replaced by a spinner) on a live update.
+  const isInitialLoad = useInitialLoad(loading);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Modal states
@@ -268,13 +273,30 @@ const AdminActiveRentalsPage: React.FC = () => {
               <th style={{ padding: '1rem', color: '#6b7280', fontWeight: 600 }}>Action</th>
             </tr>
           </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} style={{ padding: '3rem', textAlign: 'center' }}>
-                  <Loader2 className="animate-spin" size={32} style={{ margin: '0 auto', color: 'var(--warm-taupe)' }} />
-                </td>
-              </tr>
+          <tbody aria-busy={isInitialLoad || undefined} aria-label={isInitialLoad ? 'Loading' : undefined}>
+            {isInitialLoad ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '1rem' }}>
+                    <SkeletonBlock width="70%" height="0.9rem" style={{ marginBottom: '0.4rem' }} />
+                    <SkeletonBlock width="50%" height="0.8rem" />
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <SkeletonBlock width="65%" height="0.9rem" style={{ marginBottom: '0.4rem' }} />
+                    <SkeletonBlock width="45%" height="0.8rem" />
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <SkeletonBlock width="60%" height="0.85rem" style={{ marginBottom: '0.4rem' }} />
+                    <SkeletonBlock width="40%" height="0.85rem" />
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <SkeletonBlock width="70px" height="1.4rem" radius="9999px" />
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <SkeletonBlock width="120px" height="2rem" radius="6px" />
+                  </td>
+                </tr>
+              ))
             ) : bookings.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
