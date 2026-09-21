@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import VehicleCard from '../components/VehicleCard';
 import BookingRequestModal from '../components/BookingRequestModal';
 import { vehiclesApi } from '../services/api';
-import { Loader2, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonGroup, SkeletonVehicleCard } from '../components/Skeleton';
 
 interface Vehicle {
   id: string;
@@ -23,6 +25,10 @@ const VehiclesPage: React.FC = () => {
   const location = useLocation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  // True only for the very first fetch — never true again on a later refetch (e.g.
+  // changing pickup/return dates), so the grid stays visible instead of flashing back
+  // to a loading state.
+  const isInitialLoad = useInitialLoad(loading);
   const [searchTerm, setSearchTerm] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
@@ -156,10 +162,10 @@ const VehiclesPage: React.FC = () => {
             )}
           </div>
 
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
-              <Loader2 className="animate-spin" size={48} color="var(--warm-taupe)" />
-            </div>
+          {isInitialLoad ? (
+            <SkeletonGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2.5rem' }}>
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonVehicleCard key={i} />)}
+            </SkeletonGroup>
           ) : filteredVehicles.length === 0 ? (
             <div style={{ 
               textAlign: 'center', 

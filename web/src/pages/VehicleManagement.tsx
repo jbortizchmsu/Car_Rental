@@ -9,6 +9,8 @@ import { vehiclesApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonBlock } from '../components/Skeleton';
 
 const VehicleImage = ({ vehicleId, brand, model, className }: {
   vehicleId: string;
@@ -85,6 +87,9 @@ const VehicleManagement: React.FC = () => {
   const { setPageHeader } = usePageHeader();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  // True only for the very first fetch — never true again on a later refetch, so the
+  // table stays visible instead of flashing back to a loading state.
+  const isInitialLoad = useInitialLoad(loading);
   const [showModal, setShowModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -527,14 +532,33 @@ const VehicleManagement: React.FC = () => {
                 <th style={{ textAlign: 'right', paddingRight: '2rem' }}>Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: '6rem', textAlign: 'center' }}>
-                    <Loader2 className="animate-spin" size={40} style={{ margin: '0 auto', color: 'var(--warm-taupe)' }} />
-                    <p style={{ marginTop: '1rem', color: 'var(--gray-400)', fontWeight: 600 }}>Syncing Fleet Data...</p>
-                  </td>
-                </tr>
+            <tbody aria-busy={isInitialLoad || undefined} aria-label={isInitialLoad ? 'Loading' : undefined}>
+              {isInitialLoad ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    <td style={{ padding: '1.25rem' }}>
+                      <SkeletonBlock width="70%" height="0.9rem" style={{ marginBottom: '0.4rem' }} />
+                      <SkeletonBlock width="45%" height="0.8rem" />
+                    </td>
+                    <td style={{ padding: '1.25rem' }}>
+                      <SkeletonBlock width="60%" height="0.85rem" style={{ marginBottom: '0.4rem' }} />
+                      <SkeletonBlock width="40%" height="0.8rem" />
+                    </td>
+                    <td style={{ padding: '1.25rem' }}>
+                      <SkeletonBlock width="55%" height="0.85rem" style={{ marginBottom: '0.4rem' }} />
+                      <SkeletonBlock width="35%" height="0.8rem" />
+                    </td>
+                    <td style={{ padding: '1.25rem' }}>
+                      <SkeletonBlock width="60%" height="0.85rem" />
+                    </td>
+                    <td style={{ padding: '1.25rem' }}>
+                      <SkeletonBlock width="70px" height="1.4rem" radius="9999px" />
+                    </td>
+                    <td style={{ padding: '1.25rem', textAlign: 'right', paddingRight: '2rem' }}>
+                      <SkeletonBlock width="90px" height="1.8rem" style={{ marginLeft: 'auto' }} />
+                    </td>
+                  </tr>
+                ))
               ) : filteredVehicles.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: '6rem', textAlign: 'center' }}>

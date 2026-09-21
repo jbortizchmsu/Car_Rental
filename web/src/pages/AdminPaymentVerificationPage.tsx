@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { paymentsApi, getApiErrorMessage } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonBlock } from '../components/Skeleton';
 import { Loader2, Download, FileText, Search, Plus, CheckCircle } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -8,6 +10,9 @@ import { usePageHeader } from '../contexts/PageHeaderContext';
 const AdminPaymentVerificationPage: React.FC = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // True only for the very first fetch — never true again on a live/socket refetch,
+  // so the table stays visible (not replaced by a spinner) on a live update.
+  const isInitialLoad = useInitialLoad(loading);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'SUBMITTED' | 'VERIFIED' | 'REJECTED' | 'CASH_AT_PICKUP'>('SUBMITTED');
   const [aggregates, setAggregates] = useState<any>(null);
@@ -579,10 +584,24 @@ const AdminPaymentVerificationPage: React.FC = () => {
       </div>
 
       {/* PAYMENTS TABLE */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem' }}>
-          <Loader2 style={{ animation: 'spin 1s linear infinite', marginBottom: '1rem' }} size={40} />
-          <p>Loading payments...</p>
+      {isInitialLoad ? (
+        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody aria-busy="true" aria-label="Loading">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--gray-200)' }}>
+                  <td style={{ padding: '1rem' }}><SkeletonBlock width="70px" height="0.85rem" /></td>
+                  <td style={{ padding: '1rem' }}><SkeletonBlock width="100px" height="0.85rem" /></td>
+                  <td style={{ padding: '1rem' }}><SkeletonBlock width="90px" height="0.85rem" /></td>
+                  <td style={{ padding: '1rem' }}><SkeletonBlock width="80px" height="0.85rem" /></td>
+                  <td style={{ padding: '1rem', textAlign: 'right' }}><SkeletonBlock width="70px" height="0.9rem" style={{ marginLeft: 'auto' }} /></td>
+                  <td style={{ padding: '1rem' }}><SkeletonBlock width="60px" height="0.8rem" /></td>
+                  <td style={{ padding: '1rem', textAlign: 'center' }}><SkeletonBlock width="80px" height="1.4rem" radius="9999px" style={{ margin: '0 auto' }} /></td>
+                  <td style={{ padding: '1rem', textAlign: 'center' }}><SkeletonBlock width="90px" height="1.8rem" style={{ margin: '0 auto' }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : filteredPayments.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gray-500)' }}>

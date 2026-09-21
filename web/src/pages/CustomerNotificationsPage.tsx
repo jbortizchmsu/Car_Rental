@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Check, CheckCircle2, Clock, Info, Loader2, X } from 'lucide-react';
+import { Bell, Check, CheckCircle2, Clock, Info, X } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonGroup, SkeletonListRow } from '../components/Skeleton';
 
 const CustomerNotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedNotification, setSelectedNotification] = useState<any | null>(null);
+  // True only for the very first fetch — never true again on a live/socket refetch,
+  // so the list stays visible (not replaced by a spinner) when a notification arrives.
+  const isInitialLoad = useInitialLoad(loading);
 
   const fetchNotifications = async () => {
     try {
@@ -54,10 +59,12 @@ const CustomerNotificationsPage: React.FC = () => {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  if (loading) {
+  if (isInitialLoad) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
-        <Loader2 className="animate-spin" size={48} color="var(--warm-taupe)" />
+      <div className="container" style={{ padding: '2rem 0' }}>
+        <SkeletonGroup style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonListRow key={i} />)}
+        </SkeletonGroup>
       </div>
     );
   }

@@ -84,6 +84,40 @@ export const SkeletonCard: React.FC = () => (
 );
 
 /**
+ * Matches the real card rendered by VehicleCard.tsx (vertical layout: full-width
+ * 220px-tall image block on top, 1.5rem padding below with a title line, a subtitle
+ * line, and a pill-shaped meta bar) — used by VehiclesPage.tsx's grid, which is a
+ * genuinely different shape from SkeletonCard's horizontal list-card layout above.
+ */
+export const SkeletonVehicleCard: React.FC = () => (
+  <div
+    style={{
+      backgroundColor: 'var(--white)',
+      borderRadius: 'var(--border-radius)',
+      overflow: 'hidden',
+      boxShadow: 'var(--shadow-soft)',
+      border: '1px solid #f0f0f0',
+    }}
+  >
+    <SkeletonBlock width="100%" height="220px" radius="0" />
+    <div style={{ padding: '1.5rem' }}>
+      <SkeletonBlock width="55%" height="1.1rem" style={{ marginBottom: '0.6rem' }} />
+      <SkeletonBlock width="70%" height="0.85rem" style={{ marginBottom: '1rem' }} />
+      <SkeletonBlock width="100%" height="2.2rem" radius="8px" />
+    </div>
+  </div>
+);
+
+/**
+ * A small inline placeholder sized to match a bold stat number (AdminDashboard.tsx's
+ * `{loading ? '...' : value}` spots, font-size 1.75rem/font-weight 900) — used where a
+ * value sits inline among static labels rather than as a standalone row/card.
+ */
+export const SkeletonStatValue: React.FC = () => (
+  <SkeletonBlock width="56px" height="1.75rem" radius="6px" style={{ display: 'inline-block' }} />
+);
+
+/**
  * Wraps a group of skeleton rows/cards with the ARIA attributes screen readers need
  * to announce "loading" rather than reading placeholder blocks as real content.
  */

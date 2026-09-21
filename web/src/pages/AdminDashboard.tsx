@@ -1,20 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../services/api';
-import { 
-  CheckCircle2, 
-  DollarSign, 
-  Calendar, 
-  Car, 
-  Navigation, 
-  Key, 
+import {
+  CheckCircle2,
+  DollarSign,
+  Calendar,
+  Car,
+  Navigation,
+  Key,
   Map as MapIcon
 } from 'lucide-react';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonStatValue } from '../components/Skeleton';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // True only for the very first fetch — never true again on a later refetch.
+  const isInitialLoad = useInitialLoad(loading);
 
   useEffect(() => {
     fetchStats();
@@ -42,7 +46,7 @@ const AdminDashboard: React.FC = () => {
             <div style={{ padding: '0.75rem', backgroundColor: '#DCFCE7', borderRadius: '12px' }}>
               <CheckCircle2 size={24} color="#16A34A" />
             </div>
-            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{loading ? '...' : stats?.bookings?.active || 0}</span>
+            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{isInitialLoad ? <SkeletonStatValue /> : stats?.bookings?.active || 0}</span>
           </div>
           <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', fontWeight: 600 }}>Active Rentals</p>
         </div>
@@ -52,7 +56,7 @@ const AdminDashboard: React.FC = () => {
             <div style={{ padding: '0.75rem', backgroundColor: '#F3E8FF', borderRadius: '12px' }}>
               <DollarSign size={24} color="#7B1FA2" />
             </div>
-            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>₱{loading ? '...' : (stats?.revenue?.totalVerified || 0).toLocaleString()}</span>
+            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{isInitialLoad ? <SkeletonStatValue /> : `₱${(stats?.revenue?.totalVerified || 0).toLocaleString()}`}</span>
           </div>
           <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', fontWeight: 600 }}>Verified Revenue</p>
         </div>
@@ -62,7 +66,7 @@ const AdminDashboard: React.FC = () => {
             <div style={{ padding: '0.75rem', backgroundColor: '#FEF3C7', borderRadius: '12px' }}>
               <Calendar size={24} color="#D97706" />
             </div>
-            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{loading ? '...' : stats?.bookings?.pending || 0}</span>
+            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{isInitialLoad ? <SkeletonStatValue /> : stats?.bookings?.pending || 0}</span>
           </div>
           <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', fontWeight: 600 }}>Pending Review</p>
         </div>
@@ -72,7 +76,7 @@ const AdminDashboard: React.FC = () => {
             <div style={{ padding: '0.75rem', backgroundColor: '#E0F2FE', borderRadius: '12px' }}>
               <Car size={24} color="#0284C7" />
             </div>
-            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{loading ? '...' : stats?.vehicles?.available || 0}</span>
+            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{isInitialLoad ? <SkeletonStatValue /> : stats?.vehicles?.available || 0}</span>
           </div>
           <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', fontWeight: 600 }}>Available Fleet</p>
         </div>
