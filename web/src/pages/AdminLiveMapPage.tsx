@@ -5,7 +5,7 @@ import {
   Search, RefreshCw, Loader2,
   MapPin, AlertCircle, Layers, 
   Navigation as NavIcon, Activity, History, CheckCircle,
-  Zap, Info, MoreHorizontal, Download, User, X, Map as MapIcon
+  Zap, MoreHorizontal, Download, User, X, Map as MapIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { adminApi, settingsApi } from '../services/api';
@@ -106,6 +106,10 @@ const AdminLiveMapPage: React.FC = () => {
   const [showTraffic, setShowTraffic] = useState(false);
   const [fleetStats, setFleetStats] = useState<FleetStats | null>(null);
   const [unresolvedAlerts, setUnresolvedAlerts] = useState<any[]>([]);
+  // Full alert list (resolved + unresolved), used only for the Breach Frequency stat below —
+  // `unresolvedAlerts` alone would undercount true breach frequency, since a resolved alert
+  // from an hour ago still represents a real recent breach.
+  const [allAlerts, setAllAlerts] = useState<any[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [geofenceZones, setGeofenceZones] = useState<ActiveGeofenceZone[]>([]);
@@ -183,6 +187,39 @@ const AdminLiveMapPage: React.FC = () => {
     );
   }, [geofenceZones, selectedRental]);
 
+  // Monitoring Stats card — all three derived from data already in this component's state
+  // (activeRentals from the 30s poll + socket-pushed location updates, allAlerts from the
+  // same poll), so they update on the same cadence the rest of this page already uses —
+  // no new interval or endpoint. null means "no data" (excluded from averages, not
+  // treated as 0), rendered as "—" rather than a misleading 0/false reading.
+  const avgFleetSpeedKmh = useMemo(() => {
+    const withSpeed = activeRentals.filter(r => r.locations?.[0]?.speed != null);
+    if (withSpeed.length === 0) return null;
+    const avgMetersPerSec = withSpeed.reduce((sum, r) => sum + (r.locations[0].speed as number), 0) / withSpeed.length;
+    return Math.round(avgMetersPerSec * 3.6); // same km/h conversion used for individual vehicles (InfoWindow, fullscreen panel)
+  }, [activeRentals]);
+
+  const gpsAccuracyLabel = useMemo(() => {
+    const withAccuracy = activeRentals.filter(r => r.locations?.[0]?.accuracy != null);
+    if (withAccuracy.length === 0) return null;
+    const avgMeters = withAccuracy.reduce((sum, r) => sum + (r.locations[0].accuracy as number), 0) / withAccuracy.length;
+    if (avgMeters <= 10) return 'High';
+    if (avgMeters <= 30) return 'Medium';
+    return 'Low';
+  }, [activeRentals]);
+
+  // Rolling 24h window: matches how an admin actually reads "is this happening a lot right
+  // now" (a breach from last month shouldn't count toward today's frequency), and 0/1-3/4+
+  // gives clear separation without flagging a single isolated event as "High".
+  const breachFrequency = useMemo(() => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const recentCount = allAlerts.filter(a => now - new Date(a.createdAt).getTime() <= dayMs).length;
+    if (recentCount === 0) return 'Low';
+    if (recentCount <= 3) return 'Medium';
+    return 'High';
+  }, [allAlerts]);
+
   const fetchMonitoringData = async () => {
     try {
       const [locationsRes, summaryRes, alertsRes, zonesRes] = await Promise.all([
@@ -205,6 +242,7 @@ const AdminLiveMapPage: React.FC = () => {
 
       if (alertsRes.data) {
         setUnresolvedAlerts(alertsRes.data.details.filter((a: any) => !a.resolved));
+        setAllAlerts(alertsRes.data.details);
       }
 
       // Keep zones that are renderable as EITHER shape: circle (center + radius, the
@@ -901,22 +939,25 @@ const AdminLiveMapPage: React.FC = () => {
             <div className="space-y-4">
               <div className="map-status-row">
                 <span className="map-status-label">Avg Fleet Speed</span>
-                <span className="map-status-value">34 <span className="text-[9px] text-gray-400">km/h</span></span>
+                <span className="map-status-value">
+                  {avgFleetSpeedKmh !== null ? (
+                    <>{avgFleetSpeedKmh} <span className="text-[9px] text-gray-400">km/h</span></>
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
+                </span>
               </div>
               <div className="map-status-row">
                 <span className="map-status-label">Breach Frequency</span>
-                <span className="map-status-value text-red-600">Low</span>
+                <span className={`map-status-value ${breachFrequency === 'Low' ? 'text-green-600' : breachFrequency === 'Medium' ? 'text-amber-600' : 'text-red-600'}`}>
+                  {breachFrequency}
+                </span>
               </div>
               <div className="map-status-row">
                 <span className="map-status-label">GPS Accuracy</span>
-                <span className="map-status-value text-green-600">High</span>
-              </div>
-              
-              <div className="pt-2 border-t border-gray-100">
-                <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
-                  <Info size={14} className="text-gray-400" />
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Odometer tracking pending.</span>
-                </div>
+                <span className={`map-status-value ${gpsAccuracyLabel === null ? 'text-gray-400' : gpsAccuracyLabel === 'High' ? 'text-green-600' : gpsAccuracyLabel === 'Medium' ? 'text-amber-600' : 'text-red-600'}`}>
+                  {gpsAccuracyLabel ?? '—'}
+                </span>
               </div>
             </div>
           </section>
