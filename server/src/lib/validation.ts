@@ -24,6 +24,20 @@ export const registerSchema = z.object({
 // actually parseable dates and that endDate is after startDate. Without this,
 // a garbage date string reaches calculateBookingPrice() (NaN math) and Prisma's
 // insert (Invalid Date), surfacing as an opaque 500 instead of a clear 400.
+// Pickup/return handover window — 6:00 AM through 6:00 PM, inclusive of both endpoints
+// (mirrors a typical "business hours" closed interval: 6 PM sharp is still a valid
+// handover moment, 6:01 PM is not). Reads the Date's local hour/minute directly — the
+// frontend's formatApiDate() sends startDate/endDate as timezone-less local datetime
+// strings ("2026-09-23T14:30:00"), so `new Date(str)` parses them as local wall-clock
+// time in whatever timezone this process runs in, and .getHours()/.getMinutes() read
+// that same wall-clock value back — self-consistent regardless of server timezone
+// config, since parsing and reading both use the same local reference frame.
+const isWithinBookingWindow = (dateStr: string): boolean => {
+  const d = new Date(dateStr);
+  const minutesSinceMidnight = d.getHours() * 60 + d.getMinutes();
+  return minutesSinceMidnight >= 6 * 60 && minutesSinceMidnight <= 18 * 60;
+};
+
 export const bookingDateRangeSchema = z
   .object({
     startDate: z.string().refine((v) => !isNaN(Date.parse(v)), { message: 'Start date is invalid' }),
@@ -31,6 +45,14 @@ export const bookingDateRangeSchema = z
   })
   .refine((data) => new Date(data.endDate).getTime() > new Date(data.startDate).getTime(), {
     message: 'End date must be after start date',
+    path: ['endDate'],
+  })
+  .refine((data) => isWithinBookingWindow(data.startDate), {
+    message: 'Pickup time must be between 6:00 AM and 6:00 PM.',
+    path: ['startDate'],
+  })
+  .refine((data) => isWithinBookingWindow(data.endDate), {
+    message: 'Return time must be between 6:00 AM and 6:00 PM.',
     path: ['endDate'],
   });
 

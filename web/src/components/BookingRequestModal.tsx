@@ -711,6 +711,11 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
   // Recomputed each render — used by DatePicker props
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999);
+  // Pickup/return handover window — must match bookingDateRangeSchema's server-side check
+  // (server/src/lib/validation.ts) exactly: 6:00 AM through 6:00 PM inclusive.
+  const now = new Date();
+  const sixAM = new Date(); sixAM.setHours(6, 0, 0, 0);
+  const sixPM = new Date(); sixPM.setHours(18, 0, 0, 0);
   const pickupDateObj = formData.start_date ? new Date(formData.start_date) : null;
 
   if (!isOpen) return null;
@@ -812,8 +817,8 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                               timeIntervals={30}
                               dateFormat="MMMM d, yyyy h:mm aa"
                               minDate={new Date()}
-                              minTime={isToday(pickupDateObj) ? new Date() : startOfDay}
-                              maxTime={endOfDay}
+                              minTime={isToday(pickupDateObj) ? (now > sixAM ? now : sixAM) : sixAM}
+                              maxTime={sixPM}
                               excludeDateIntervals={bookedRanges.map(r => ({
                                 start: new Date(r.startDate),
                                 end: new Date(r.endDate)
@@ -848,6 +853,8 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                               timeIntervals={30}
                               dateFormat="MMMM d, yyyy h:mm aa"
                               minDate={pickupDateObj ?? new Date()}
+                              minTime={isToday(formData.end_date ? new Date(formData.end_date) : null) ? (now > sixAM ? now : sixAM) : sixAM}
+                              maxTime={sixPM}
                               excludeDateIntervals={bookedRanges.map(r => ({
                                 start: new Date(r.startDate),
                                 end: new Date(r.endDate)
