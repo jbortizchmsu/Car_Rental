@@ -2501,6 +2501,26 @@ h5 {
   box-shadow: 0 0 0 2px rgba(173, 155, 141, 0.2);
 }
 
+/* Tighter columns specifically while the panel is open — the baseline widths above
+   (200/280/170) assume the list has the full page width to itself, which is no
+   longer true once .has-selection shrinks the list's own grid track to
+   minmax(0, 1fr) beside the panel's min(480px, 100%). Column 3 stays capped (not
+   auto) at a width still sized for "Waiting for Customer" in one line — the whole
+   point of the earlier badge-wrapping fix — so it is trimmed only slightly (170→160)
+   rather than removed. Column 1 is left at its floor of 220px because
+   .booking-list-main already forces that width via an inline minWidth in the JSX;
+   setting the track's own minimum any lower would not actually shrink the rendered
+   column, since the child inside it won't go narrower than 220px regardless.
+   Column 2 (Vehicle + Schedule) absorbs most of the remaining squeeze, relying on
+   the Schedule span's existing ellipsis/title fallback (see BookingRequestsPage.tsx)
+   to degrade gracefully rather than wrap when space is this tight. See the width
+   math in this task's report for why even these tightened values do not fully
+   eliminate overflow at 1366-1440px — that residual gap needs a follow-up beyond
+   this rule (e.g. revisiting .booking-list-main's own 220px floor). */
+.booking-layout-grid.has-selection .booking-list-item {
+  grid-template-columns: minmax(220px, 1fr) minmax(200px, 1.1fr) minmax(160px, 180px);
+}
+
 /* De-emphasize the rest of the list once a booking is selected, so the side-by-side
    layout shift reads as "the panel is now the focus" rather than "the list just got
    squeezed." Reuses this codebase's existing disabled-state opacity convention
@@ -3544,7 +3564,7 @@ h5 {
 }
 
 .booking-layout-grid.has-selection {
-  grid-template-columns: minmax(0, 1fr) min(480px, 100%);
+  grid-template-columns: minmax(0, 1fr) min(420px, 100%);
 }
 
 @media (max-width: 1200px) {

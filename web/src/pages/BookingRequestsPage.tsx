@@ -751,7 +751,7 @@ const BookingRequestsPage: React.FC = () => {
                   style={{ cursor: 'pointer' }}
                 >
                   {/* Left: Customer & ID */}
-                  <div className="booking-list-main" style={{ minWidth: '220px' }}>
+                  <div className="booking-list-main" style={{ minWidth: '200px' }}>
                     <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
                       <VehicleImage
                         vehicleId={booking.vehicle.id}
