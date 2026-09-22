@@ -2488,6 +2488,35 @@ h5 {
   transition: all 0.2s ease;
   align-items: center;
   box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  /* Positioned so .booking-row-index (an absolutely-positioned child) anchors to
+     this card's own border box, not some further-out ancestor. */
+  position: relative;
+}
+
+/* Row index badge — overlaid on the card's top-left corner, outside its padding box,
+   so it consumes none of the card's grid width budget (a sibling-wrapper approach
+   was tried first and shrank the grid enough to reopen the badge/button overflow
+   bug from a prior fix). overflow: visible is required on .booking-list-item (its
+   default, unchanged) for this to render outside the card's border rather than
+   being clipped. */
+.booking-row-index {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 1;
+  opacity: 1;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--gray-100);
+  color: var(--gray-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .booking-list-item:hover {
