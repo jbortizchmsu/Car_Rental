@@ -673,7 +673,7 @@ const BookingRequestsPage: React.FC = () => {
       </div>
 
       {/* Workflow Filter Chips */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {[
           { id: 'ALL_ACTIVE', label: 'All Active Workflow' },
           { id: 'NEEDS_ACTION', label: 'Needs Admin Action' },
@@ -741,15 +741,35 @@ const BookingRequestsPage: React.FC = () => {
           ) : filteredBookings.length === 0 ? (
             renderEmptyState()
           ) : (
-            filteredBookings.map((booking) => {
+            filteredBookings.map((booking, index) => {
               const wf = getWorkflowState(booking);
               return (
-                <div 
-                  key={booking.id} 
-                  className={`booking-list-item ${selectedBooking?.id === booking.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedBooking(booking)}
-                  style={{ cursor: 'pointer' }}
-                >
+                <div key={booking.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {/* Row index — reflects position in the current filtered/sorted list, not a
+                      fixed booking ID, and intentionally lives outside .booking-list-item so it
+                      never dims via .has-selection .booking-list-item:not(.selected) and stays
+                      readable regardless of which row is selected. */}
+                  <span style={{
+                    flexShrink: 0,
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--gray-100)',
+                    color: 'var(--gray-500)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    border: '1px solid var(--gray-200)',
+                  }}>
+                    {index + 1}
+                  </span>
+                  <div
+                    className={`booking-list-item ${selectedBooking?.id === booking.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedBooking(booking)}
+                    style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}
+                  >
                   {/* Left: Customer & ID */}
                   <div className="booking-list-main" style={{ minWidth: '200px' }}>
                     <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'var(--gray-50)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--gray-200)' }}>
@@ -823,6 +843,7 @@ const BookingRequestsPage: React.FC = () => {
                         {wf.actionLabel}
                       </button>
                     </div>
+                  </div>
                   </div>
                 </div>
               );

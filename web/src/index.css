@@ -2355,7 +2355,7 @@ h5 {
   flex: 1;
   background: var(--white);
   border-radius: 20px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   border: 1px solid var(--gray-100);
   box-shadow: var(--shadow-sm);
   min-width: 300px;
