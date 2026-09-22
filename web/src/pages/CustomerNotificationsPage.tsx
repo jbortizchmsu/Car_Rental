@@ -10,6 +10,14 @@ import { formatDate } from '../utils/formatDate';
 // page keeps "Load More" pacing sensible rather than dumping a huge single fetch.
 const PAGE_SIZE = 20;
 
+// Defends against a response-shape mismatch the same way NotificationPanel.tsx already
+// does (see its fetchNotifications) — e.g. a stale backend process still serving the old
+// bare-array response instead of the new { data, total, hasMore } envelope. Without this,
+// `data.data` on a plain array is undefined, which poisons `notifications` state and
+// crashes the next render at `notifications.filter(...)`.
+const extractList = (responseData: any): any[] => (Array.isArray(responseData) ? responseData : responseData?.data || []);
+const extractHasMore = (responseData: any): boolean => (Array.isArray(responseData) ? false : !!responseData?.hasMore);
+
 const CustomerNotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,8 +33,8 @@ const CustomerNotificationsPage: React.FC = () => {
     try {
       setLoading(true);
       const { data } = await notificationsApi.getNotifications({ skip: 0, take: PAGE_SIZE });
-      setNotifications(data.data);
-      setHasMore(data.hasMore);
+      setNotifications(extractList(data));
+      setHasMore(extractHasMore(data));
     } catch (err) {
       setError('Failed to load notifications');
     } finally {
@@ -39,8 +47,8 @@ const CustomerNotificationsPage: React.FC = () => {
     setLoadingMore(true);
     try {
       const { data } = await notificationsApi.getNotifications({ skip: notifications.length, take: PAGE_SIZE });
-      setNotifications(prev => [...prev, ...data.data]);
-      setHasMore(data.hasMore);
+      setNotifications(prev => [...prev, ...extractList(data)]);
+      setHasMore(extractHasMore(data));
     } catch (err) {
       setError('Failed to load more notifications');
     } finally {
@@ -62,7 +70,7 @@ const CustomerNotificationsPage: React.FC = () => {
       const { data } = await notificationsApi.getNotifications({ skip: 0, take: PAGE_SIZE });
       setNotifications(prev => {
         const existingIds = new Set(prev.map(n => n.id));
-        const newOnes = data.data.filter((n: any) => !existingIds.has(n.id));
+        const newOnes = extractList(data).filter((n: any) => !existingIds.has(n.id));
         return newOnes.length > 0 ? [...newOnes, ...prev] : prev;
       });
     } catch (err) {
