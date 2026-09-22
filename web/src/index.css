@@ -2474,7 +2474,12 @@ h5 {
 
 .booking-list-item {
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1fr) minmax(0, auto);
+  /* 3rd column (amount/status badge/action) is capped rather than minmax(0, auto),
+     so a long badge like "Waiting for Customer" can't eat variable space from the
+     2nd column (Vehicle + Schedule) on a row-by-row basis — every row now reserves
+     the same width for that column regardless of its own badge text length, which
+     is what was causing the Schedule column to wrap inconsistently between rows. */
+  grid-template-columns: minmax(200px, 1fr) minmax(280px, 1.3fr) minmax(170px, 200px);
   gap: 1.5rem;
   background: var(--white);
   border: 1px solid var(--gray-100);
@@ -2494,6 +2499,21 @@ h5 {
   border-color: var(--warm-taupe);
   background-color: rgba(173, 155, 141, 0.05);
   box-shadow: 0 0 0 2px rgba(173, 155, 141, 0.2);
+}
+
+/* De-emphasize the rest of the list once a booking is selected, so the side-by-side
+   layout shift reads as "the panel is now the focus" rather than "the list just got
+   squeezed." Reuses this codebase's existing disabled-state opacity convention
+   (0.6, see .cash-confirm-submit:disabled) rather than inventing a new value.
+   :not(.selected) means the active row is deliberately excluded — it already has its
+   own distinct highlight above and must stay at full opacity so it's still clearly
+   identifiable as "the one whose details are showing." */
+.booking-layout-grid.has-selection .booking-list-item:not(.selected) {
+  opacity: 0.6;
+}
+
+.booking-layout-grid.has-selection .booking-list-item:not(.selected):hover {
+  opacity: 0.85;
 }
 
 .booking-list-main {

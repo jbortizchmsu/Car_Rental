@@ -774,9 +774,21 @@ const BookingRequestsPage: React.FC = () => {
                       <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--black)' }}>{booking.vehicle.brand} {booking.vehicle.model}</span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{booking.vehicle.licensePlate}</span>
                     </div>
-                    <div className="booking-list-meta">
+                    <div className="booking-list-meta" style={{ minWidth: 0 }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Schedule</span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)' }}>{formatDate(booking.startDate, 'short')} → {formatDate(booking.endDate, 'short')}</span>
+                      <span
+                        style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          color: 'var(--black)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={`${formatDate(booking.startDate, 'short')} → ${formatDate(booking.endDate, 'short')}`}
+                      >
+                        {formatDate(booking.startDate, 'short')} → {formatDate(booking.endDate, 'short')}
+                      </span>
                     </div>
                   </div>
 
