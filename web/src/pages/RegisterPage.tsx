@@ -167,7 +167,8 @@ const RegisterPage: React.FC = () => {
             {registeredEmail}
           </p>
           <p style={{ color: '#6B7280', fontSize: '0.875rem', marginBottom: '2rem' }}>
-            Click the link in the email to activate your account. The link expires in 24 hours.
+            Click the link in the email to verify your address. The link expires in 24 hours.
+            After that, an admin will review and approve your account before you can log in.
           </p>
           {resendSent ? (
             <p style={{ color: '#22C55E', fontSize: '0.875rem', fontWeight: 600 }}>✓ A new link has been sent!</p>

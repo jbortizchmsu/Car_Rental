@@ -190,6 +190,11 @@ export const usersApi = {
   getById: (id: string) => api.get(`/admin/users/${id}`),
   updateStatus: (id: string, isActive: boolean) => api.patch(`/admin/users/${id}/status`, { isActive }),
   updateRole: (id: string, role: string) => api.patch(`/admin/users/${id}/role`, { role }),
+  // `reason` is genuinely optional server-side (zod: z.string().trim().min(1).optional())
+  // — omit the key entirely rather than sending an empty string, since an explicit ''
+  // would fail that min(1) check if the schema ever tightens `optional` semantics.
+  updateApproval: (id: string, status: 'approved' | 'rejected', reason?: string) =>
+    api.patch(`/admin/users/${id}/approval`, { status, ...(reason?.trim() ? { reason: reason.trim() } : {}) }),
 };
 
 // Settings API

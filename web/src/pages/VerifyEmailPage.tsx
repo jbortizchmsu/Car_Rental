@@ -129,7 +129,9 @@ const VerifyEmailPage: React.FC = () => {
             </div>
           </div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.75rem' }}>Email verified!</h2>
-          <p style={{ color: '#6B7280', marginBottom: '2rem' }}>Your account is now active. You can log in.</p>
+          <p style={{ color: '#6B7280', marginBottom: '2rem' }}>
+            Your email is verified. Your account is now awaiting admin approval — we'll email you once it's approved.
+          </p>
           <Link
             to="/login"
             className="btn-primary"

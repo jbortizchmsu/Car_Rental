@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Users, ShieldAlert, UserCheck, Search, CheckCircle2, XCircle, History, AlertTriangle } from 'lucide-react';
+import { Users, ShieldAlert, UserCheck, Search, CheckCircle2, XCircle, History, AlertTriangle, UserPlus, Ban } from 'lucide-react';
 import { usersApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -7,14 +7,52 @@ import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
+import { useInitialLoad } from '../utils/useInitialLoad';
+
+// Small, self-contained badge for approvalStatus — deliberately NOT added to the shared
+// StatusBadge.tsx dictionary: that component's keys ('PENDING', 'REJECTED', etc.) are
+// already used for unrelated booking/payment statuses, and coupling approval-status
+// colors to that shared map would risk an unrelated future change to booking/payment
+// styling silently changing this badge too. Same visual pattern (padding/radius/
+// fontSize/fontWeight/uppercase) as StatusBadge, just a dedicated small map here.
+// Missing/undefined approvalStatus (older cached data) renders as 'approved' — matches
+// the schema's own default and avoids ever showing a false "pending"/"rejected" badge.
+function ApprovalBadge({ status }: { status: string | undefined }) {
+  const resolved = status || 'approved';
+  const styles: Record<string, { bg: string; text: string; label: string }> = {
+    pending: { bg: '#FFF3E0', text: '#E65100', label: 'Pending' },
+    approved: { bg: '#ECFDF5', text: '#10B981', label: 'Approved' },
+    rejected: { bg: '#FEF2F2', text: '#EF4444', label: 'Rejected' },
+  };
+  const style = styles[resolved] || styles.approved;
+  return (
+    <span style={{
+      padding: '0.25rem 0.75rem',
+      borderRadius: '20px',
+      fontSize: '0.75rem',
+      fontWeight: 800,
+      textTransform: 'uppercase',
+      backgroundColor: style.bg,
+      color: style.text,
+      display: 'inline-block',
+    }}>
+      {style.label}
+    </span>
+  );
+}
 
 const AdminUserRolesPage: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // True only for the very first fetch — a post-action refresh (after approve/reject/
+  // enable/disable/promote/demote) sets `loading` too, but must NOT replace the table
+  // with the "Loading users..." text again; it should refresh in place.
+  const isInitialLoad = useInitialLoad(loading);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [approvalFilter, setApprovalFilter] = useState('ALL');
 
   const toast = useToast();
   const { setPageHeader } = usePageHeader();
@@ -25,10 +63,13 @@ const AdminUserRolesPage: React.FC = () => {
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
-    type: 'DISABLE' | 'ENABLE' | 'PROMOTE' | 'DEMOTE' | null;
+    type: 'DISABLE' | 'ENABLE' | 'PROMOTE' | 'DEMOTE' | 'APPROVE' | 'REJECT' | null;
     targetUser: any;
   }>({ isOpen: false, type: null, targetUser: null });
   const [actionLoading, setActionLoading] = useState(false);
+  // Only used by the REJECT modal — a genuinely optional reason (backend: z.string().
+  // trim().min(1).optional()), reset whenever a new modal opens.
+  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     setPageHeader({
@@ -71,7 +112,8 @@ const AdminUserRolesPage: React.FC = () => {
     fetchUserDetails(user.id);
   };
 
-  const openModal = (type: 'DISABLE' | 'ENABLE' | 'PROMOTE' | 'DEMOTE', user: any) => {
+  const openModal = (type: 'DISABLE' | 'ENABLE' | 'PROMOTE' | 'DEMOTE' | 'APPROVE' | 'REJECT', user: any) => {
+    setRejectReason('');
     setModalConfig({ isOpen: true, type, targetUser: user });
   };
 
@@ -93,6 +135,12 @@ const AdminUserRolesPage: React.FC = () => {
       } else if (type === 'DEMOTE') {
         await usersApi.updateRole(targetUser.id, 'customer');
         toast.success('Role updated', 'User demoted to Customer.');
+      } else if (type === 'APPROVE') {
+        await usersApi.updateApproval(targetUser.id, 'approved');
+        toast.success('Registration approved', `${targetUser.fullName} can now log in. They will receive an email.`);
+      } else if (type === 'REJECT') {
+        await usersApi.updateApproval(targetUser.id, 'rejected', rejectReason);
+        toast.success('Registration rejected', `${targetUser.fullName} will not be able to log in.`);
       }
 
       await fetchUsers();
@@ -112,19 +160,26 @@ const AdminUserRolesPage: React.FC = () => {
       const matchesSearch = (u.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                             (u.email || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesRole = roleFilter === 'ALL' || u.role === roleFilter.toLowerCase();
-      const matchesStatus = statusFilter === 'ALL' || 
-                            (statusFilter === 'ACTIVE' && u.isActive) || 
+      const matchesStatus = statusFilter === 'ALL' ||
+                            (statusFilter === 'ACTIVE' && u.isActive) ||
                             (statusFilter === 'DISABLED' && !u.isActive);
-      return matchesSearch && matchesRole && matchesStatus;
+      const userApproval = u.approvalStatus || 'approved';
+      const matchesApproval = approvalFilter === 'ALL' ||
+                            (approvalFilter === 'PENDING' && userApproval === 'pending') ||
+                            (approvalFilter === 'APPROVED' && userApproval === 'approved') ||
+                            (approvalFilter === 'REJECTED' && userApproval === 'rejected');
+      return matchesSearch && matchesRole && matchesStatus && matchesApproval;
     });
-  }, [users, searchQuery, roleFilter, statusFilter]);
+  }, [users, searchQuery, roleFilter, statusFilter, approvalFilter]);
 
   const summary = useMemo(() => {
     return {
       total: users.length,
       activeCustomers: users.filter(u => u.role === 'customer' && u.isActive).length,
       admins: users.filter(u => u.role === 'admin').length,
-      disabled: users.filter(u => !u.isActive).length
+      disabled: users.filter(u => !u.isActive).length,
+      // Only customers go through admin approval — an admin row is never "pending".
+      pendingApproval: users.filter(u => u.role === 'customer' && (u.approvalStatus || 'approved') === 'pending').length
     };
   }, [users]);
 
@@ -197,6 +252,17 @@ const AdminUserRolesPage: React.FC = () => {
               <option value="ACTIVE">Active</option>
               <option value="DISABLED">Disabled</option>
             </select>
+            <select
+              className="input"
+              value={approvalFilter}
+              onChange={(e) => setApprovalFilter(e.target.value)}
+              style={{ width: '190px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
+            >
+              <option value="ALL">All Approval</option>
+              <option value="PENDING">Awaiting approval ({summary.pendingApproval})</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
           </div>
 
           {/* Table */}
@@ -207,15 +273,16 @@ const AdminUserRolesPage: React.FC = () => {
                   <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>User</th>
                   <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Role</th>
                   <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Status</th>
+                  <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Approval</th>
                   <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</th>
                   <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>Loading users...</td></tr>
+                {isInitialLoad ? (
+                  <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>Loading users...</td></tr>
                 ) : filteredUsers.length === 0 ? (
-                  <tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>No users found matching filters.</td></tr>
+                  <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>No users found matching filters.</td></tr>
                 ) : (
                   filteredUsers.map(user => (
                     <tr key={user.id} style={{ borderBottom: '1px solid var(--gray-100)', backgroundColor: selectedUser?.id === user.id ? 'var(--gray-50)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleSelectUser(user)}>
@@ -259,6 +326,31 @@ const AdminUserRolesPage: React.FC = () => {
                           {user.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
                           {user.isActive ? 'Active' : 'Disabled'}
                         </span>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem' }}>
+                        {user.role === 'customer' ? (
+                          <div>
+                            <ApprovalBadge status={user.approvalStatus} />
+                            {user.approvalStatus === 'rejected' && user.rejectionReason && (
+                              <div
+                                title={user.rejectionReason}
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: 'var(--gray-500)',
+                                  marginTop: '0.35rem',
+                                  maxWidth: '180px',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {user.rejectionReason}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--gray-300)', fontSize: '0.8rem' }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
                         {new Date(user.createdAt).toLocaleDateString()}
@@ -383,6 +475,36 @@ const AdminUserRolesPage: React.FC = () => {
                       Demote to Customer
                     </button>
                   )}
+
+                  {/* Approval controls — customers only. Admins never have an approvalStatus
+                      that matters (never subject to approval, per the backend), and this
+                      whole block is skipped for any non-customer row, which also covers
+                      "the current admin" since an admin can never be role: 'customer'. */}
+                  {userDetails.role === 'customer' && (userDetails.approvalStatus === 'pending' || userDetails.approvalStatus === 'rejected') && (
+                    <>
+                      <button
+                        onClick={() => openModal('APPROVE', userDetails)}
+                        disabled={actionLoading}
+                        className="btn-outline"
+                        style={{ color: '#10B981', borderColor: '#10B981' }}
+                      >
+                        <UserPlus size={16} style={{ marginRight: '0.4rem', verticalAlign: 'text-bottom' }} />
+                        Approve Registration
+                      </button>
+                      {userDetails.approvalStatus === 'pending' && (
+                        <button
+                          onClick={() => openModal('REJECT', userDetails)}
+                          disabled={actionLoading}
+                          className="btn-outline"
+                          style={{ color: '#DC2626', borderColor: '#DC2626' }}
+                        >
+                          <Ban size={16} style={{ marginRight: '0.4rem', verticalAlign: 'text-bottom' }} />
+                          Reject Registration
+                        </button>
+                      )}
+                    </>
+                  )}
+
                   {currentUser?.id === userDetails.id && (
                     <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', textAlign: 'center', marginTop: '0.25rem' }}>
                       You cannot change your own role or status.
@@ -401,18 +523,52 @@ const AdminUserRolesPage: React.FC = () => {
           modalConfig.type === 'DISABLE' ? 'Disable user account?' :
           modalConfig.type === 'ENABLE' ? 'Enable user account?' :
           modalConfig.type === 'PROMOTE' ? 'Promote customer to admin?' :
-          'Demote admin to customer?'
+          modalConfig.type === 'DEMOTE' ? 'Demote admin to customer?' :
+          modalConfig.type === 'APPROVE' ? 'Approve this registration?' :
+          'Reject this registration?'
         }
         message={
           modalConfig.type === 'DISABLE' ? 'This user will no longer be able to log in.' :
           modalConfig.type === 'ENABLE' ? 'This user will be able to log in again.' :
           modalConfig.type === 'PROMOTE' ? 'This user will gain access to all administrative modules.' :
-          'This user will lose administrative access.'
+          modalConfig.type === 'DEMOTE' ? 'This user will lose administrative access.' :
+          modalConfig.type === 'APPROVE' ? 'The customer will be notified by email and will be able to log in.' :
+          'The customer will not be able to log in. No email is sent for a rejection.'
         }
-        confirmLabel={modalConfig.type === 'ENABLE' || modalConfig.type === 'PROMOTE' ? 'Confirm' : 'Proceed'}
-        variant={modalConfig.type === 'DISABLE' || modalConfig.type === 'DEMOTE' ? 'danger' : 'success'}
+        // Reject's reason field is deliberately built here via `details` rather than
+        // ConfirmActionModal's own `reasonInput` prop: reasonInput structurally REQUIRES
+        // at least minLength characters before the Confirm button enables (it's built for
+        // mandatory reasons, like the existing booking-void flow's 10-char minimum) — but
+        // the backend's reason here is genuinely optional (z.string().min(1).optional()),
+        // so a plain, non-blocking textarea is the correct fit, not a misuse of reasonInput.
+        details={modalConfig.type === 'REJECT' ? (
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--gray-500)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Reason (optional)
+            </label>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Documents unclear or invalid"
+              rows={3}
+              maxLength={500}
+              disabled={actionLoading}
+              style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--gray-200)', padding: '0.75rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.5 }}
+            />
+          </div>
+        ) : undefined}
+        confirmLabel={
+          modalConfig.type === 'ENABLE' || modalConfig.type === 'PROMOTE' ? 'Confirm' :
+          modalConfig.type === 'APPROVE' ? 'Approve' :
+          modalConfig.type === 'REJECT' ? 'Reject' :
+          'Proceed'
+        }
+        variant={
+          modalConfig.type === 'DISABLE' || modalConfig.type === 'DEMOTE' || modalConfig.type === 'REJECT' ? 'danger' :
+          'success'
+        }
         onConfirm={executeAction}
-        onCancel={() => setModalConfig({ isOpen: false, type: null, targetUser: null })}
+        onCancel={() => { setModalConfig({ isOpen: false, type: null, targetUser: null }); setRejectReason(''); }}
         loading={actionLoading}
       />
     </div>
