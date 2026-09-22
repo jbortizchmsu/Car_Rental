@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Check, CheckCircle2, Clock, Info, X } from 'lucide-react';
+import { Bell, Check, CheckCircle2, Clock, Info, Loader2, X } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
 import { useInitialLoad } from '../utils/useInitialLoad';
 import { SkeletonGroup, SkeletonListRow } from '../components/Skeleton';
 import { formatDate } from '../utils/formatDate';
 
+// Full-width cards here (vs. NotificationPanel's compact dropdown rows), so a smaller
+// page keeps "Load More" pacing sensible rather than dumping a huge single fetch.
+const PAGE_SIZE = 20;
+
 const CustomerNotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedNotification, setSelectedNotification] = useState<any | null>(null);
   // True only for the very first fetch — never true again on a live/socket refetch,
@@ -18,8 +24,9 @@ const CustomerNotificationsPage: React.FC = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const { data } = await notificationsApi.getNotifications();
-      setNotifications(data);
+      const { data } = await notificationsApi.getNotifications({ skip: 0, take: PAGE_SIZE });
+      setNotifications(data.data);
+      setHasMore(data.hasMore);
     } catch (err) {
       setError('Failed to load notifications');
     } finally {
@@ -27,12 +34,44 @@ const CustomerNotificationsPage: React.FC = () => {
     }
   };
 
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return; // guards against a rapid double-click firing twice
+    setLoadingMore(true);
+    try {
+      const { data } = await notificationsApi.getNotifications({ skip: notifications.length, take: PAGE_SIZE });
+      setNotifications(prev => [...prev, ...data.data]);
+      setHasMore(data.hasMore);
+    } catch (err) {
+      setError('Failed to load more notifications');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
   }, []);
 
+  // A live notification must never discard pages already loaded via "Load More" — so
+  // this does NOT call fetchNotifications() (which would reset the list back to just
+  // page 1). Instead it fetches only the first page and prepends whatever isn't already
+  // in state (deduped by id), covering both "one new notification arrived" and "a
+  // reconnect may have missed several" without touching anything loaded beyond page 1.
+  const prependLatest = async () => {
+    try {
+      const { data } = await notificationsApi.getNotifications({ skip: 0, take: PAGE_SIZE });
+      setNotifications(prev => {
+        const existingIds = new Set(prev.map(n => n.id));
+        const newOnes = data.data.filter((n: any) => !existingIds.has(n.id));
+        return newOnes.length > 0 ? [...newOnes, ...prev] : prev;
+      });
+    } catch (err) {
+      console.error('Failed to refresh latest notifications', err);
+    }
+  };
+
   // Live refresh when a new notification arrives for this customer.
-  useNotificationRefresh(() => { fetchNotifications(); });
+  useNotificationRefresh(() => { prependLatest(); });
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification);
@@ -156,6 +195,20 @@ const CustomerNotificationsPage: React.FC = () => {
               </div>
             </button>
           ))}
+        </div>
+      )}
+
+      {hasMore && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="btn-outline"
+            style={{ fontSize: '0.9rem', padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {loadingMore ? <Loader2 size={16} className="animate-spin" /> : null}
+            {loadingMore ? 'Loading...' : 'Load More'}
+          </button>
         </div>
       )}
 

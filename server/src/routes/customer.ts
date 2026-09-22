@@ -88,15 +88,36 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Notifications Logic (Proxy to existing but with /customer prefix if desired)
+// Real pagination — same skip/take/envelope pattern as routes/notifications.ts (mounted at
+// /api/notifications, not called by any current frontend). This route, not that one, is what
+// every actual caller hits (web's /customer/notifications, mobile's dead/unused client method
+// of the same name) — previously a flat, uncapped-page findMany with a hard take: 50 and no
+// way to reach anything older. Response is now always the {data, total, skip, take, hasMore}
+// envelope, not a bare array — confirmed safe for every current caller: NotificationPanel.tsx
+// already defensively branches on Array.isArray(response.data) vs response.data?.data, and
+// mobile's own getNotifications() client method has zero call sites anywhere in mobile/src.
 router.get('/notifications', authenticate, async (req: AuthRequest, res) => {
   try {
-    const notifications = await prisma.notification.findMany({
-      where: { userId: req.user!.id },
-      orderBy: { createdAt: 'desc' },
-      take: 50
+    const skip = parseInt(req.query.skip as string) || 0;
+    const take = parseInt(req.query.take as string) || 20;
+
+    const [notifications, total] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId: req.user!.id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take
+      }),
+      prisma.notification.count({ where: { userId: req.user!.id } })
+    ]);
+
+    res.json({
+      data: notifications,
+      total,
+      skip,
+      take,
+      hasMore: skip + take < total
     });
-    res.json(notifications);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch notifications' });
   }

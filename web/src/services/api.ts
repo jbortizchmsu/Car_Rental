@@ -145,7 +145,7 @@ export const adminApi = {
 
 // Notifications API
 export const notificationsApi = {
-  getNotifications: () => api.get('/customer/notifications'),
+  getNotifications: (params?: { skip?: number; take?: number }) => api.get('/customer/notifications', { params }),
   getUnreadCount: () => api.get('/customer/notifications/unread-count'),
   markAsRead: (id: string) => api.post(`/customer/notifications/${id}/read`),
   markAllAsRead: () => api.post('/customer/notifications/read-all'),
