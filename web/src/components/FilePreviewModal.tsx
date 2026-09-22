@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Loader2, Download, AlertCircle, Maximize2, Minimize2, FileText } from 'lucide-react';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 interface FilePreviewModalProps {
   fileId: string;
@@ -14,6 +15,11 @@ const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ fileId, title, onCl
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [contentType, setContentType] = useState<string>('');
+
+  // No isOpen prop — this component is only ever mounted by its callers while
+  // "open" (see MyBookingsPage.tsx / BookingRequestsPage.tsx), so the lock applies
+  // for the whole mounted lifetime and releases automatically on unmount.
+  useBodyScrollLock(true);
 
   useEffect(() => {
     let url: string | null = null;

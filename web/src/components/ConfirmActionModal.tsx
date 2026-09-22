@@ -1,5 +1,6 @@
 import React, { type ReactNode } from 'react';
 import { AlertTriangle, AlertCircle, Info, CheckCircle2, Loader2, X } from 'lucide-react';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 export type ConfirmVariant = 'danger' | 'warning' | 'success' | 'default';
 
@@ -40,6 +41,12 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   onCancel,
   reasonInput
 }) => {
+  // Must run unconditionally, before the isOpen early return below, so the hook is
+  // called on every render regardless of isOpen (see the pre-existing Escape-key
+  // effect further down, which is NOT called unconditionally — left as-is, out of
+  // scope for this fix, but not a pattern to repeat here).
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   // Map variant to styles and icons

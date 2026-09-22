@@ -8,6 +8,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
 import ConfirmActionModal from './ConfirmActionModal';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 export const formatApiDate = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -76,7 +77,13 @@ interface LocalFilePreviewModalProps {
 
 /** The preview modal body itself — identical markup/behavior to what
  * DocumentUploadCard rendered inline before this was extracted. */
-const LocalFilePreviewModal: React.FC<LocalFilePreviewModalProps> = ({ file, url, onClose }) => (
+const LocalFilePreviewModal: React.FC<LocalFilePreviewModalProps> = ({ file, url, onClose }) => {
+  // This component is only ever mounted while "open" (the parent conditionally
+  // renders it), so the lock applies for its whole mounted lifetime and releases
+  // automatically via the hook's cleanup on unmount.
+  useBodyScrollLock(true);
+
+  return (
   <div className="modal-overlay" style={{ zIndex: 2200 }} onClick={onClose}>
     <div
       className="modal-container"
@@ -142,7 +149,8 @@ const LocalFilePreviewModal: React.FC<LocalFilePreviewModalProps> = ({ file, url
       </div>
     </div>
   </div>
-);
+  );
+};
 
 interface PriceBreakdownQuote {
   baseDailyRate: number;
@@ -441,6 +449,8 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const step4MountedAtRef = useRef<number>(0);
   const reviewFilePreview = useLocalFilePreview();
+
+  useBodyScrollLock(isOpen);
 
   // Reset state when modal opens/closes or profile changes
   useEffect(() => {

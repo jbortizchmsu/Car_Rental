@@ -682,6 +682,7 @@ h5 {
   z-index: 2000;
   padding: 2rem;
   backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
 }
 
 .modal-container {
@@ -694,6 +695,7 @@ h5 {
   position: relative;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
   animation: modalFadeUp 0.3s ease-out;
+  overscroll-behavior: contain;
 }
 
 @keyframes modalFadeUp {
@@ -2123,6 +2125,13 @@ h5 {
 }
 
 /* Confirm Modal Styles */
+/* NOTE: .confirm-modal-backdrop is defined a second time further down (search
+   "CONFIRM ACTION MODAL"), with different background opacity, z-index (9000 vs this
+   block's 1200), padding, and animation name. The two blocks are NOT identical, so
+   they were left as separate rules rather than guessed-merged — the later block wins
+   the cascade (same selector/specificity, later in the file) and is what actually
+   renders. overscroll-behavior: contain was added to both, since either could
+   theoretically end up being the winning one if the file is reordered later. */
 .confirm-modal-backdrop {
   position: fixed;
   top: 0;
@@ -2137,6 +2146,7 @@ h5 {
   z-index: 1200;
   padding: 1.5rem;
   animation: fadeIn 0.2s ease-out;
+  overscroll-behavior: contain;
 }
 
 .confirm-modal {
@@ -2791,6 +2801,7 @@ h5 {
   z-index: 9000;
   padding: 20px;
   animation: fade-in 0.2s ease-out forwards;
+  overscroll-behavior: contain;
 }
 
 .confirm-modal {
@@ -2989,6 +3000,7 @@ h5 {
   justify-content: center;
   padding: 1.5rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .booking-modal {
@@ -3002,6 +3014,7 @@ h5 {
   position: relative;
   display: flex;
   flex-direction: column;
+  overscroll-behavior: contain;
 }
 
 .booking-modal-close {

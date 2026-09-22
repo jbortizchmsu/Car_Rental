@@ -11,6 +11,7 @@ import VehicleImage from '../components/VehicleImage';
 import { useToast } from '../components/ToastProvider';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import FilePreviewModal from '../components/FilePreviewModal';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 const MyBookingsPage: React.FC = () => {
   const toast = useToast();
@@ -82,6 +83,11 @@ const MyBookingsPage: React.FC = () => {
   const [cancelTargetStatus, setCancelTargetStatus] = useState<string>('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // The Booking Details Modal below is inline JSX (not a separate component), so its
+  // own "isOpen" is just this state — ConfirmActionModal and FilePreviewModal each
+  // already lock the body themselves internally when they're rendered.
+  useBodyScrollLock(selectedBookingId !== null);
 
   const handleCancelBooking = async () => {
     if (!cancelTargetId) return;
