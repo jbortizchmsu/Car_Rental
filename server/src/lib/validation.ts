@@ -44,3 +44,11 @@ export const bookingDateRangeSchema = z
 export const paymentTypeSchema = z.enum(['FULL_GCASH', 'DOWNPAYMENT_GCASH'], {
   message: 'Payment type must be either FULL_GCASH or DOWNPAYMENT_GCASH',
 });
+
+// Admin approval decision on a customer registration (PATCH /api/admin/users/:id/approval).
+export const userApprovalSchema = z.object({
+  status: z.enum(['approved', 'rejected'], {
+    message: 'status must be either approved or rejected',
+  }),
+  reason: z.string().trim().min(1).optional(),
+});

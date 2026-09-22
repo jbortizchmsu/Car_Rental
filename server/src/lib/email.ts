@@ -93,3 +93,35 @@ export const sendVerificationEmail = async (
   }
 };
 
+export const sendApprovalEmail = async (
+  email: string,
+  fullName: string
+): Promise<void> => {
+  const loginUrl = `${APP_URL}/login`;
+
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Your account has been approved — ${APP_NAME}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #1a1a1a;">You're approved, ${fullName}!</h2>
+        <p style="color: #444; font-size: 15px;">
+          Your ${APP_NAME} account has been reviewed and approved by our team. You can now log in and start booking.
+        </p>
+        <a href="${loginUrl}"
+           style="display: inline-block; margin: 24px 0; padding: 12px 24px;
+                  background-color: #2563eb; color: white; text-decoration: none;
+                  border-radius: 6px; font-size: 15px; font-weight: bold;">
+          Log In Now
+        </a>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #aaa; font-size: 12px;">${APP_NAME} · Car Rental Management</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    throw new Error(`Resend email error: ${error.message}`);
+  }
+};

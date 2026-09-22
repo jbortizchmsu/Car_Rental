@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
+import { userApprovalSchema } from '../lib/validation';
+import { sendApprovalEmail } from '../lib/email';
 
 const router = Router();
 
@@ -18,6 +20,8 @@ router.get('/', async (req: AuthRequest, res) => {
         email: true,
         role: true,
         isActive: true,
+        approvalStatus: true,
+        rejectionReason: true,
         createdAt: true,
         lastLoginAt: true,
         emailDeliveryStatus: true,
@@ -92,6 +96,60 @@ router.patch('/:id/status', async (req: AuthRequest, res) => {
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update user status' });
+  }
+});
+
+// PATCH /api/admin/users/:id/approval — approve or reject a customer registration
+router.patch('/:id/approval', async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    const parsed = userApprovalSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+    const { status, reason } = parsed.data;
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, fullName: true, role: true, approvalStatus: true }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Approval only applies to customer accounts — covers both "another admin" and
+    // "myself", since an admin acting on their own row is still targeting role: 'admin'.
+    if (targetUser.role === 'admin') {
+      return res.status(403).json({ error: 'Admin accounts are not subject to approval.' });
+    }
+
+    const wasAlreadyApproved = targetUser.approvalStatus === 'approved';
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        approvalStatus: status,
+        rejectionReason: status === 'rejected' ? (reason || null) : null,
+      },
+      select: { id: true, email: true, fullName: true, role: true, approvalStatus: true, rejectionReason: true }
+    });
+
+    // Send the approval email only on an actual pending/rejected -> approved transition —
+    // never resend for an already-approved user, and never send a rejection email at all.
+    if (status === 'approved' && !wasAlreadyApproved) {
+      try {
+        await sendApprovalEmail(updatedUser.email, updatedUser.fullName);
+      } catch (emailErr) {
+        console.error('[Admin Approval] Failed to send approval email:', emailErr);
+      }
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('Update user approval error:', error);
+    res.status(500).json({ error: 'Failed to update user approval status' });
   }
 });
 

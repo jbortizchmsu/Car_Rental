@@ -24,6 +24,9 @@ export enum NotificationType {
 
   // Document notifications
   DOCUMENT_UPLOADED = 'DOCUMENT_UPLOADED',                // Customer uploaded required documents
+
+  // User account notifications
+  NEW_USER_REGISTRATION = 'NEW_USER_REGISTRATION',        // New customer verified their email, awaiting admin approval
 }
 
 // Type to icon mapping (for frontend)
@@ -42,6 +45,7 @@ export const notificationTypeIcons: Record<NotificationType, string> = {
   [NotificationType.BOOKING_EXPIRED]: 'X',
   [NotificationType.PAYMENT_REJECTED]: 'AlertTriangle',
   [NotificationType.MAINTENANCE_DUE_CONFLICT]: 'AlertTriangle',
+  [NotificationType.NEW_USER_REGISTRATION]: 'UserPlus',
 };
 
 // Type to color mapping (Bootstrap color classes or hex)
@@ -60,6 +64,7 @@ export const notificationTypeColors: Record<NotificationType, string> = {
   [NotificationType.BOOKING_EXPIRED]: '#DC2626',        // red
   [NotificationType.PAYMENT_REJECTED]: '#DC2626',       // red
   [NotificationType.MAINTENANCE_DUE_CONFLICT]: '#DC2626', // red
+  [NotificationType.NEW_USER_REGISTRATION]: '#16A34A',  // green
 };
 
 // Generate human-readable message templates
@@ -150,6 +155,12 @@ export function generateNotificationMessage(
       return {
         title: 'Maintenance Conflict',
         message: `${context.vehicleName} is due for service but has an upcoming booking on ${context.bookingDate}.`
+      };
+
+    case NotificationType.NEW_USER_REGISTRATION:
+      return {
+        title: 'New Registration Awaiting Approval',
+        message: `${context.customerName} (${context.customerEmail}) verified their email and is awaiting approval.`
       };
 
     default:

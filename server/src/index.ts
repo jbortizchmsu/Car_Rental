@@ -95,9 +95,16 @@ io.on('connection', (socket) => {
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.id },
-        select: { id: true, role: true, isActive: true }
+        select: { id: true, role: true, isActive: true, approvalStatus: true }
       });
       if (!user || !user.isActive) return;
+      // Same gate as the HTTP authenticate middleware — a pending or rejected user
+      // must not receive any live event (notifications, GPS, booking updates) via
+      // socket even if they somehow hold a valid, unexpired JWT.
+      if (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected') {
+        console.log(`⚠️ join-room rejected: user ${user.id} approvalStatus is "${user.approvalStatus}"`);
+        return;
+      }
 
       socket.join(user.id);
       console.log(`👤 User ${user.id} joined room`);

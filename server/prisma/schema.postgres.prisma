@@ -29,6 +29,11 @@ model User {
   avatarUrl               String?
   isActive                Boolean   @default(true)
   emailVerified           Boolean   @default(false)
+  // "pending" | "approved" | "rejected" — admin-approved customer registration.
+  // Defaults to "approved" so every account that existed before this field was
+  // added (all current admins and customers) keeps working with no backfill.
+  approvalStatus          String    @default("approved")
+  rejectionReason         String?
   verificationToken       String?
   verificationTokenExpiry DateTime?
   resetToken              String?

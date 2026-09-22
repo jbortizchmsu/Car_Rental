@@ -36,9 +36,21 @@ jest.mock('../../lib/email', () => ({
   sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
 }));
 
+// auth.ts now also imports createTypedNotification from lib/notifications.ts (fired on
+// email verification and on new-Google-account creation). That module imports `io` from
+// ../index — which transitively imports routes/webhooks.ts, which imports the ESM-only
+// `svix` package that Jest (CommonJS) cannot require. Every other route test file that
+// touches lib/notifications already mocks it for exactly this reason (see
+// bookings-approve.test.ts, bookings-documents.test.ts, etc.) — same pattern here.
+jest.mock('../../lib/notifications', () => ({
+  __esModule: true,
+  createTypedNotification: jest.fn().mockResolvedValue(null),
+}));
+
 import { prisma } from '../../lib/prisma';
 import bcrypt from 'bcrypt';
 import { sendVerificationEmail } from '../../lib/email';
+import { createTypedNotification } from '../../lib/notifications';
 import { JWT_SECRET } from '../../lib/config';
 import authRouter from '../auth';
 
@@ -46,6 +58,7 @@ const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>;
 const bcryptCompareMock = bcrypt.compare as unknown as jest.Mock;
 const bcryptHashMock = bcrypt.hash as unknown as jest.Mock;
 const sendVerificationEmailMock = sendVerificationEmail as jest.Mock;
+const createTypedNotificationMock = createTypedNotification as jest.Mock;
 
 // Minimal standalone Express app mounting the real, unmodified auth router —
 // mirrors how src/index.ts mounts it (`app.use(express.json()); app.use('/api/auth', authRoutes);`)
@@ -72,6 +85,7 @@ function makeUser(overrides: Record<string, any> = {}) {
     passwordHash: 'hashed-password',
     isActive: true,
     emailVerified: true,
+    approvalStatus: 'approved',
     ...overrides,
   } as any;
 }
@@ -83,6 +97,8 @@ beforeEach(() => {
   bcryptHashMock.mockResolvedValue('hashed-password-value');
   sendVerificationEmailMock.mockReset();
   sendVerificationEmailMock.mockResolvedValue(undefined);
+  createTypedNotificationMock.mockReset();
+  createTypedNotificationMock.mockResolvedValue(null);
 });
 
 describe('POST /api/auth/login', () => {
@@ -178,6 +194,79 @@ describe('POST /api/auth/login', () => {
       where: { id: user.id },
       data: { lastLoginAt: expect.any(Date) },
     });
+  });
+
+  test('user active, verified, correct password, approvalStatus explicitly "approved" → 200 with a token', async () => {
+    const user = makeUser({ approvalStatus: 'approved' });
+    prismaMock.user.findUnique.mockResolvedValue(user);
+    bcryptCompareMock.mockResolvedValue(true);
+    prismaMock.user.update.mockResolvedValue(user);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'jane@example.com', password: 'correct-password' });
+
+    expect(res.status).toBe(200);
+    expect(typeof res.body.token).toBe('string');
+  });
+
+  test('approvalStatus === "pending" → 403 PENDING_APPROVAL, no token', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(makeUser({ approvalStatus: 'pending' }));
+    bcryptCompareMock.mockResolvedValue(true);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'jane@example.com', password: 'correct-password' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('PENDING_APPROVAL');
+    expect(res.body.token).toBeUndefined();
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  test('approvalStatus === "rejected" → 403 ACCOUNT_REJECTED, no token', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(makeUser({ approvalStatus: 'rejected' }));
+    bcryptCompareMock.mockResolvedValue(true);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'jane@example.com', password: 'correct-password' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('ACCOUNT_REJECTED');
+    expect(res.body.token).toBeUndefined();
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  test('ORDERING: unverified email AND pending approval simultaneously → EMAIL_NOT_VERIFIED wins, not the approval error', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(makeUser({ emailVerified: false, approvalStatus: 'pending' }));
+    bcryptCompareMock.mockResolvedValue(true);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'jane@example.com', password: 'correct-password' });
+
+    // emailVerified is checked before approvalStatus — the applicant sees the step they
+    // can actually act on (verify their email) rather than a confusing approval message
+    // for an account that was never even verified.
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('EMAIL_NOT_VERIFIED');
+  });
+
+  test('ORDERING: wrong password AND pending approval simultaneously → generic "Invalid credentials", no status leak', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(makeUser({ approvalStatus: 'pending' }));
+    bcryptCompareMock.mockResolvedValue(false); // wrong password
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'jane@example.com', password: 'wrong-password' });
+
+    // The password check must short-circuit before approvalStatus is ever reached — a
+    // wrong-password attempt on a pending account must look identical to a wrong-password
+    // attempt on any other account, never revealing that this account is pending.
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('Invalid credentials');
+    expect(res.body.code).not.toBe('PENDING_APPROVAL');
   });
 });
 
@@ -369,22 +458,25 @@ describe('POST /api/auth/google', () => {
     expect(prismaMock.user.create).not.toHaveBeenCalled();
   });
 
-  test('verified payload, no user by googleId, no user by email → creates a new user with passwordHash: null, emailVerified: true, role: customer', async () => {
+  test('verified payload, no user by googleId, no user by email → creates a new user with passwordHash: null, emailVerified: true, role: customer, approvalStatus: pending — and does NOT return a token', async () => {
     verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    // approvalStatus: 'pending' overrides makeUser's 'approved' default — this reflects
+    // what a real prisma.user.create() call actually returns for a brand-new Google
+    // account (see the approvalStatus: 'pending' passed to create below), which is what
+    // makes the route's post-creation pending check fire for real in this test.
     const created = makeUser({
       id: 'user-new-google', email: validPayload.email, fullName: validPayload.name,
       googleId: validPayload.sub, passwordHash: null, emailVerified: true, role: 'customer',
+      approvalStatus: 'pending',
     });
 
     prismaMock.user.findUnique
       .mockResolvedValueOnce(null) // by googleId
       .mockResolvedValueOnce(null); // by email
     prismaMock.user.create.mockResolvedValue(created);
-    prismaMock.user.update.mockResolvedValue(created); // lastLoginAt update
 
     const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
 
-    expect(res.status).toBe(200);
     expect(prismaMock.user.create).toHaveBeenCalledWith({
       data: {
         email: validPayload.email,
@@ -394,14 +486,91 @@ describe('POST /api/auth/google', () => {
         emailVerified: true,
         role: 'customer',
         authProvider: 'google',
+        approvalStatus: 'pending',
       },
     });
-    expect(res.body.user).toEqual({
-      id: created.id, email: created.email, fullName: created.fullName, role: created.role,
+
+    // Google Sign-In must not be a way to bypass admin approval: a brand-new account is
+    // blocked exactly like a pending password-registered user hitting POST /login, and
+    // critically, no JWT is ever issued for it.
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('PENDING_APPROVAL');
+    expect(res.body.token).toBeUndefined();
+    expect(res.body.user).toBeUndefined();
+
+    // lastLoginAt must never be touched for a blocked account.
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+
+    // Admins are notified the moment a new Google account is created (it's already
+    // emailVerified: true at creation, so this is the equivalent moment to the
+    // password-registration flow's POST /verify-email notification).
+    expect(createTypedNotificationMock).toHaveBeenCalledWith(
+      'NEW_USER_REGISTRATION',
+      { customerName: created.fullName, customerEmail: created.email },
+      created.id,
+      'user'
+    );
+  });
+
+  test('linking into an existing APPROVED account keeps its status — update touches only googleId, token is issued', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    const existing = makeUser({ id: 'user-approved', email: validPayload.email, emailVerified: true, approvalStatus: 'approved', googleId: null });
+    const linked = { ...existing, googleId: validPayload.sub };
+
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // by googleId — not found
+      .mockResolvedValueOnce(existing); // by email — found, verified, approved
+    prismaMock.user.update
+      .mockResolvedValueOnce(linked) // the googleId-link update
+      .mockResolvedValueOnce(linked); // the lastLoginAt update
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    // The link update must touch ONLY googleId — never approvalStatus — so an already
+    // approved account's status is provably untouched by linking.
+    expect(prismaMock.user.update).toHaveBeenNthCalledWith(1, {
+      where: { id: existing.id },
+      data: { googleId: validPayload.sub },
     });
-    const decoded = jwt.verify(res.body.token, JWT_SECRET) as any;
-    expect(decoded.id).toBe(created.id);
-    expect(decoded.role).toBe('customer');
+    expect(res.status).toBe(200);
+    expect(typeof res.body.token).toBe('string');
+  });
+
+  test('linking into an existing PENDING account → 403 PENDING_APPROVAL, no token (linking does not bypass approval)', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    const existing = makeUser({ id: 'user-pending', email: validPayload.email, emailVerified: true, approvalStatus: 'pending', googleId: null });
+    const linked = { ...existing, googleId: validPayload.sub };
+
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // by googleId
+      .mockResolvedValueOnce(existing); // by email
+    prismaMock.user.update.mockResolvedValueOnce(linked); // the googleId-link update only
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('PENDING_APPROVAL');
+    expect(res.body.token).toBeUndefined();
+    // Only the link update runs — the lastLoginAt update must never be reached.
+    expect(prismaMock.user.update).toHaveBeenCalledTimes(1);
+  });
+
+  test('linking into an existing REJECTED account → 403 ACCOUNT_REJECTED, no token', async () => {
+    verifyIdTokenMock.mockResolvedValue({ getPayload: () => validPayload });
+    const existing = makeUser({ id: 'user-rejected', email: validPayload.email, emailVerified: true, approvalStatus: 'rejected', googleId: null });
+    const linked = { ...existing, googleId: validPayload.sub };
+
+    prismaMock.user.findUnique
+      .mockResolvedValueOnce(null) // by googleId
+      .mockResolvedValueOnce(existing); // by email
+    prismaMock.user.update.mockResolvedValueOnce(linked); // the googleId-link update only
+
+    const res = await request(app).post('/api/auth/google').send({ idToken: 'valid' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('ACCOUNT_REJECTED');
+    expect(res.body.token).toBeUndefined();
+    expect(prismaMock.user.update).toHaveBeenCalledTimes(1);
   });
 
   test('verified payload but email_verified: false on the Google token itself → 401, never touches the database', async () => {
@@ -438,5 +607,38 @@ describe('POST /api/auth/google', () => {
 
     process.env.GOOGLE_CLIENT_ID = originalValue;
     jest.resetModules();
+  });
+});
+
+describe('POST /api/auth/verify-email', () => {
+  test('valid token → 200, verifies the user, fires NEW_USER_REGISTRATION exactly once with referenceId = the user id', async () => {
+    const user = makeUser({ id: 'user-to-verify', emailVerified: false });
+    prismaMock.user.findFirst.mockResolvedValue(user);
+    prismaMock.user.update.mockResolvedValue({ ...user, emailVerified: true, verificationToken: null, verificationTokenExpiry: null });
+
+    const res = await request(app).post('/api/auth/verify-email').send({ token: 'valid-verification-token' });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: { emailVerified: true, verificationToken: null, verificationTokenExpiry: null },
+    });
+    expect(createTypedNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createTypedNotificationMock).toHaveBeenCalledWith(
+      'NEW_USER_REGISTRATION',
+      { customerName: user.fullName, customerEmail: user.email },
+      user.id,
+      'user'
+    );
+  });
+
+  test('invalid or expired token → 400, no update, no notification fired', async () => {
+    prismaMock.user.findFirst.mockResolvedValue(null);
+
+    const res = await request(app).post('/api/auth/verify-email').send({ token: 'garbage-or-expired-token' });
+
+    expect(res.status).toBe(400);
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(createTypedNotificationMock).not.toHaveBeenCalled();
   });
 });

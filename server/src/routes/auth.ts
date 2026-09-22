@@ -9,6 +9,8 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { JWT_SECRET, GOOGLE_CLIENT_ID } from '../lib/config';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/email';
 import { registerSchema } from '../lib/validation';
+import { createTypedNotification } from '../lib/notifications';
+import { NotificationType } from '../lib/notification-types';
 
 const router = Router();
 
@@ -119,6 +121,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         address,
         role: 'customer',
         emailVerified: false,
+        approvalStatus: 'pending',
         verificationToken,
         verificationTokenExpiry,
       }
@@ -171,6 +174,22 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(403).json({
         error: 'Email not verified. Please check your inbox and verify your email before logging in.',
         code: 'EMAIL_NOT_VERIFIED'
+      });
+    }
+
+    // Block accounts still awaiting, or denied, admin approval — checked after email
+    // verification, so an unverified pending user sees EMAIL_NOT_VERIFIED first (the
+    // step they can actually act on) rather than a confusing approval message.
+    if (user.approvalStatus === 'pending') {
+      return res.status(403).json({
+        error: 'Your account is awaiting admin approval. You will receive an email once it is approved.',
+        code: 'PENDING_APPROVAL'
+      });
+    }
+    if (user.approvalStatus === 'rejected') {
+      return res.status(403).json({
+        error: 'Your account registration was not approved. Please contact the administrator.',
+        code: 'ACCOUNT_REJECTED'
       });
     }
 
@@ -245,6 +264,10 @@ router.post('/google', googleAuthLimiter, async (req, res) => {
           data: { googleId },
         });
       } else {
+        // New Google-only account — starts "pending" exactly like a password
+        // registration, so Google Sign-In cannot be used to bypass admin approval.
+        // An account linked into an EXISTING row above keeps that row's own
+        // approvalStatus untouched — only brand-new accounts start pending here.
         user = await prisma.user.create({
           data: {
             email,
@@ -254,13 +277,39 @@ router.post('/google', googleAuthLimiter, async (req, res) => {
             emailVerified: true,
             role: 'customer',
             authProvider: 'google',
+            approvalStatus: 'pending',
           },
         });
+
+        // Google accounts are emailVerified immediately on creation (Google already
+        // proved the address), so this is the equivalent moment to POST /verify-email's
+        // notification below — fire it here instead, not on every subsequent sign-in.
+        await createTypedNotification(
+          NotificationType.NEW_USER_REGISTRATION,
+          { customerName: user.fullName, customerEmail: user.email },
+          user.id,
+          'user'
+        );
       }
     }
 
     if (!user.isActive) {
       return res.status(403).json({ error: 'Your account has been disabled. Please contact the administrator.' });
+    }
+
+    // Same approval gate as POST /login — a brand-new Google account (created just
+    // above, pending) or a previously rejected account must not receive a token.
+    if (user.approvalStatus === 'pending') {
+      return res.status(403).json({
+        error: 'Your account is awaiting admin approval. You will receive an email once it is approved.',
+        code: 'PENDING_APPROVAL'
+      });
+    }
+    if (user.approvalStatus === 'rejected') {
+      return res.status(403).json({
+        error: 'Your account registration was not approved. Please contact the administrator.',
+        code: 'ACCOUNT_REJECTED'
+      });
     }
 
     await prisma.user.update({
@@ -315,6 +364,15 @@ router.post('/verify-email', async (req, res) => {
         verificationTokenExpiry: null,
       }
     });
+
+    // Notify admins the applicant is now ready for approval — non-blocking, same as
+    // every other notification call site; never fails the request.
+    await createTypedNotification(
+      NotificationType.NEW_USER_REGISTRATION,
+      { customerName: user.fullName, customerEmail: user.email },
+      user.id,
+      'user'
+    );
 
     return res.status(200).json({
       message: 'Email verified successfully. You can now log in.'

@@ -27,11 +27,22 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     // Always re-fetch from DB — role must never be trusted from the token alone
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, email: true, role: true, fullName: true, isActive: true }
+      select: { id: true, email: true, role: true, fullName: true, isActive: true, approvalStatus: true }
     });
 
     if (!user) return res.status(401).json({ error: 'User not found' });
     if (!user.isActive) return res.status(401).json({ error: 'Your account has been disabled.' });
+
+    // A token issued before approval/rejection must stop working the moment the DB
+    // row changes — re-checked here on every request, same as isActive above. Checked
+    // by equality (not `!== 'approved'`) so a mocked/legacy user object with no
+    // approvalStatus field at all is never accidentally blocked.
+    if (user.approvalStatus === 'pending') {
+      return res.status(401).json({ error: 'Your account is awaiting admin approval.' });
+    }
+    if (user.approvalStatus === 'rejected') {
+      return res.status(401).json({ error: 'Your account registration was not approved.' });
+    }
 
     req.user = user;
     next();
