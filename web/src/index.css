@@ -122,6 +122,31 @@ h5 {
   flex: 1;
 }
 
+/* Navbar text links (Home, Vehicles) — padding + negative margin keep the visual
+   hover/press "chip" without changing the link's footprint in the flex gap layout. */
+.nav-link {
+  display: inline-block;
+  padding: 0.4rem 0.6rem;
+  margin: -0.4rem -0.6rem;
+  border-radius: var(--border-radius-sm);
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+/* Scoped to hover-capable pointers only, so a tap on touch devices doesn't leave
+   the link stuck in its hover state after the finger lifts. */
+@media (hover: hover) {
+  .nav-link:hover {
+    color: var(--warm-taupe);
+    background-color: var(--gray-50);
+  }
+}
+
+.nav-link:active {
+  color: var(--warm-taupe);
+  background-color: var(--gray-100);
+  transform: scale(0.96);
+}
+
 /* Container */
 .container {
   max-width: 1280px;

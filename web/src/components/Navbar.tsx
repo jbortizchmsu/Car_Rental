@@ -121,8 +121,8 @@ const Navbar: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           {(!user || profile?.role === 'customer') && (
             <>
-              <Link to="/" style={{ fontWeight: 500, fontSize: '0.95rem' }}>Home</Link>
-              <Link to="/vehicles" style={{ fontWeight: 500, fontSize: '0.95rem' }}>Vehicles</Link>
+              <Link to="/" className="nav-link" style={{ fontWeight: 500, fontSize: '0.95rem' }}>Home</Link>
+              <Link to="/vehicles" className="nav-link" style={{ fontWeight: 500, fontSize: '0.95rem' }}>Vehicles</Link>
             </>
           )}
           
