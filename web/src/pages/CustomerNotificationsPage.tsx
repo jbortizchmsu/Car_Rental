@@ -4,6 +4,7 @@ import { notificationsApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
 import { useInitialLoad } from '../utils/useInitialLoad';
 import { SkeletonGroup, SkeletonListRow } from '../components/Skeleton';
+import { formatDate } from '../utils/formatDate';
 
 const CustomerNotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -137,7 +138,7 @@ const CustomerNotificationsPage: React.FC = () => {
                   <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.05rem' }}>{notification.title}</h4>
                   <span style={{ fontSize: '0.8rem', color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <Clock size={14} />
-                    {new Date(notification.createdAt).toLocaleDateString()}
+                    {formatDate(notification.createdAt, 'short')}
                   </span>
                 </div>
                 <p style={{ 
@@ -223,7 +224,7 @@ const CustomerNotificationsPage: React.FC = () => {
               paddingTop: '1.5rem'
             }}>
               <Clock size={16} />
-              Received on {new Date(selectedNotification.createdAt).toLocaleString()}
+              Received on {formatDate(selectedNotification.createdAt, 'datetime')}
             </div>
 
             <button 

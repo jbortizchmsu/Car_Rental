@@ -5,6 +5,7 @@ import { useNotificationRefresh } from '../utils/socket';
 import { useOdometerPrefill } from '../utils/odometer';
 import { useInitialLoad } from '../utils/useInitialLoad';
 import { SkeletonBlock } from '../components/Skeleton';
+import { formatDate } from '../utils/formatDate';
 import {
   Loader2, Key,
   RotateCcw, CheckCircle2, AlertTriangle,
@@ -315,7 +316,7 @@ const AdminActiveRentalsPage: React.FC = () => {
                     <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>{booking.vehicle.licensePlate}</div>
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    <div style={{ fontSize: '0.875rem' }}>{new Date(booking.startDate).toLocaleDateString()}</div>
+                    <div style={{ fontSize: '0.875rem' }}>{formatDate(booking.startDate, 'short')}</div>
                     <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>{new Date(booking.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                   </td>
                   <td style={{ padding: '1rem' }}>

@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useInitialLoad } from '../utils/useInitialLoad';
 import { SkeletonGroup, SkeletonVehicleCard } from '../components/Skeleton';
+import { formatDate } from '../utils/formatDate';
 
 interface Vehicle {
   id: string;
@@ -155,7 +156,7 @@ const VehiclesPage: React.FC = () => {
             )}
             {pickupDate && returnDate ? (
               <span style={{ fontSize: '0.85rem', color: 'var(--warm-taupe)', fontWeight: 600 }}>
-                Showing vehicles available {new Date(pickupDate + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(returnDate + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                Showing vehicles available {formatDate(pickupDate + 'T00:00', 'long')} – {formatDate(returnDate + 'T00:00', 'long')}
               </span>
             ) : (
               <span style={{ fontSize: '0.85rem', color: 'var(--gray-400)' }}>Select dates to see real-time availability</span>

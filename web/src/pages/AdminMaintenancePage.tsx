@@ -4,6 +4,7 @@ import { maintenanceApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
+import { formatDate } from '../utils/formatDate';
 
 const AdminMaintenancePage: React.FC = () => {
   const toast = useToast();
@@ -463,7 +464,7 @@ const AdminMaintenancePage: React.FC = () => {
                         ₱{log.cost?.toLocaleString() || 0}
                       </td>
                       <td style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>
-                        {new Date(log.serviceDate).toLocaleDateString()}
+                        {formatDate(log.serviceDate, 'short')}
                       </td>
                       <td>
                         <span className="maintenance-status-badge" style={{

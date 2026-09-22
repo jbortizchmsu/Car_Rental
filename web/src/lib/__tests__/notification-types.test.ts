@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { getRelativeTime } from '../notification-types';
+import { formatDate } from '../../utils/formatDate';
 
 function secondsAgo(seconds: number): Date {
   return new Date(Date.now() - seconds * 1000);
@@ -31,9 +32,9 @@ describe('getRelativeTime', () => {
     expect(getRelativeTime(daysAgo(3))).toBe('3d ago');
   });
 
-  test('10 days ago → falls through to locale date string', () => {
+  test('10 days ago → falls through to the shared short-style date format', () => {
     const date = daysAgo(10);
-    expect(getRelativeTime(date)).toBe(date.toLocaleDateString());
+    expect(getRelativeTime(date)).toBe(formatDate(date, 'short'));
   });
 
   test('accepts both a string and a Date input for the same instant → identical output', () => {

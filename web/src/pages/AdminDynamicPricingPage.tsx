@@ -8,6 +8,7 @@ import {
 import { pricingApi, vehiclesApi, getApiErrorMessage } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
+import { formatDate } from '../utils/formatDate';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 
 interface PricingRule {
@@ -342,7 +343,7 @@ const AdminDynamicPricingPage: React.FC = () => {
                         {rule.type === 'SEASONAL' && rule.startDate && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <Clock size={14} />
-                            {new Date(rule.startDate).toLocaleDateString()} — {new Date(rule.endDate!).toLocaleDateString()}
+                            {formatDate(rule.startDate, 'short')} — {formatDate(rule.endDate!, 'short')}
                           </div>
                         )}
                         {rule.type === 'WEEKEND' && <div style={{ fontWeight: 600 }}>Saturday & Sunday</div>}

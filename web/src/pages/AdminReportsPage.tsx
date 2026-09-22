@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
+import { formatDate } from '../utils/formatDate';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 
@@ -183,7 +184,7 @@ const AdminReportsPage: React.FC = () => {
       const type = (payment.paymentType ?? '').replace('_', ' ');
       const rawType = payment.paymentType ?? '';
       const status = payment.status ?? '';
-      const date = new Date(payment.createdAt).toLocaleDateString();
+      const date = formatDate(payment.createdAt, 'short');
       return (
         customer.toLowerCase().includes(term) ||
         vehicle.toLowerCase().includes(term) ||
@@ -303,7 +304,7 @@ const AdminReportsPage: React.FC = () => {
               ) : (
                 filteredDetails.map((payment: any) => (
                   <tr key={payment.id}>
-                    <td className="text-sm">{new Date(payment.createdAt).toLocaleDateString()}</td>
+                    <td className="text-sm">{formatDate(payment.createdAt, 'short')}</td>
                     <td className="text-sm font-semibold">{payment.booking.customer.fullName}</td>
                     <td className="text-sm">{payment.booking.vehicle.brand} {payment.booking.vehicle.model}</td>
                     <td>
@@ -398,11 +399,11 @@ const AdminReportsPage: React.FC = () => {
                 filteredBookings.map((booking: any) => (
                   <tr key={booking.id}>
                     <td className="text-xs font-mono">#{booking.id.slice(0, 8).toUpperCase()}</td>
-                    <td className="text-sm">{new Date(booking.createdAt).toLocaleDateString()}</td>
+                    <td className="text-sm">{formatDate(booking.createdAt, 'short')}</td>
                     <td className="text-sm font-semibold">{booking.customer.fullName}</td>
                     <td className="text-sm">{booking.vehicle.brand} {booking.vehicle.model}</td>
                     <td className="text-xs">
-                      {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
+                      {formatDate(booking.startDate, 'short')} - {formatDate(booking.endDate, 'short')}
                     </td>
                     <td className="text-sm font-black">₱{Number(booking.totalAmount).toLocaleString()}</td>
                     <td><StatusBadge status={booking.status} /></td>
@@ -621,7 +622,7 @@ const AdminReportsPage: React.FC = () => {
               ) : (
                 filteredPayments.map((p: any) => (
                   <tr key={p.id}>
-                    <td className="text-sm">{new Date(p.createdAt).toLocaleDateString()}</td>
+                    <td className="text-sm">{formatDate(p.createdAt, 'short')}</td>
                     <td className="text-sm font-semibold">{p.booking?.customer?.fullName ?? 'N/A'}</td>
                     <td className="text-xs font-bold">{p.paymentType?.replace('_', ' ') ?? '—'}</td>
                     <td className="text-sm font-black">₱{Number(p.amount ?? 0).toLocaleString()}</td>
@@ -729,7 +730,7 @@ const AdminReportsPage: React.FC = () => {
                       <td className="text-sm font-semibold">{m.vehicle.brand} {m.vehicle.model}</td>
                       <td className="text-xs font-bold">{m.serviceType}</td>
                       <td className="text-sm font-black">₱{Number(m.cost || 0).toLocaleString()}</td>
-                      <td className="text-xs">{new Date(m.serviceDate).toLocaleDateString()}</td>
+                      <td className="text-xs">{formatDate(m.serviceDate, 'short')}</td>
                       <td><StatusBadge status={m.status} /></td>
                     </tr>
                   ))
@@ -758,7 +759,7 @@ const AdminReportsPage: React.FC = () => {
                     <div className="text-xs text-gray-500 mb-2">{d.description}</div>
                     <div className="flex justify-between items-center">
                       <div className="text-xs font-black text-red-600">₱{Number(d.estimatedCost || 0).toLocaleString()}</div>
-                      <div className="text-[10px] text-gray-400">{new Date(d.reportedAt).toLocaleDateString()}</div>
+                      <div className="text-[10px] text-gray-400">{formatDate(d.reportedAt, 'short')}</div>
                     </div>
                   </div>
                 ))}
@@ -841,7 +842,7 @@ const AdminReportsPage: React.FC = () => {
               ) : (
                 filteredAlerts.map((a: any) => (
                   <tr key={a.id}>
-                    <td className="text-sm">{new Date(a.createdAt).toLocaleString()}</td>
+                    <td className="text-sm">{formatDate(a.createdAt, 'datetime')}</td>
                     <td className="text-sm font-semibold">{a.vehicle?.brand ?? '—'} {a.vehicle?.model ?? ''}</td>
                     <td className="text-sm">{a.booking?.customer?.fullName ?? 'N/A'}</td>
                     <td className="text-xs font-bold">{a.alertType ?? '—'}</td>

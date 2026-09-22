@@ -7,6 +7,7 @@ import { GoogleMap, Marker, Polyline, InfoWindow } from '@react-google-maps/api'
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
 import type { ShopLocation } from '../utils/gps-trail';
+import { formatDate } from '../utils/formatDate';
 
 const DEFAULT_CENTER = {
   lat: parseFloat(import.meta.env.VITE_DEFAULT_MAP_LAT || '10.3000'),
@@ -360,8 +361,8 @@ const AdminGpsTrackingPage: React.FC = () => {
               {completedBookings.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.vehicle?.licensePlate} — {b.customer?.fullName} (
-                  {new Date(b.startDate).toLocaleDateString()} →{' '}
-                  {new Date(b.endDate).toLocaleDateString()})
+                  {formatDate(b.startDate, 'short')} →{' '}
+                  {formatDate(b.endDate, 'short')})
                 </option>
               ))}
             </select>
@@ -554,7 +555,7 @@ const AdminGpsTrackingPage: React.FC = () => {
                     <Marker
                       position={{ lat: startPoint.latitude, lng: startPoint.longitude }}
                       icon="http://maps.google.com/mapfiles/ms/icons/green-dot.png"
-                      title={`Start — ${new Date(startPoint.recordedAt).toLocaleString()}`}
+                      title={`Start — ${formatDate(startPoint.recordedAt, 'datetime')}`}
                     />
                   )}
 
@@ -563,7 +564,7 @@ const AdminGpsTrackingPage: React.FC = () => {
                     <Marker
                       position={{ lat: endPoint.latitude, lng: endPoint.longitude }}
                       icon="http://maps.google.com/mapfiles/ms/icons/red-dot.png"
-                      title={`End — ${new Date(endPoint.recordedAt).toLocaleString()}`}
+                      title={`End — ${formatDate(endPoint.recordedAt, 'datetime')}`}
                     />
                   )}
                 </GoogleMap>

@@ -12,6 +12,7 @@ import { useToast } from '../components/ToastProvider';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import FilePreviewModal from '../components/FilePreviewModal';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { formatDate } from '../utils/formatDate';
 
 const MyBookingsPage: React.FC = () => {
   const toast = useToast();
@@ -61,17 +62,6 @@ const MyBookingsPage: React.FC = () => {
       case 'REJECTED': return 'Booking rejected';
       default: return '';
     }
-  };
-
-  const formatDate = (dateStr: string | Date) => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -210,7 +200,7 @@ const MyBookingsPage: React.FC = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted-mauve)', fontSize: '0.9rem' }}>
                             <Calendar size={14} />
-                            <span>{formatDate(booking.startDate)} - {formatDate(booking.endDate)}</span>
+                            <span>{formatDate(booking.startDate, 'datetime')} - {formatDate(booking.endDate, 'datetime')}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted-mauve)', fontSize: '0.9rem' }}>
                             <MapPin size={14} />
@@ -323,13 +313,13 @@ const MyBookingsPage: React.FC = () => {
                         {booking.releasedAt && (
                           <div style={{ fontSize: '0.85rem' }}>
                             <span style={{ color: 'var(--muted-mauve)' }}>Released: </span>
-                            <span style={{ fontWeight: 600 }}>{formatDate(booking.releasedAt)}</span>
+                            <span style={{ fontWeight: 600 }}>{formatDate(booking.releasedAt, 'datetime')}</span>
                           </div>
                         )}
                         {booking.returnedAt && (
                           <div style={{ fontSize: '0.85rem' }}>
                             <span style={{ color: 'var(--muted-mauve)' }}>Returned: </span>
-                            <span style={{ fontWeight: 600 }}>{formatDate(booking.returnedAt)}</span>
+                            <span style={{ fontWeight: 600 }}>{formatDate(booking.returnedAt, 'datetime')}</span>
                           </div>
                         )}
                       </div>
@@ -337,7 +327,7 @@ const MyBookingsPage: React.FC = () => {
 
                     <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '1rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                        <span style={{ fontSize: '0.85rem', color: 'var(--muted-mauve)' }}>
-                         Booking ID: {booking.id.split('-')[0].toUpperCase()} • {new Date(booking.createdAt).toLocaleDateString()}
+                         Booking ID: {booking.id.split('-')[0].toUpperCase()} • {formatDate(booking.createdAt, 'short')}
                        </span>
                        <button 
                          onClick={() => handleViewDetails(booking.id)}
@@ -419,11 +409,11 @@ const MyBookingsPage: React.FC = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div>
                           <label style={{ fontSize: '0.8rem', color: 'var(--muted-mauve)', display: 'block' }}>Pickup</label>
-                          <div style={{ fontWeight: 600 }}>{formatDate(details.startDate)}</div>
+                          <div style={{ fontWeight: 600 }}>{formatDate(details.startDate, 'datetime')}</div>
                         </div>
                         <div>
                           <label style={{ fontSize: '0.8rem', color: 'var(--muted-mauve)', display: 'block' }}>Return</label>
-                          <div style={{ fontWeight: 600 }}>{formatDate(details.endDate)}</div>
+                          <div style={{ fontWeight: 600 }}>{formatDate(details.endDate, 'datetime')}</div>
                         </div>
                         <div>
                           <label style={{ fontSize: '0.8rem', color: 'var(--muted-mauve)', display: 'block' }}>Pickup Location</label>
@@ -573,7 +563,7 @@ const MyBookingsPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--warm-taupe)' }}></div>
                             <div style={{ fontSize: '0.9rem' }}>
-                              <span style={{ fontWeight: 600 }}>Vehicle Released:</span> {formatDate(details.releasedAt)}
+                              <span style={{ fontWeight: 600 }}>Vehicle Released:</span> {formatDate(details.releasedAt, 'datetime')}
                             </div>
                           </div>
                         )}
@@ -581,7 +571,7 @@ const MyBookingsPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--warm-taupe)' }}></div>
                             <div style={{ fontSize: '0.9rem' }}>
-                              <span style={{ fontWeight: 600 }}>Vehicle Returned:</span> {formatDate(details.returnedAt)}
+                              <span style={{ fontWeight: 600 }}>Vehicle Returned:</span> {formatDate(details.returnedAt, 'datetime')}
                             </div>
                           </div>
                         )}
@@ -589,7 +579,7 @@ const MyBookingsPage: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--status-available)' }}></div>
                             <div style={{ fontSize: '0.9rem' }}>
-                              <span style={{ fontWeight: 600 }}>Transaction Completed:</span> {formatDate(details.completedAt)}
+                              <span style={{ fontWeight: 600 }}>Transaction Completed:</span> {formatDate(details.completedAt, 'datetime')}
                             </div>
                           </div>
                         )}

@@ -6,6 +6,7 @@ import { SkeletonBlock } from '../components/Skeleton';
 import { Loader2, Download, FileText, Search, Plus, CheckCircle } from 'lucide-react';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
+import { formatDate } from '../utils/formatDate';
 
 const AdminPaymentVerificationPage: React.FC = () => {
   const [payments, setPayments] = useState<any[]>([]);
@@ -649,7 +650,7 @@ const AdminPaymentVerificationPage: React.FC = () => {
                     onMouseEnter={(e) => { if (!isOverdue) e.currentTarget.style.backgroundColor = '#F3F4F6'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? 'var(--gray-50)' : isOverdue ? '#FED7AA' : 'white'; }}
                   >
-                    <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{new Date(p.createdAt || p.updatedAt).toLocaleDateString()}</td>
+                    <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{formatDate(p.createdAt || p.updatedAt, 'short')}</td>
                     <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{customer}</td>
                     <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{vehicle}</td>
                     <td style={{ padding: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>#${bookingId.slice(0, 8).toUpperCase()}</td>

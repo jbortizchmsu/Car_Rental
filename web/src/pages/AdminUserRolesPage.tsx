@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { useInitialLoad } from '../utils/useInitialLoad';
+import { formatDate } from '../utils/formatDate';
 
 // Small, self-contained badge for approvalStatus — deliberately NOT added to the shared
 // StatusBadge.tsx dictionary: that component's keys ('PENDING', 'REJECTED', etc.) are
@@ -353,7 +354,7 @@ const AdminUserRolesPage: React.FC = () => {
                         )}
                       </td>
                       <td style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
-                        {new Date(user.createdAt).toLocaleDateString()}
+                        {formatDate(user.createdAt, 'short')}
                       </td>
                       <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
                         <button 
@@ -407,17 +408,17 @@ const AdminUserRolesPage: React.FC = () => {
                     </div>
                     <div>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</span>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{new Date(userDetails.createdAt).toLocaleDateString()}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{formatDate(userDetails.createdAt, 'long')}</div>
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Last Login</span>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{userDetails.lastLoginAt ? new Date(userDetails.lastLoginAt).toLocaleString() : 'Never'}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{userDetails.lastLoginAt ? formatDate(userDetails.lastLoginAt, 'datetime') : 'Never'}</div>
                     </div>
                     {userDetails.emailDeliveryStatus === 'bounced' && (
                       <div style={{ gridColumn: 'span 2' }}>
                         <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Email Status</span>
                         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <AlertTriangle size={14} /> Bounced{userDetails.emailBouncedAt ? ` — ${new Date(userDetails.emailBouncedAt).toLocaleString()}` : ''}
+                          <AlertTriangle size={14} /> Bounced{userDetails.emailBouncedAt ? ` — ${formatDate(userDetails.emailBouncedAt, 'datetime')}` : ''}
                         </div>
                       </div>
                     )}
@@ -445,7 +446,7 @@ const AdminUserRolesPage: React.FC = () => {
                               <span style={{ fontWeight: 700 }}>{b.vehicle.brand} {b.vehicle.model}</span>
                               <StatusBadge status={b.status} />
                             </div>
-                            <div style={{ color: 'var(--gray-500)' }}>{new Date(b.startDate).toLocaleDateString()} - {new Date(b.endDate).toLocaleDateString()}</div>
+                            <div style={{ color: 'var(--gray-500)' }}>{formatDate(b.startDate, 'short')} - {formatDate(b.endDate, 'short')}</div>
                           </div>
                         ))}
                       </div>

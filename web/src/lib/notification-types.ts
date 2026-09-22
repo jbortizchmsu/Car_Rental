@@ -1,4 +1,5 @@
 // Frontend notification type definitions and utilities
+import { formatDate } from '../utils/formatDate';
 
 export const NotificationType = {
   BOOKING_PICKUP_DUE: 'BOOKING_PICKUP_DUE',
@@ -42,5 +43,5 @@ export function getRelativeTime(date: string | Date): string {
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
-  return createdAt.toLocaleDateString();
+  return formatDate(createdAt, 'short');
 }

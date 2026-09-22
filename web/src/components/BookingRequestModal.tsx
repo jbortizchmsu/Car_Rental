@@ -9,6 +9,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 import ConfirmActionModal from './ConfirmActionModal';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
+import { formatDate } from '../utils/formatDate';
 
 export const formatApiDate = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -1123,8 +1124,8 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                       <div className="booking-review-row">
                         <span className="booking-review-label">Schedule</span>
                         <span className="booking-review-value">
-                          {new Date(formData.start_date).toLocaleString()} <br />
-                          to {new Date(formData.end_date).toLocaleString()}
+                          {formatDate(formData.start_date, 'datetime')} <br />
+                          to {formatDate(formData.end_date, 'datetime')}
                         </span>
                       </div>
                       <div className="booking-review-row">

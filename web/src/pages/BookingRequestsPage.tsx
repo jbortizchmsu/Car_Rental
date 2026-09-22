@@ -14,6 +14,7 @@ import {
 import FilePreviewModal from '../components/FilePreviewModal';
 import StatusBadge from '../components/StatusBadge';
 import { useToast } from '../components/ToastProvider';
+import { formatDate } from '../utils/formatDate';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { getApiErrorMessage } from '../services/api';
@@ -384,7 +385,7 @@ const BookingRequestsPage: React.FC = () => {
             <div className="timeline-dot"></div>
             <div className="timeline-label">{step.label}</div>
             {step.done && step.time && (
-              <div className="timeline-time">{new Date(step.time).toLocaleString()}</div>
+              <div className="timeline-time">{formatDate(step.time, 'datetime')}</div>
             )}
           </div>
         ))}
@@ -775,7 +776,7 @@ const BookingRequestsPage: React.FC = () => {
                     </div>
                     <div className="booking-list-meta">
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Schedule</span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)' }}>{new Date(booking.startDate).toLocaleDateString()} → {new Date(booking.endDate).toLocaleDateString()}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)' }}>{formatDate(booking.startDate, 'short')} → {formatDate(booking.endDate, 'short')}</span>
                     </div>
                   </div>
 
@@ -1300,7 +1301,7 @@ const BookingRequestsPage: React.FC = () => {
                 <li><strong>Customer:</strong> <span>{selectedBooking.customer?.fullName}</span></li>
                 <li><strong>Vehicle:</strong> <span>{selectedBooking.vehicle.brand} {selectedBooking.vehicle.model}</span></li>
                 <li><strong>Plate Number:</strong> <span>{selectedBooking.vehicle.licensePlate}</span></li>
-                <li><strong>Scheduled Pickup:</strong> <span>{selectedBooking.startDate ? new Date(selectedBooking.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}</span></li>
+                <li><strong>Scheduled Pickup:</strong> <span>{selectedBooking.startDate ? formatDate(selectedBooking.startDate, 'long') : 'N/A'}</span></li>
                 <li><strong>Release Odometer:</strong> <span>{releaseOdometer} km</span></li>
               </ul>
             );
