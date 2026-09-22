@@ -123,13 +123,16 @@ h5 {
 }
 
 /* Navbar text links (Home, Vehicles) — padding + negative margin keep the visual
-   hover/press "chip" without changing the link's footprint in the flex gap layout. */
+   hover/press "chip" without changing the link's footprint in the flex gap layout.
+   border-bottom is reserved (transparent by default) for .nav-link-current below, so
+   it can appear without shifting layout. */
 .nav-link {
   display: inline-block;
   padding: 0.4rem 0.6rem;
   margin: -0.4rem -0.6rem;
   border-radius: var(--border-radius-sm);
-  transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
 }
 
 /* Scoped to hover-capable pointers only, so a tap on touch devices doesn't leave
@@ -137,14 +140,33 @@ h5 {
 @media (hover: hover) {
   .nav-link:hover {
     color: var(--warm-taupe);
-    background-color: var(--gray-50);
+    background-color: var(--gray-100);
   }
 }
 
 .nav-link:active {
   color: var(--warm-taupe);
-  background-color: var(--gray-100);
+  background-color: var(--gray-200);
   transform: scale(0.96);
+}
+
+/* Persistent "you are here" indicator (distinct from :hover/:active above) — same
+   bold-text + var(--warm-taupe) underline pattern as .payment-tab-active elsewhere
+   in this file, adapted to a horizontal top nav. Must show permanently, including
+   on touch devices, so — unlike :hover — it is NOT wrapped in @media (hover: hover). */
+.nav-link-current {
+  color: var(--black);
+  font-weight: 700;
+  border-bottom-color: var(--warm-taupe);
+}
+
+/* Hovering the current-page link should still give *some* feedback (edge case),
+   just a subtler one than hovering a non-active link — a lighter background than
+   plain .nav-link:hover's var(--gray-100), while the bold text + underline persist. */
+@media (hover: hover) {
+  .nav-link-current:hover {
+    background-color: var(--gray-50);
+  }
 }
 
 /* Container */
