@@ -2533,21 +2533,20 @@ h5 {
 /* Tighter columns specifically while the panel is open — the baseline widths above
    (200/280/170) assume the list has the full page width to itself, which is no
    longer true once .has-selection shrinks the list's own grid track to
-   minmax(0, 1fr) beside the panel's min(480px, 100%). Column 3 stays capped (not
+   minmax(0, 1fr) beside the panel's min(420px, 100%). Column 3 stays capped (not
    auto) at a width still sized for "Waiting for Customer" in one line — the whole
    point of the earlier badge-wrapping fix — so it is trimmed only slightly (170→160)
-   rather than removed. Column 1 is left at its floor of 220px because
-   .booking-list-main already forces that width via an inline minWidth in the JSX;
-   setting the track's own minimum any lower would not actually shrink the rendered
-   column, since the child inside it won't go narrower than 220px regardless.
-   Column 2 (Vehicle + Schedule) absorbs most of the remaining squeeze, relying on
-   the Schedule span's existing ellipsis/title fallback (see BookingRequestsPage.tsx)
-   to degrade gracefully rather than wrap when space is this tight. See the width
-   math in this task's report for why even these tightened values do not fully
-   eliminate overflow at 1366-1440px — that residual gap needs a follow-up beyond
-   this rule (e.g. revisiting .booking-list-main's own 220px floor). */
+   rather than removed. Column 1's floor matches .booking-list-main's actual inline
+   minWidth (200px) — setting the track's own minimum any lower would not actually
+   shrink the rendered column, since the child inside it won't go narrower than
+   200px regardless, and setting it higher (as this rule previously did, at 220px,
+   before .booking-list-main's own floor was independently reduced in a later
+   round) just reserves space nothing needs. Column 2 (Vehicle + Schedule) absorbs
+   the remaining squeeze; Schedule now renders its two dates on separate lines (see
+   BookingRequestsPage.tsx) instead of relying on an ellipsis/title fallback, since
+   a single line never had enough room to show the full range at this width. */
 .booking-layout-grid.has-selection .booking-list-item {
-  grid-template-columns: minmax(220px, 1fr) minmax(200px, 1.1fr) minmax(160px, 180px);
+  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1.1fr) minmax(160px, 180px);
 }
 
 /* De-emphasize the rest of the list once a booking is selected, so the side-by-side

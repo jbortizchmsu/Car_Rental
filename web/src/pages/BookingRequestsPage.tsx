@@ -8,7 +8,7 @@ import {
   X, FileText, User,
   Phone, MapPin, ExternalLink,
   Smartphone, CreditCard, Clock, Search,
-  ArrowUpDown, CheckCircle2,
+  ArrowUpDown, ArrowRight, CheckCircle2,
   AlertTriangle, History, ShieldCheck, Mail, Navigation
 } from 'lucide-react';
 import FilePreviewModal from '../components/FilePreviewModal';
@@ -787,18 +787,11 @@ const BookingRequestsPage: React.FC = () => {
                     </div>
                     <div className="booking-list-meta" style={{ minWidth: 0 }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Schedule</span>
-                      <span
-                        style={{
-                          fontSize: '0.85rem',
-                          fontWeight: 700,
-                          color: 'var(--black)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                        title={`${formatDate(booking.startDate, 'short')} → ${formatDate(booking.endDate, 'short')}`}
-                      >
-                        {formatDate(booking.startDate, 'short')} → {formatDate(booking.endDate, 'short')}
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)', whiteSpace: 'nowrap' }}>
+                        {formatDate(booking.startDate, 'short')}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <ArrowRight size={10} /> {formatDate(booking.endDate, 'short')}
                       </span>
                     </div>
                   </div>
