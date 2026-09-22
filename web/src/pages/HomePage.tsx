@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Clock, MapPin, ChevronRight, Loader2 } from 'lucide-react';
+import { Shield, Clock, MapPin, ChevronRight } from 'lucide-react';
 import VehicleCard from '../components/VehicleCard';
 import { vehiclesApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useInitialLoad } from '../utils/useInitialLoad';
+import { SkeletonGroup, SkeletonVehicleCard } from '../components/Skeleton';
 
 const HomePage: React.FC = () => {
   const [featuredVehicles, setFeaturedVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const isInitialLoad = useInitialLoad(loading);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
@@ -126,10 +129,10 @@ const HomePage: React.FC = () => {
               </Link>
             </div>
 
-            {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
-                <Loader2 className="animate-spin" size={48} color="#6B7280" />
-              </div>
+            {isInitialLoad ? (
+              <SkeletonGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
+                {Array.from({ length: 3 }).map((_, i) => <SkeletonVehicleCard key={i} />)}
+              </SkeletonGroup>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
                 {featuredVehicles.map((vehicle) => (
