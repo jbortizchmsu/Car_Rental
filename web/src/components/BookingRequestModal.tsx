@@ -808,7 +808,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                                 clearFieldError('end_date');
                               }}
                               showTimeSelect
-                              timeFormat="HH:mm"
+                              timeFormat="h:mm aa"
                               timeIntervals={30}
                               dateFormat="MMMM d, yyyy h:mm aa"
                               minDate={new Date()}
@@ -844,7 +844,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                                 clearFieldError('end_date');
                               }}
                               showTimeSelect
-                              timeFormat="HH:mm"
+                              timeFormat="h:mm aa"
                               timeIntervals={30}
                               dateFormat="MMMM d, yyyy h:mm aa"
                               minDate={pickupDateObj ?? new Date()}
