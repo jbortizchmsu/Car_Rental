@@ -41,11 +41,22 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   onCancel,
   reasonInput
 }) => {
-  // Must run unconditionally, before the isOpen early return below, so the hook is
-  // called on every render regardless of isOpen (see the pre-existing Escape-key
-  // effect further down, which is NOT called unconditionally — left as-is, out of
-  // scope for this fix, but not a pattern to repeat here).
   useBodyScrollLock(isOpen);
+
+  // Must be called unconditionally (before the early return below) so React sees the
+  // same number of hooks on every render regardless of isOpen. The isOpen guard inside
+  // the effect body means no listener is registered while the modal is closed —
+  // behaviour is identical to before this fix.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) {
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, loading, onCancel]);
 
   if (!isOpen) return null;
 
@@ -79,17 +90,6 @@ const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
       confirmBtnClass = 'btn-primary';
       break;
   }
-
-  // Handle escape key
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loading) {
-        onCancel();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [loading, onCancel]);
 
   return (
     <div className="confirm-modal-backdrop" onClick={!loading ? onCancel : undefined}>
