@@ -123,7 +123,6 @@ const Navbar: React.FC = () => {
             <>
               <Link to="/" style={{ fontWeight: 500, fontSize: '0.95rem' }}>Home</Link>
               <Link to="/vehicles" style={{ fontWeight: 500, fontSize: '0.95rem' }}>Vehicles</Link>
-              <Link to="/#how-it-works" style={{ fontWeight: 500, fontSize: '0.95rem' }}>How It Works</Link>
             </>
           )}
           
