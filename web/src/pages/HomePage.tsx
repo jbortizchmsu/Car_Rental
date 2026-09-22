@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Clock, MapPin, ChevronRight } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Shield, Clock, MapPin, ChevronRight, Search, FileCheck, UserCheck, KeyRound } from 'lucide-react';
 import VehicleCard from '../components/VehicleCard';
 import { vehiclesApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,20 @@ const HomePage: React.FC = () => {
   const isInitialLoad = useInitialLoad(loading);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // React Router client-side navigation (and a full page load / direct URL /
+  // bookmark to "/#how-it-works") doesn't auto-scroll to a hash target — only a
+  // real browser navigation does that, and only if the element already exists in
+  // the DOM at that moment. By the time this effect runs, the section is mounted,
+  // so this covers both the Link-driven case and the full-reload case in one place.
+  // Depends on location.hash (not just mount) so it also re-fires when the hash
+  // changes while already on this page (e.g. clicking the nav link while on Home).
+  useEffect(() => {
+    if (location.hash === '#how-it-works') {
+      document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.hash]);
 
   useEffect(() => {
     // If admin opens homepage, redirect to dashboard
@@ -111,6 +125,50 @@ const HomePage: React.FC = () => {
                 </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>GPS Tracking</h3>
                 <p style={{ color: '#6B7280' }}>Real-time location monitoring for safety and easy navigation.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section id="how-it-works" style={{ padding: '5rem 0', backgroundColor: '#FDFDFD' }}>
+          <div className="container">
+            <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+              <h2 style={{ fontSize: '2.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>How It Works</h2>
+              <p style={{ color: '#6B7280' }}>From browsing to driving, here's what to expect.</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '3rem' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#F9FAFB', width: '64px', height: '64px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', position: 'relative' }}>
+                  <Search size={32} color="#6B7280" />
+                  <span style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: 'black', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>1</span>
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>Browse the Fleet</h3>
+                <p style={{ color: '#6B7280' }}>Pick a car from JD's available vehicles.</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#F9FAFB', width: '64px', height: '64px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', position: 'relative' }}>
+                  <FileCheck size={32} color="#6B7280" />
+                  <span style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: 'black', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>2</span>
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>Book & Verify</h3>
+                <p style={{ color: '#6B7280' }}>Submit your booking with your ID/license, then verify your email.</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#F9FAFB', width: '64px', height: '64px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', position: 'relative' }}>
+                  <UserCheck size={32} color="#6B7280" />
+                  <span style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: 'black', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>3</span>
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>Get Approved</h3>
+                <p style={{ color: '#6B7280' }}>Admin reviews and approves new accounts before first use.</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#F9FAFB', width: '64px', height: '64px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', position: 'relative' }}>
+                  <KeyRound size={32} color="#6B7280" />
+                  <span style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: 'black', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>4</span>
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>Pick Up & Drive</h3>
+                <p style={{ color: '#6B7280' }}>Collect the car and hit the road.</p>
               </div>
             </div>
           </div>

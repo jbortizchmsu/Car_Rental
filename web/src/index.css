@@ -38,6 +38,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-main);
   background-color: var(--primary-bg);
@@ -1081,6 +1085,10 @@ h5 {
   .skeleton-pulse {
     animation: none;
     opacity: 0.75;
+  }
+
+  html {
+    scroll-behavior: auto;
   }
 }
 
