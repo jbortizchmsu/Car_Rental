@@ -103,6 +103,17 @@ const MyBookingsPage: React.FC = () => {
     }
   };
 
+  // Buckets: "not yet resolved" (still needs the customer's or admin's attention, or the
+  // rental is currently in progress) vs "resolved" (nothing left to do). RETURNED is
+  // deliberately bucketed as Past — the customer's own trip is over even though an
+  // internal admin completion step is still pending.
+  const ACTIVE_STATUSES = ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE'];
+  const PAST_STATUSES = ['RETURNED', 'COMPLETED', 'REJECTED', 'CANCELLED'];
+  const [activeTab, setActiveTab] = useState<'ACTIVE' | 'PAST'>('ACTIVE');
+  const activeTabBookings = bookings.filter(b => ACTIVE_STATUSES.includes(b.status));
+  const pastTabBookings = bookings.filter(b => PAST_STATUSES.includes(b.status));
+  const visibleBookings = activeTab === 'ACTIVE' ? activeTabBookings : pastTabBookings;
+
   const handleViewDetails = async (id: string) => {
     setSelectedBookingId(id);
     setDetailsLoading(true);
@@ -128,6 +139,33 @@ const MyBookingsPage: React.FC = () => {
             <p style={{ color: 'var(--muted-mauve)' }}>Track your booking requests and active journeys.</p>
           </div>
 
+          {!error && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid #eee' }}>
+              {[
+                { id: 'ACTIVE' as const, label: 'Active & Upcoming', count: activeTabBookings.length },
+                { id: 'PAST' as const, label: 'Past', count: pastTabBookings.length },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    padding: '0.75rem 1.25rem',
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: activeTab === tab.id ? '2px solid var(--black)' : '2px solid transparent',
+                    fontWeight: activeTab === tab.id ? 800 : 600,
+                    color: activeTab === tab.id ? 'var(--black)' : 'var(--muted-mauve)',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {tab.label}{!isInitialLoad ? ` (${tab.count})` : ''}
+                </button>
+              ))}
+            </div>
+          )}
+
           {isInitialLoad ? (
             <SkeletonGroup style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
@@ -146,10 +184,10 @@ const MyBookingsPage: React.FC = () => {
               <button onClick={fetchBookings} className="btn-primary">Try Again</button>
             </div>
           ) : bookings.length === 0 ? (
-            <div style={{ 
-              backgroundColor: 'white', 
-              padding: '5rem', 
-              borderRadius: '20px', 
+            <div style={{
+              backgroundColor: 'white',
+              padding: '5rem',
+              borderRadius: '20px',
               textAlign: 'center',
               boxShadow: 'var(--shadow-soft)'
             }}>
@@ -158,9 +196,27 @@ const MyBookingsPage: React.FC = () => {
               <p style={{ color: 'var(--muted-mauve)', marginBottom: '2rem' }}>You haven't booked any vehicles yet.</p>
               <Link to="/vehicles" className="btn-primary">Browse Vehicles</Link>
             </div>
+          ) : visibleBookings.length === 0 ? (
+            <div style={{
+              backgroundColor: 'white',
+              padding: '5rem',
+              borderRadius: '20px',
+              textAlign: 'center',
+              boxShadow: 'var(--shadow-soft)'
+            }}>
+              <Calendar size={48} color="#ddd" style={{ margin: '0 auto 1.5rem' }} />
+              <h2 style={{ marginBottom: '1rem' }}>
+                {activeTab === 'ACTIVE' ? 'No active or upcoming bookings' : 'No past bookings yet'}
+              </h2>
+              <p style={{ color: 'var(--muted-mauve)', marginBottom: '2rem' }}>
+                {activeTab === 'ACTIVE'
+                  ? "You don't have any bookings in progress right now."
+                  : "Your completed, returned, rejected, or cancelled bookings will show up here."}
+              </p>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {bookings.map((booking) => {
+              {visibleBookings.map((booking) => {
                 return (
                   <div key={booking.id} style={{
                     backgroundColor: 'white',
