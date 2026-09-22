@@ -125,6 +125,12 @@ const VehicleManagement: React.FC = () => {
     oilChangeIntervalKm: 5000
   });
 
+  const toast = useToast();
+  const [retireModalOpen, setRetireModalOpen] = useState(false);
+  const [retireVehicleId, setRetireVehicleId] = useState<string | null>(null);
+  const [retireLoading, setRetireLoading] = useState(false);
+  const [retireError, setRetireError] = useState<string | null>(null);
+
   useEffect(() => {
     setPageHeader({
       title: 'Fleet Management',
@@ -136,12 +142,6 @@ const VehicleManagement: React.FC = () => {
   useEffect(() => {
     fetchVehicles();
   }, []);
-
-  const toast = useToast();
-  const [retireModalOpen, setRetireModalOpen] = useState(false);
-  const [retireVehicleId, setRetireVehicleId] = useState<string | null>(null);
-  const [retireLoading, setRetireLoading] = useState(false);
-  const [retireError, setRetireError] = useState<string | null>(null);
 
   const fetchVehicles = async () => {
     try {
