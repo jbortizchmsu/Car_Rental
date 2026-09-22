@@ -794,7 +794,7 @@ const BookingRequestsPage: React.FC = () => {
 
                   {/* Right: Amount & Status */}
                   <div className="booking-list-status" style={{ minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--black)' }}>₱{Number(booking.totalAmount).toLocaleString()}</span>
                       
                       {wf.actionPriority === 'ACTION_REQUIRED' && (
