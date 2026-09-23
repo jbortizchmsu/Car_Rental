@@ -87,7 +87,7 @@ const AdminDashboard: React.FC = () => {
         <h2 className="card-title">Quick Actions</h2>
         <div className="grid grid-cols-3 gap-6">
           <button 
-            onClick={() => navigate('/admin/pickup')}
+            onClick={() => navigate('/admin/bookings?filter=NEEDS_ACTION')}
             className="btn-brand"
             style={{ padding: '2.5rem', borderRadius: '24px', textAlign: 'left', display: 'flex', flexDirection: 'column', height: 'auto' }}
           >
@@ -97,7 +97,7 @@ const AdminDashboard: React.FC = () => {
           </button>
 
           <button 
-            onClick={() => navigate('/admin/active-rentals')}
+            onClick={() => navigate('/admin/bookings?filter=ACTIVE_RENTALS')}
             className="btn-brand"
             style={{ padding: '2.5rem', borderRadius: '24px', textAlign: 'left', display: 'flex', flexDirection: 'column', height: 'auto' }}
           >

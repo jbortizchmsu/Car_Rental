@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { bookingsApi, filesApi, paymentsApi, pricingApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
 import { useOdometerPrefill } from '../utils/odometer';
@@ -22,6 +23,10 @@ import VehicleImage from '../components/VehicleImage';
 
 type WorkflowFilter = 'ALL_ACTIVE' | 'NEEDS_ACTION' | 'WAITING_CUSTOMER' | 'ACTIVE_RENTALS' | 'REJECTED' | 'COMPLETED';
 
+// Values accepted from the ?filter= query param (used by the admin dashboard's Quick Action
+// cards to land on the right chip). Anything else falls back to the default.
+const VALID_FILTERS: WorkflowFilter[] = ['ALL_ACTIVE', 'NEEDS_ACTION', 'WAITING_CUSTOMER', 'ACTIVE_RENTALS', 'REJECTED', 'COMPLETED'];
+
 interface StatusCounts {
   NEEDS_ACTION: number;
   WAITING_CUSTOMER: number;
@@ -38,7 +43,14 @@ const BookingRequestsPage: React.FC = () => {
   // so the list stays visible (not replaced by a spinner) when a booking event arrives.
   const isInitialLoad = useInitialLoad(loading);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [activeFilter, setActiveFilter] = useState<WorkflowFilter>('ALL_ACTIVE');
+  const [searchParams] = useSearchParams();
+  // Initial chip only — read once on mount, not kept in sync with the URL afterward, so
+  // clicking chips behaves exactly as before. Initializing (rather than setting in an effect)
+  // means the very first fetch already uses the right filter, with no wasted default fetch.
+  const [activeFilter, setActiveFilter] = useState<WorkflowFilter>(() => {
+    const requested = searchParams.get('filter') as WorkflowFilter | null;
+    return requested && VALID_FILTERS.includes(requested) ? requested : 'ALL_ACTIVE';
+  });
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ id: string; title: string } | null>(null);
