@@ -56,7 +56,7 @@ const AdminDashboard: React.FC = () => {
             <div style={{ padding: '0.75rem', backgroundColor: '#F3E8FF', borderRadius: '12px' }}>
               <DollarSign size={24} color="#7B1FA2" />
             </div>
-            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{isInitialLoad ? <SkeletonStatValue /> : `₱${(stats?.revenue?.totalVerified || 0).toLocaleString()}`}</span>
+            <span style={{ fontSize: '1.75rem', fontWeight: 900 }}>{isInitialLoad ? <SkeletonStatValue /> : `₱${Number(stats?.revenue?.totalVerified || 0).toLocaleString()}`}</span>
           </div>
           <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', fontWeight: 600 }}>Verified Revenue</p>
         </div>
