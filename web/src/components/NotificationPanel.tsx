@@ -25,6 +25,7 @@ const NotificationPanel: React.FC = () => {
   const [showPanel, setShowPanel] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
+  const panelRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -59,6 +60,29 @@ const NotificationPanel: React.FC = () => {
     };
   }, [user]);
 
+  // Synchronize across components when notifications are updated anywhere in the app
+  useEffect(() => {
+    const handleUpdate = () => {
+      fetchNotifications();
+    };
+    window.addEventListener('notifications-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('notifications-updated', handleUpdate);
+    };
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showPanel) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setShowPanel(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPanel]);
+
   const fetchNotifications = async () => {
     try {
       const response = await notificationsApi.getNotifications();
@@ -75,6 +99,7 @@ const NotificationPanel: React.FC = () => {
       await notificationsApi.markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     } catch (error) {
       console.error('Failed to mark as read');
     }
@@ -85,6 +110,7 @@ const NotificationPanel: React.FC = () => {
       await notificationsApi.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     } catch (error) {
       console.error('Failed to mark all as read');
     }
@@ -121,10 +147,16 @@ const NotificationPanel: React.FC = () => {
   };
 
   return (
-    <div className="notification-wrapper" style={{ position: 'relative' }}>
+    <div className="notification-wrapper" ref={panelRef} style={{ position: 'relative' }}>
       <button
         className="notification-trigger"
-        onClick={() => setShowPanel(!showPanel)}
+        onClick={() => {
+          const next = !showPanel;
+          setShowPanel(next);
+          if (next) {
+            fetchNotifications();
+          }
+        }}
         style={{
           background: 'none',
           border: 'none',

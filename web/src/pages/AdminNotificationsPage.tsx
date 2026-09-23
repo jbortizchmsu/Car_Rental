@@ -109,6 +109,17 @@ const AdminNotificationsPage: React.FC = () => {
     };
   }, []);
 
+  // Synchronize across components when notifications are updated anywhere in the app
+  useEffect(() => {
+    const handleUpdate = () => {
+      fetchNotifications();
+    };
+    window.addEventListener('notifications-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('notifications-updated', handleUpdate);
+    };
+  }, []);
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);
@@ -144,6 +155,7 @@ const AdminNotificationsPage: React.FC = () => {
     try {
       await notificationsApi.markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     } catch (err) {
       console.error('Failed to mark notification as read', err);
     }
@@ -153,6 +165,7 @@ const AdminNotificationsPage: React.FC = () => {
     try {
       await notificationsApi.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     } catch (err) {
       console.error('Failed to mark all as read', err);
     }
