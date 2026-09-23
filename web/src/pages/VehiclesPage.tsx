@@ -208,6 +208,8 @@ const VehiclesPage: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setSelectedVehicle(null); }}
         vehicle={selectedVehicle}
+        initialPickupDate={pickupDate}
+        initialReturnDate={returnDate}
       />
     </>
   );

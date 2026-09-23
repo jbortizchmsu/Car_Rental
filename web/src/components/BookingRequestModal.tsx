@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Upload, Calendar, MapPin, User, ShieldCheck, AlertCircle, X, CheckCircle2, Calculator, Car, FileText, ChevronRight, ChevronLeft, Check, Tag, Eye, RefreshCw } from 'lucide-react';
@@ -401,13 +401,60 @@ const DocumentUploadCard: React.FC<DocumentUploadCardProps> = ({
   );
 };
 
+// Default handover times when the customer arrives from the vehicle list with dates already
+// chosen. Must match AVAILABILITY_PICKUP_TIME / AVAILABILITY_RETURN_TIME in
+// server/src/lib/availability-window.ts, which is what makes "shown as available in the
+// list" mean "this exact prefilled slot is bookable".
+const PREFILL_PICKUP_HOUR = 9;
+const PREFILL_RETURN_HOUR = 17;
+const WINDOW_CLOSE_HOUR = 18;
+
+const parseBareDate = (value?: string): Date | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '');
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+/**
+ * Turns the list page's bare dates into full datetimes for the pickers. Returns '' for
+ * anything that can't be seeded safely, so the modal simply opens blank as it always did.
+ * A pickup today after 9 AM would otherwise be seeded in the past (the picker's minTime only
+ * constrains what the user can *choose*, not what is seeded), so it rolls to the next
+ * half-hour slot, and to blank if today's 6 PM cutoff has already passed.
+ */
+export const buildPrefill = (initialPickupDate?: string, initialReturnDate?: string, now: Date = new Date()): { start: string; end: string } => {
+  const pickupDay = parseBareDate(initialPickupDate);
+  if (!pickupDay) return { start: '', end: '' };
+
+  const start = new Date(pickupDay); start.setHours(PREFILL_PICKUP_HOUR, 0, 0, 0);
+  if (start < now) {
+    const HALF_HOUR_MS = 30 * 60 * 1000; // the pickers use 30-minute slots
+    start.setTime(Math.ceil(now.getTime() / HALF_HOUR_MS) * HALF_HOUR_MS);
+    const close = new Date(pickupDay); close.setHours(WINDOW_CLOSE_HOUR, 0, 0, 0);
+    if (start > close) return { start: '', end: '' };
+  }
+
+  const returnDay = parseBareDate(initialReturnDate);
+  if (!returnDay || returnDay < pickupDay) return { start: formatApiDate(start), end: '' };
+
+  const end = new Date(returnDay); end.setHours(PREFILL_RETURN_HOUR, 0, 0, 0);
+  if (end <= start) end.setHours(WINDOW_CLOSE_HOUR, 0, 0, 0);
+  if (end <= start) return { start: formatApiDate(start), end: '' };
+
+  return { start: formatApiDate(start), end: formatApiDate(end) };
+};
+
 interface BookingRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   vehicle: any;
+  /** Optional "YYYY-MM-DD" dates carried over from the vehicle list's date filter. */
+  initialPickupDate?: string;
+  initialReturnDate?: string;
 }
 
-const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClose, vehicle }) => {
+const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClose, vehicle, initialPickupDate, initialReturnDate }) => {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
@@ -494,11 +541,29 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
   }, [vehicle, formData.start_date, formData.end_date, isOpen]);
 
   // Fetch booked date ranges when modal opens or vehicle changes
+  // Seeds the pickup/return dates — from the vehicle list's date filter when the customer
+  // arrived with dates chosen, otherwise blank exactly as before. A layout effect (not a
+  // regular one) so the first painted frame already has the seeded values and their
+  // min/max-time constraints, rather than flashing an empty picker first. Dates are also
+  // cleared on close so a re-open never briefly holds the previous session's values (which
+  // would fire a wasted pricing-quote request for a stale range). initialPickupDate /
+  // initialReturnDate are deliberately read from this render's props rather than listed as
+  // deps: re-seeding while the modal is open would wipe whatever the customer has edited.
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setFormData(prev => (prev.start_date || prev.end_date ? { ...prev, start_date: '', end_date: '' } : prev));
+      return;
+    }
+    if (vehicle?.id) {
+      const seeded = buildPrefill(initialPickupDate, initialReturnDate);
+      setFormData(prev => ({ ...prev, start_date: seeded.start, end_date: seeded.end }));
+    }
+  }, [isOpen, vehicle?.id]);
+
   useEffect(() => {
     if (isOpen && vehicle?.id) {
       setBookedRanges([]);
       setBookedDatesFailed(false);
-      setFormData(prev => ({ ...prev, start_date: '', end_date: '' }));
       setPricingQuote(null);
       setBookedDatesLoading(true);
       bookingsApi.getVehicleBookedDates(vehicle.id)

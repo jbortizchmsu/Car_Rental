@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { authenticate, authorizeAdmin } from '../middleware/auth';
 import { vehicleImageUpload } from '../middleware/upload';
 import { uploadToSupabaseStorage, BUCKETS } from '../lib/supabase';
+import { parseAvailabilityBound, AVAILABILITY_PICKUP_TIME, AVAILABILITY_RETURN_TIME } from '../lib/availability-window';
 import path from 'path';
 import fs from 'fs';
 
@@ -104,8 +105,8 @@ router.get('/available', async (req, res) => {
     let where: any;
 
     if (pickupDate && returnDate) {
-      const start = new Date(pickupDate as string);
-      const end = new Date(returnDate as string);
+      const start = parseAvailabilityBound(pickupDate as string, AVAILABILITY_PICKUP_TIME);
+      const end = parseAvailabilityBound(returnDate as string, AVAILABILITY_RETURN_TIME);
 
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
         // With valid dates: include AVAILABLE and RENTED vehicles,
