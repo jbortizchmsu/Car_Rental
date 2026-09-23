@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bell, Info, AlertTriangle, X, Clock, CreditCard,
   AlertCircle, Wrench, Calendar, FileText
@@ -234,22 +235,25 @@ const NotificationPanel: React.FC = () => {
             )}
           </div>
 
-          {notifications.length > 10 && (
-            <div style={{
-              padding: '0.75rem 1.25rem',
-              borderTop: '1px solid var(--gray-100)',
-              textAlign: 'center'
-            }}>
-              <a href="/admin/notifications" style={{
+          <div style={{
+            padding: '0.75rem 1.25rem',
+            borderTop: '1px solid var(--gray-100)',
+            textAlign: 'center'
+          }}>
+            <Link 
+              to="/admin/notifications" 
+              onClick={() => setShowPanel(false)}
+              style={{
                 fontSize: '0.875rem',
                 color: 'var(--warm-taupe)',
                 textDecoration: 'none',
-                fontWeight: 600
-              }}>
-                View all notifications
-              </a>
-            </div>
-          )}
+                fontWeight: 600,
+                display: 'block'
+              }}
+            >
+              View all notifications
+            </Link>
+          </div>
         </div>
       )}
     </div>

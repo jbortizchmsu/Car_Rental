@@ -21,6 +21,7 @@ import AdminGpsTrackingPage from './pages/AdminGpsTrackingPage';
 import AdminUserRolesPage from './pages/AdminUserRolesPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import AdminGeofencePage from './pages/AdminGeofencePage';
+import AdminNotificationsPage from './pages/AdminNotificationsPage';
 import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -92,6 +93,7 @@ function App() {
             <Route path="user-roles" element={<AdminUserRolesPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="geofences" element={<AdminGeofencePage />} />
+            <Route path="notifications" element={<AdminNotificationsPage />} />
 
             {/* Redirects for backward compatibility */}
             <Route path="vehicles" element={<Navigate to="/admin/fleet" replace />} />

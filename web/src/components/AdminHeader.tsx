@@ -24,6 +24,7 @@ const AdminHeader: React.FC = () => {
       '/admin/map-dashboard': 'Live Vehicle Map',
       '/admin/geofence': 'Geofence Management',
       '/admin/dynamic-pricing': 'Dynamic Pricing',
+      '/admin/notifications': 'Notifications',
     };
 
     return pathMap[location.pathname] || 'Dashboard';
