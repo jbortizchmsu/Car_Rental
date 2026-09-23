@@ -167,10 +167,12 @@ export const maintenanceApi = {
   getSummary: () => api.get('/admin/maintenance/summary'),
   getVehicles: () => api.get('/admin/maintenance/vehicles'),
   getDamageReports: () => api.get('/admin/maintenance/damage-reports'),
+  resolveDamageReport: (id: string) => api.patch(`/admin/maintenance/damage-reports/${id}/resolve`),
   getLogs: () => api.get('/admin/maintenance/logs'),
   createLog: (data: any) => api.post('/admin/maintenance/logs', data),
   updateLog: (id: string, data: any) => api.put(`/admin/maintenance/logs/${id}`, data),
-  markUnderMaintenance: (vehicleId: string) => api.post(`/admin/maintenance/vehicles/${vehicleId}/mark-maintenance`),
+  markUnderMaintenance: (vehicleId: string, data?: { reason?: string; odometerKm?: number }) =>
+    api.post(`/admin/maintenance/vehicles/${vehicleId}/mark-maintenance`, data),
   markAvailable: (vehicleId: string) => api.post(`/admin/maintenance/vehicles/${vehicleId}/mark-available`),
 };
 

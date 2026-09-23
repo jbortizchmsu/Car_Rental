@@ -16,6 +16,11 @@ const AdminMaintenancePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showLogModal, setShowLogModal] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [selectedDamageReportId, setSelectedDamageReportId] = useState<string | null>(null);
+  const [damageStatusFilter, setDamageStatusFilter] = useState<'PENDING' | 'ALL'>('PENDING');
+  const [resolvingReportId, setResolvingReportId] = useState<string | null>(null);
+  const [updatingLogId, setUpdatingLogId] = useState<string | null>(null);
+  const [shopReason, setShopReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [confirmModal, setConfirmModal] = useState<{
@@ -25,7 +30,18 @@ const AdminMaintenancePage: React.FC = () => {
     vehicleName: string;
     vehiclePlate: string;
     vehicleStatus: string;
-  }>({ isOpen: false, action: 'SHOP', vehicleId: '', vehicleName: '', vehiclePlate: '', vehicleStatus: '' });
+    pendingLogsCount: number;
+    openDamageCount: number;
+  }>({
+    isOpen: false,
+    action: 'SHOP',
+    vehicleId: '',
+    vehicleName: '',
+    vehiclePlate: '',
+    vehicleStatus: '',
+    pendingLogsCount: 0,
+    openDamageCount: 0
+  });
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [newLog, setNewLog] = useState({
@@ -77,17 +93,48 @@ const AdminMaintenancePage: React.FC = () => {
     try {
       await maintenanceApi.createLog({
         ...newLog,
-        vehicleId: selectedVehicleId
+        vehicleId: selectedVehicleId,
+        damageReportId: selectedDamageReportId || undefined
       });
       toast.success('Maintenance Log Created', 'Service entry has been successfully recorded.');
       setShowLogModal(false);
+      setSelectedDamageReportId(null);
       fetchData();
     } catch (error) {
       toast.error('Failed to create log', getApiErrorMessage(error));
     }
   };
 
+  const handleResolveDamageReport = async (reportId: string) => {
+    try {
+      setResolvingReportId(reportId);
+      await maintenanceApi.resolveDamageReport(reportId);
+      toast.success('Report Resolved', 'Damage report has been marked as resolved.');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to resolve report', getApiErrorMessage(error));
+    } finally {
+      setResolvingReportId(null);
+    }
+  };
+
+  const handleCompleteLog = async (logId: string) => {
+    try {
+      setUpdatingLogId(logId);
+      await maintenanceApi.updateLog(logId, { status: 'COMPLETED' });
+      toast.success('Service Completed', 'Maintenance log has been marked as completed.');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to update service log', getApiErrorMessage(error));
+    } finally {
+      setUpdatingLogId(null);
+    }
+  };
+
   const openConfirmModal = (vehicle: any, action: 'SHOP' | 'AVAILABLE') => {
+    const pendingLogs = logs.filter(l => l.vehicleId === vehicle.id && l.status !== 'COMPLETED');
+    const openDamage = damageReports.filter(d => d.booking?.vehicleId === vehicle.id && d.status !== 'RESOLVED');
+
     setConfirmModal({
       isOpen: true,
       action,
@@ -95,13 +142,17 @@ const AdminMaintenancePage: React.FC = () => {
       vehicleName: `${vehicle.brand} ${vehicle.model}`,
       vehiclePlate: vehicle.plateNumber,
       vehicleStatus: vehicle.status === 'UNDER_MAINTENANCE' ? 'In Shop' : 'Available',
+      pendingLogsCount: pendingLogs.length,
+      openDamageCount: openDamage.length,
     });
+    setShopReason('');
     setConfirmError(null);
   };
 
   const closeConfirmModal = () => {
     if (confirmLoading) return;
     setConfirmModal({ ...confirmModal, isOpen: false });
+    setShopReason('');
     setConfirmError(null);
   };
 
@@ -110,7 +161,9 @@ const AdminMaintenancePage: React.FC = () => {
     setConfirmError(null);
     try {
       if (confirmModal.action === 'SHOP') {
-        await maintenanceApi.markUnderMaintenance(confirmModal.vehicleId);
+        await maintenanceApi.markUnderMaintenance(confirmModal.vehicleId, {
+          reason: shopReason.trim() || undefined
+        });
         toast.success('Status Updated', `${confirmModal.vehicleName} has been sent to the shop.`);
       } else {
         await maintenanceApi.markAvailable(confirmModal.vehicleId);
@@ -226,6 +279,7 @@ const AdminMaintenancePage: React.FC = () => {
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '12px' }}
           onClick={() => {
             setSelectedVehicleId('');
+            setSelectedDamageReportId(null);
             setNewLog({ serviceType: 'ROUTINE', description: '', cost: '', serviceDate: new Date().toISOString().split('T')[0], nextServiceDate: '', status: 'COMPLETED', odometerKm: '' });
             setShowLogModal(true);
           }}
@@ -306,6 +360,7 @@ const AdminMaintenancePage: React.FC = () => {
                           style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderRadius: '8px' }}
                           onClick={() => {
                             setSelectedVehicleId(vehicle.id);
+                            setSelectedDamageReportId(null);
                             setNewLog({
                               serviceType: 'OIL_CHANGE',
                               description: `Routine oil change at ${vehicle.currentOdometerKm} km`,
@@ -333,10 +388,18 @@ const AdminMaintenancePage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
         {/* Recent Damage Reports */}
         <div className="maintenance-table-card">
-          <div className="table-header">
+          <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--black)' }}>
               <AlertTriangle size={22} color="#EF4444" /> Recent Damage Reports
             </h3>
+            <select
+              value={damageStatusFilter}
+              onChange={(e) => setDamageStatusFilter(e.target.value as 'PENDING' | 'ALL')}
+              style={{ fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: '1px solid var(--gray-200)', padding: '0.35rem 0.75rem', color: 'var(--gray-600)', backgroundColor: 'white' }}
+            >
+              <option value="PENDING">Pending Only</option>
+              <option value="ALL">All Reports</option>
+            </select>
           </div>
           <div className="table-container" style={{ flex: 1, maxHeight: '400px', overflowY: 'auto' }}>
             <table className="table">
@@ -350,18 +413,29 @@ const AdminMaintenancePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {damageReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={5}>
-                      <div className="maintenance-empty-state">
-                        <AlertTriangle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                        <h4>No damage reports found</h4>
-                        <p>Returned vehicle damage reports will appear here.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  damageReports.map(report => (
+                {(() => {
+                  const filteredDamageReports = damageReports.filter(report => {
+                    if (damageStatusFilter === 'PENDING') return report.status !== 'RESOLVED';
+                    return true;
+                  });
+
+                  if (filteredDamageReports.length === 0) return (
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="maintenance-empty-state">
+                          <AlertTriangle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                          <h4>No damage reports found</h4>
+                          <p>
+                            {damageStatusFilter === 'PENDING'
+                              ? 'All vehicle damage reports have been resolved.'
+                              : 'Returned vehicle damage reports will appear here.'}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+
+                  return filteredDamageReports.map(report => (
                     <tr key={report.id}>
                       <td>
                         <div style={{ fontWeight: 700, color: 'var(--black)' }}>{report.booking.vehicle.brand} {report.booking.vehicle.model}</div>
@@ -379,31 +453,52 @@ const AdminMaintenancePage: React.FC = () => {
                           {report.severity || 'LOW'}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 800, color: 'var(--black)' }}>{report.estimatedCost ? `₱${report.estimatedCost.toLocaleString()}` : <span style={{ color: 'var(--gray-400)' }}>No estimate</span>}</td>
+                      <td style={{ fontWeight: 800, color: 'var(--black)' }}>
+                        {report.estimatedCost ? `₱${report.estimatedCost.toLocaleString()}` : <span style={{ color: 'var(--gray-400)' }}>No estimate</span>}
+                      </td>
                       <td>
-                        <button
-                          className="btn-outline"
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderRadius: '8px' }}
-                          onClick={() => {
-                            setSelectedVehicleId(report.booking.vehicleId);
-                            setNewLog({
-                              serviceType: 'REPAIR',
-                              description: `Repair for: ${report.description}`,
-                              cost: String(report.estimatedCost || ''),
-                              serviceDate: new Date().toISOString().split('T')[0],
-                              nextServiceDate: '',
-                              status: 'COMPLETED',
-                              odometerKm: ''
-                            });
-                            setShowLogModal(true);
-                          }}
-                        >
-                          Create Log
-                        </button>
+                        {report.status === 'RESOLVED' ? (
+                          <span style={{ color: '#16A34A', fontSize: '0.75rem', fontWeight: 700, backgroundColor: '#DCFCE7', padding: '0.25rem 0.5rem', borderRadius: '6px' }}>
+                            ✓ Resolved
+                          </span>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '0.35rem' }}>
+                            <button
+                              className="btn-outline"
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '8px' }}
+                              onClick={() => {
+                                setSelectedVehicleId(report.booking.vehicleId);
+                                setSelectedDamageReportId(report.id);
+                                setNewLog({
+                                  serviceType: 'REPAIR',
+                                  description: `Repair for: ${report.description}`,
+                                  cost: String(report.estimatedCost || ''),
+                                  serviceDate: new Date().toISOString().split('T')[0],
+                                  nextServiceDate: '',
+                                  status: 'COMPLETED',
+                                  odometerKm: ''
+                                });
+                                setShowLogModal(true);
+                              }}
+                              title="Create a maintenance log to resolve this damage"
+                            >
+                              Create Log
+                            </button>
+                            <button
+                              className="btn-outline"
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '8px', color: '#16A34A', borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', fontWeight: 600 }}
+                              disabled={resolvingReportId === report.id}
+                              onClick={() => handleResolveDamageReport(report.id)}
+                              title="Mark this damage report as resolved directly"
+                            >
+                              {resolvingReportId === report.id ? '...' : 'Resolve'}
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
-                  ))
-                )}
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
@@ -435,6 +530,7 @@ const AdminMaintenancePage: React.FC = () => {
                   <th>Cost</th>
                   <th>Date</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -442,7 +538,7 @@ const AdminMaintenancePage: React.FC = () => {
                   const filtered = logs.filter(log => logStatusFilter === 'ALL' || log.status === logStatusFilter);
                   if (filtered.length === 0) return (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <div className="maintenance-empty-state">
                           <ClipboardList size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
                           <h4>No service logs yet</h4>
@@ -473,6 +569,21 @@ const AdminMaintenancePage: React.FC = () => {
                         }}>
                           {log.status.replace(/_/g, ' ')}
                         </span>
+                      </td>
+                      <td>
+                        {log.status !== 'COMPLETED' ? (
+                          <button
+                            className="btn-outline"
+                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px', color: '#16A34A', borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', fontWeight: 600 }}
+                            disabled={updatingLogId === log.id}
+                            onClick={() => handleCompleteLog(log.id)}
+                            title="Mark this service entry as completed"
+                          >
+                            {updatingLogId === log.id ? 'Saving...' : 'Mark Complete'}
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>--</span>
+                        )}
                       </td>
                     </tr>
                   ));
@@ -753,6 +864,33 @@ const AdminMaintenancePage: React.FC = () => {
         error={confirmError}
         onConfirm={executeConfirmAction}
         onCancel={closeConfirmModal}
+        reasonInput={
+          confirmModal.action === 'SHOP' ? {
+            label: 'Maintenance Reason / Service Notes (Optional)',
+            placeholder: 'e.g., Routine 5,000 km oil change, brake inspection, body repair...',
+            minLength: 0,
+            value: shopReason,
+            onChange: setShopReason,
+          } : undefined
+        }
+        details={
+          confirmModal.action === 'AVAILABLE' && (confirmModal.pendingLogsCount > 0 || confirmModal.openDamageCount > 0) ? (
+            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '0.75rem 1rem', color: '#991B1B', fontSize: '0.85rem' }}>
+              <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>⚠️ Active Service Items Notice:</div>
+              <ul style={{ margin: '0 0 0.5rem', paddingLeft: '1.25rem' }}>
+                {confirmModal.pendingLogsCount > 0 && (
+                  <li>{confirmModal.pendingLogsCount} service log(s) still marked as In Progress or Scheduled.</li>
+                )}
+                {confirmModal.openDamageCount > 0 && (
+                  <li>{confirmModal.openDamageCount} damage report(s) still open / unresolved.</li>
+                )}
+              </ul>
+              <div style={{ fontSize: '0.8rem', color: '#B91C1C' }}>
+                Please confirm that all maintenance work has been inspected and signed off before restoring vehicle availability.
+              </div>
+            </div>
+          ) : undefined
+        }
       />
     </div>
   );

@@ -178,6 +178,24 @@ router.get('/damage-reports', authenticate, authorizeAdmin, async (req, res) => 
   }
 });
 
+// PATCH /api/admin/maintenance/damage-reports/:id/resolve
+router.patch('/damage-reports/:id/resolve', authenticate, authorizeAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const report = await prisma.damageReport.findUnique({ where: { id } });
+    if (!report) return res.status(404).json({ error: 'Damage report not found' });
+
+    const updated = await prisma.damageReport.update({
+      where: { id },
+      data: { status: 'RESOLVED' }
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error resolving damage report:', error);
+    res.status(500).json({ error: 'Failed to resolve damage report' });
+  }
+});
+
 // GET /api/admin/maintenance/logs
 router.get('/logs', authenticate, authorizeAdmin, async (req, res) => {
   try {
@@ -196,7 +214,7 @@ router.get('/logs', authenticate, authorizeAdmin, async (req, res) => {
 
 // POST /api/admin/maintenance/logs
 router.post('/logs', authenticate, authorizeAdmin, async (req, res) => {
-  const { vehicleId, bookingId, serviceType, description, cost, serviceDate, nextServiceDate, status } = req.body;
+  const { vehicleId, bookingId, damageReportId, serviceType, description, cost, serviceDate, nextServiceDate, status } = req.body;
   
   if (!vehicleId || !serviceType || !description) {
     return res.status(400).json({ error: 'Vehicle ID, service type, and description are required.' });
@@ -218,6 +236,18 @@ router.post('/logs', authenticate, authorizeAdmin, async (req, res) => {
       },
       include: { vehicle: true }
     });
+
+    // If linked to a damage report, update its status
+    if (damageReportId) {
+      try {
+        await prisma.damageReport.update({
+          where: { id: damageReportId },
+          data: { status: status === 'COMPLETED' ? 'RESOLVED' : 'LOGGED' }
+        });
+      } catch (err) {
+        console.warn('Could not update linked damage report:', err);
+      }
+    }
 
     // Handle Oil Change completion
     if (status === 'COMPLETED' && serviceType === 'OIL_CHANGE') {
@@ -289,11 +319,27 @@ router.put('/logs/:id', authenticate, authorizeAdmin, async (req, res) => {
 // POST /api/admin/maintenance/vehicles/:vehicleId/mark-maintenance
 router.post('/vehicles/:vehicleId/mark-maintenance', authenticate, authorizeAdmin, async (req, res) => {
   const { vehicleId } = req.params;
+  const { reason, odometerKm } = req.body || {};
   try {
     const vehicle = await prisma.vehicle.update({
       where: { id: vehicleId },
       data: { status: 'UNDER_MAINTENANCE' }
     });
+
+    // If reason is provided, create an in-progress maintenance entry for audit tracking
+    if (reason && typeof reason === 'string' && reason.trim()) {
+      await prisma.maintenanceLog.create({
+        data: {
+          vehicleId,
+          serviceType: 'ROUTINE',
+          description: reason.trim(),
+          status: 'IN_PROGRESS',
+          odometerKm: odometerKm ? Number(odometerKm) : vehicle.currentOdometerKm,
+          serviceDate: new Date()
+        }
+      });
+    }
+
     res.json(vehicle);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update vehicle status' });
