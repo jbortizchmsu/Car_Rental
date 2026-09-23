@@ -261,42 +261,150 @@ router.get('/:id/documents', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Customer: Get My Bookings (Alias for /)
+// Customer: Get My Bookings (supports pagination, tab filtering, and backward-compatible unpaginated requests)
 router.get('/my', authenticate, async (req: AuthRequest, res) => {
   try {
-    const bookings = await prisma.booking.findMany({
-      where: { customerId: req.user!.id },
-      include: {
-        vehicle: true,
-        payments: true,
-        documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
-        damageReports: true,
-        pricingRule: true
-      },
-      orderBy: { createdAt: 'desc' }
+    const { skip, take, tab } = req.query;
+    const hasPagination = skip !== undefined || take !== undefined || tab !== undefined;
+
+    const where: any = { customerId: req.user!.id };
+
+    if (tab === 'ACTIVE') {
+      where.status = { in: ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE'] };
+    } else if (tab === 'PAST') {
+      where.status = { in: ['RETURNED', 'COMPLETED', 'REJECTED', 'CANCELLED'] };
+    }
+
+    const include = {
+      vehicle: true,
+      payments: true,
+      documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
+      damageReports: true,
+      pricingRule: true
+    };
+
+    if (!hasPagination) {
+      const bookings = await prisma.booking.findMany({
+        where: { customerId: req.user!.id },
+        include,
+        orderBy: { createdAt: 'desc' }
+      });
+      return res.json(bookings);
+    }
+
+    const skipNum = skip ? parseInt(skip as string, 10) : 0;
+    const takeNum = take ? parseInt(take as string, 10) : 10;
+
+    const [bookings, total, activeCount, pastCount] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include,
+        orderBy: { createdAt: 'desc' },
+        skip: skipNum,
+        take: takeNum
+      }),
+      prisma.booking.count({ where }),
+      prisma.booking.count({
+        where: {
+          customerId: req.user!.id,
+          status: { in: ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE'] }
+        }
+      }),
+      prisma.booking.count({
+        where: {
+          customerId: req.user!.id,
+          status: { in: ['RETURNED', 'COMPLETED', 'REJECTED', 'CANCELLED'] }
+        }
+      })
+    ]);
+
+    return res.json({
+      data: bookings,
+      total,
+      skip: skipNum,
+      take: takeNum,
+      hasMore: skipNum + takeNum < total,
+      counts: {
+        active: activeCount,
+        past: pastCount
+      }
     });
-    res.json(bookings);
   } catch (error) {
+    console.error('Failed to fetch bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
 });
 
-// Customer: Get My Bookings (Base route)
+// Customer: Get My Bookings (Base route alias)
 router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
-    const bookings = await prisma.booking.findMany({
-      where: { customerId: req.user!.id },
-      include: {
-        vehicle: true,
-        payments: true,
-        documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
-        damageReports: true,
-        pricingRule: true
-      },
-      orderBy: { createdAt: 'desc' }
+    const { skip, take, tab } = req.query;
+    const hasPagination = skip !== undefined || take !== undefined || tab !== undefined;
+
+    const where: any = { customerId: req.user!.id };
+
+    if (tab === 'ACTIVE') {
+      where.status = { in: ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE'] };
+    } else if (tab === 'PAST') {
+      where.status = { in: ['RETURNED', 'COMPLETED', 'REJECTED', 'CANCELLED'] };
+    }
+
+    const include = {
+      vehicle: true,
+      payments: true,
+      documents: { select: { id: true, bookingId: true, documentType: true, verifiedAt: true, verifiedById: true, createdAt: true } },
+      damageReports: true,
+      pricingRule: true
+    };
+
+    if (!hasPagination) {
+      const bookings = await prisma.booking.findMany({
+        where: { customerId: req.user!.id },
+        include,
+        orderBy: { createdAt: 'desc' }
+      });
+      return res.json(bookings);
+    }
+
+    const skipNum = skip ? parseInt(skip as string, 10) : 0;
+    const takeNum = take ? parseInt(take as string, 10) : 10;
+
+    const [bookings, total, activeCount, pastCount] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include,
+        orderBy: { createdAt: 'desc' },
+        skip: skipNum,
+        take: takeNum
+      }),
+      prisma.booking.count({ where }),
+      prisma.booking.count({
+        where: {
+          customerId: req.user!.id,
+          status: { in: ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE'] }
+        }
+      }),
+      prisma.booking.count({
+        where: {
+          customerId: req.user!.id,
+          status: { in: ['RETURNED', 'COMPLETED', 'REJECTED', 'CANCELLED'] }
+        }
+      })
+    ]);
+
+    return res.json({
+      data: bookings,
+      total,
+      skip: skipNum,
+      take: takeNum,
+      hasMore: skipNum + takeNum < total,
+      counts: {
+        active: activeCount,
+        past: pastCount
+      }
     });
-    res.json(bookings);
   } catch (error) {
+    console.error('Failed to fetch bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
 });

@@ -14,39 +14,90 @@ import FilePreviewModal from '../components/FilePreviewModal';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { formatDate } from '../utils/formatDate';
 
+const PAGE_SIZE = 10;
+
+const ACTIVE_STATUSES = ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE'];
+const PAST_STATUSES = ['RETURNED', 'COMPLETED', 'REJECTED', 'CANCELLED'];
+
+const extractList = (responseData: any): any[] => 
+  (Array.isArray(responseData) ? responseData : responseData?.data || []);
+
+const extractHasMore = (responseData: any): boolean => 
+  (Array.isArray(responseData) ? false : !!responseData?.hasMore);
+
 const MyBookingsPage: React.FC = () => {
   const toast = useToast();
   const { user } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [tabCounts, setTabCounts] = useState<{ active: number; past: number }>({ active: 0, past: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'ACTIVE' | 'PAST'>('ACTIVE');
   // True only for the very first fetch — never true again on a live/socket refetch,
   // so the list stays visible (not replaced by a spinner) when a status changes.
   const isInitialLoad = useInitialLoad(loading);
 
-  useEffect(() => {
-    if (user) {
-      fetchBookings();
-    }
-  }, [user]);
-
-  // Live refresh when this customer's booking status changes elsewhere
-  // (approved, rejected, released, returned, completed, payment verified).
-  useNotificationRefresh(() => { fetchBookings(); }, !!user);
-
-  const fetchBookings = async () => {
+  const fetchBookings = async (tab: 'ACTIVE' | 'PAST' = activeTab, skip: number = 0, isAppend: boolean = false) => {
     try {
-      setLoading(true);
+      if (isAppend) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
-      const { data } = await bookingsApi.getMyBookings();
-      setBookings(Array.isArray(data) ? data : []);
+      const { data } = await bookingsApi.getMyBookings({ skip, take: PAGE_SIZE, tab });
+      const list = extractList(data);
+      const more = extractHasMore(data);
+
+      if (isAppend) {
+        setBookings(prev => [...prev, ...list]);
+      } else {
+        setBookings(list);
+      }
+      setHasMore(more);
+
+      if (data?.counts) {
+        setTabCounts({
+          active: data.counts.active ?? 0,
+          past: data.counts.past ?? 0
+        });
+      } else if (Array.isArray(data)) {
+        const act = data.filter((b: any) => ACTIVE_STATUSES.includes(b.status)).length;
+        setTabCounts({
+          active: act,
+          past: data.length - act
+        });
+      }
     } catch (error: any) {
       console.error('Error fetching bookings:', error);
       setError('Unable to load your bookings. Please check your connection and try again.');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
+
+  const loadMore = () => {
+    if (loadingMore || !hasMore) return;
+    fetchBookings(activeTab, bookings.length, true);
+  };
+
+  const handleTabChange = (newTab: 'ACTIVE' | 'PAST') => {
+    if (newTab === activeTab) return;
+    setActiveTab(newTab);
+    fetchBookings(newTab, 0, false);
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchBookings(activeTab, 0, false);
+    }
+  }, [user]);
+
+  // Live refresh when this customer's booking status changes elsewhere
+  useNotificationRefresh(() => { fetchBookings(activeTab, 0, false); }, !!user);
 
   const getStatusDescription = (booking: any) => {
     switch (booking.status) {
@@ -74,9 +125,6 @@ const MyBookingsPage: React.FC = () => {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  // The Booking Details Modal below is inline JSX (not a separate component), so its
-  // own "isOpen" is just this state — ConfirmActionModal and FilePreviewModal each
-  // already lock the body themselves internally when they're rendered.
   useBodyScrollLock(selectedBookingId !== null);
 
   const handleCancelBooking = async () => {
@@ -85,9 +133,17 @@ const MyBookingsPage: React.FC = () => {
     setCancelError(null);
     try {
       await bookingsApi.cancel(cancelTargetId);
-      setBookings(prev => prev.map(b =>
-        b.id === cancelTargetId ? { ...b, status: 'CANCELLED' } : b
-      ));
+      if (activeTab === 'ACTIVE') {
+        setBookings(prev => prev.filter(b => b.id !== cancelTargetId));
+      } else {
+        setBookings(prev => prev.map(b =>
+          b.id === cancelTargetId ? { ...b, status: 'CANCELLED' } : b
+        ));
+      }
+      setTabCounts(prev => ({
+        active: Math.max(0, prev.active - 1),
+        past: prev.past + 1
+      }));
       if (cancelTargetStatus === 'READY_FOR_PICKUP') {
         toast.success('Cancellation request submitted', 'The admin will review your request and contact you regarding the refund.');
       } else {
@@ -103,17 +159,6 @@ const MyBookingsPage: React.FC = () => {
     }
   };
 
-  // Buckets: "not yet resolved" (still needs the customer's or admin's attention, or the
-  // rental is currently in progress) vs "resolved" (nothing left to do). RETURNED is
-  // deliberately bucketed as Past — the customer's own trip is over even though an
-  // internal admin completion step is still pending.
-  const ACTIVE_STATUSES = ['PENDING_REVIEW', 'APPROVED_FOR_PAYMENT', 'FULL_PAYMENT_SUBMITTED', 'DOWNPAYMENT_SUBMITTED', 'RESERVED', 'READY_FOR_PICKUP', 'ACTIVE'];
-  const PAST_STATUSES = ['RETURNED', 'COMPLETED', 'REJECTED', 'CANCELLED'];
-  const [activeTab, setActiveTab] = useState<'ACTIVE' | 'PAST'>('ACTIVE');
-  const activeTabBookings = bookings.filter(b => ACTIVE_STATUSES.includes(b.status));
-  const pastTabBookings = bookings.filter(b => PAST_STATUSES.includes(b.status));
-  const visibleBookings = activeTab === 'ACTIVE' ? activeTabBookings : pastTabBookings;
-
   const [searchParams] = useSearchParams();
   const [openedFromUrl, setOpenedFromUrl] = useState<string | null>(null);
 
@@ -123,6 +168,10 @@ const MyBookingsPage: React.FC = () => {
     try {
       const { data } = await bookingsApi.getCustomerBookingDetails(id);
       setDetails(data);
+      if (data?.status && PAST_STATUSES.includes(data.status) && activeTab !== 'PAST') {
+        setActiveTab('PAST');
+        fetchBookings('PAST', 0, false);
+      }
     } catch (error) {
       console.error('Error fetching details:', error);
       toast.error('Failed to load details', getApiErrorMessage(error));
@@ -137,14 +186,8 @@ const MyBookingsPage: React.FC = () => {
     if (targetBookingId && openedFromUrl !== targetBookingId) {
       setOpenedFromUrl(targetBookingId);
       handleViewDetails(targetBookingId);
-      const match = bookings.find(b => b.id === targetBookingId);
-      if (match && PAST_STATUSES.includes(match.status)) {
-        setActiveTab('PAST');
-      }
     }
-  }, [searchParams, bookings, openedFromUrl]);
-
-
+  }, [searchParams, openedFromUrl]);
 
   return (
     <>
@@ -158,12 +201,12 @@ const MyBookingsPage: React.FC = () => {
           {!error && (
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid #eee' }}>
               {[
-                { id: 'ACTIVE' as const, label: 'Active & Upcoming', count: activeTabBookings.length },
-                { id: 'PAST' as const, label: 'Past', count: pastTabBookings.length },
+                { id: 'ACTIVE' as const, label: 'Active & Upcoming', count: tabCounts.active },
+                { id: 'PAST' as const, label: 'Past', count: tabCounts.past },
               ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   style={{
                     padding: '0.75rem 1.25rem',
                     background: 'none',
@@ -197,9 +240,9 @@ const MyBookingsPage: React.FC = () => {
               <AlertCircle size={48} color="#C62828" style={{ margin: '0 auto 1.5rem' }} />
               <h2 style={{ color: '#852D2D', marginBottom: '1rem' }}>Oops! Something went wrong</h2>
               <p style={{ color: '#852D2D', marginBottom: '2rem' }}>{error}</p>
-              <button onClick={fetchBookings} className="btn-primary">Try Again</button>
+              <button onClick={() => fetchBookings(activeTab, 0, false)} className="btn-primary">Try Again</button>
             </div>
-          ) : bookings.length === 0 ? (
+          ) : (!loading && tabCounts.active === 0 && tabCounts.past === 0 && bookings.length === 0) ? (
             <div style={{
               backgroundColor: 'white',
               padding: '5rem',
@@ -212,7 +255,7 @@ const MyBookingsPage: React.FC = () => {
               <p style={{ color: 'var(--muted-mauve)', marginBottom: '2rem' }}>You haven't booked any vehicles yet.</p>
               <Link to="/vehicles" className="btn-primary">Browse Vehicles</Link>
             </div>
-          ) : visibleBookings.length === 0 ? (
+          ) : bookings.length === 0 ? (
             <div style={{
               backgroundColor: 'white',
               padding: '5rem',
@@ -232,7 +275,7 @@ const MyBookingsPage: React.FC = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {visibleBookings.map((booking) => {
+              {bookings.map((booking) => {
                 return (
                   <div key={booking.id} style={{
                     backgroundColor: 'white',
@@ -411,6 +454,19 @@ const MyBookingsPage: React.FC = () => {
                   </div>
                 );
               })}
+              {hasMore && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="btn-outline"
+                    style={{ fontSize: '0.9rem', padding: '0.65rem 1.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
+                  >
+                    {loadingMore ? <Loader2 size={16} className="animate-spin" /> : null}
+                    {loadingMore ? 'Loading more bookings...' : 'Load More Bookings'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

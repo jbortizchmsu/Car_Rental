@@ -80,7 +80,14 @@ export const bookingsApi = {
     });
   },
   getCustomerBookingDetails: (id: string) => api.get(`/customer/bookings/${id}`),
-  getMyBookings: () => api.get('/customer/bookings/my'),
+  getMyBookings: (params?: { skip?: number; take?: number; tab?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.skip !== undefined) query.append('skip', String(params.skip));
+    if (params?.take !== undefined) query.append('take', String(params.take));
+    if (params?.tab) query.append('tab', params.tab);
+    const qStr = query.toString();
+    return api.get(`/customer/bookings/my${qStr ? `?${qStr}` : ''}`);
+  },
   getPending: () => api.get('/customer/bookings/pending'),
   approve: (id: string) => api.post(`/customer/bookings/${id}/approve`),
   reject: (id: string, reason: string) => api.post(`/customer/bookings/${id}/reject`, { reason }),
