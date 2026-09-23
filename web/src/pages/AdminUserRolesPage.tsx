@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Users, ShieldAlert, UserCheck, Search, CheckCircle2, XCircle, History, AlertTriangle, UserPlus, Ban } from 'lucide-react';
+import { Users, ShieldAlert, UserCheck, Search, CheckCircle2, XCircle, History, AlertTriangle, UserPlus, Ban, X } from 'lucide-react';
 import { usersApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -9,6 +9,7 @@ import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
 import { useInitialLoad } from '../utils/useInitialLoad';
 import { formatDate } from '../utils/formatDate';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 // Small, self-contained badge for approvalStatus — deliberately NOT added to the shared
 // StatusBadge.tsx dictionary: that component's keys ('PENDING', 'REJECTED', etc.) are
@@ -71,6 +72,19 @@ const AdminUserRolesPage: React.FC = () => {
   // Only used by the REJECT modal — a genuinely optional reason (backend: z.string().
   // trim().min(1).optional()), reset whenever a new modal opens.
   const [rejectReason, setRejectReason] = useState('');
+
+  useBodyScrollLock(selectedUser !== null);
+
+  useEffect(() => {
+    if (!selectedUser) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !modalConfig.isOpen) {
+        setSelectedUser(null);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedUser, modalConfig.isOpen]);
 
   useEffect(() => {
     setPageHeader({
@@ -185,9 +199,9 @@ const AdminUserRolesPage: React.FC = () => {
   }, [users]);
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
         <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Total Users</span>
@@ -218,305 +232,325 @@ const AdminUserRolesPage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedUser ? '1fr 400px' : '1fr', gap: '2rem', transition: 'all 0.3s' }}>
-        <div>
-          {/* Toolbar */}
-          <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Search size={18} color="var(--gray-400)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
-              <input 
-                type="text" 
-                className="input"
-                placeholder="Search by name or email..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: '100%', paddingLeft: '2.5rem', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
-              />
-            </div>
-            <select 
-              className="input" 
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              style={{ width: '150px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
-            >
-              <option value="ALL">All Roles</option>
-              <option value="ADMIN">Admin</option>
-              <option value="CUSTOMER">Customer</option>
-            </select>
-            <select 
-              className="input" 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ width: '150px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
-            >
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="DISABLED">Disabled</option>
-            </select>
-            <select
-              className="input"
-              value={approvalFilter}
-              onChange={(e) => setApprovalFilter(e.target.value)}
-              style={{ width: '190px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
-            >
-              <option value="ALL">All Approval</option>
-              <option value="PENDING">Awaiting approval ({summary.pendingApproval})</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-          </div>
-
-          {/* Table */}
-          <div className="card" style={{ overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
-                  <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>User</th>
-                  <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Role</th>
-                  <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Status</th>
-                  <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Approval</th>
-                  <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</th>
-                  <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isInitialLoad ? (
-                  <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>Loading users...</td></tr>
-                ) : filteredUsers.length === 0 ? (
-                  <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>No users found matching filters.</td></tr>
-                ) : (
-                  filteredUsers.map(user => (
-                    <tr key={user.id} style={{ borderBottom: '1px solid var(--gray-100)', backgroundColor: selectedUser?.id === user.id ? 'var(--gray-50)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleSelectUser(user)}>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <div style={{ fontWeight: 800, color: 'var(--black)' }}>{user.fullName}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {user.email}
-                          {user.emailDeliveryStatus === 'bounced' && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.5rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#FEF2F2', color: '#DC2626', whiteSpace: 'nowrap' }}>
-                              <AlertTriangle size={10} /> Bounced
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <span style={{ 
-                          padding: '0.25rem 0.75rem', 
-                          borderRadius: '20px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 800, 
-                          textTransform: 'uppercase',
-                          backgroundColor: user.role === 'admin' ? '#EEF2FF' : '#F3F4F6',
-                          color: user.role === 'admin' ? '#4F46E5' : '#4B5563'
-                        }}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <span style={{ 
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.25rem 0.75rem', 
-                          borderRadius: '20px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 800, 
-                          textTransform: 'uppercase',
-                          backgroundColor: user.isActive ? '#ECFDF5' : '#FEF2F2',
-                          color: user.isActive ? '#10B981' : '#EF4444'
-                        }}>
-                          {user.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                          {user.isActive ? 'Active' : 'Disabled'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        {user.role === 'customer' ? (
-                          <div>
-                            <ApprovalBadge status={user.approvalStatus} />
-                            {user.approvalStatus === 'rejected' && user.rejectionReason && (
-                              <div
-                                title={user.rejectionReason}
-                                style={{
-                                  fontSize: '0.75rem',
-                                  color: 'var(--gray-500)',
-                                  marginTop: '0.35rem',
-                                  maxWidth: '180px',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {user.rejectionReason}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--gray-300)', fontSize: '0.8rem' }}>—</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
-                        {formatDate(user.createdAt, 'short')}
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                        <button 
-                          className="btn-outline" 
-                          onClick={(e) => { e.stopPropagation(); handleSelectUser(user); }}
-                          style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+      {/* Toolbar */}
+      <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+          <Search size={18} color="var(--gray-400)" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
+          <input 
+            type="text" 
+            className="input"
+            placeholder="Search by name or email..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: '100%', paddingLeft: '2.5rem', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
+          />
         </div>
+        <select 
+          className="input" 
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          style={{ width: '150px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
+        >
+          <option value="ALL">All Roles</option>
+          <option value="ADMIN">Admin</option>
+          <option value="CUSTOMER">Customer</option>
+        </select>
+        <select 
+          className="input" 
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{ width: '150px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
+        >
+          <option value="ALL">All Status</option>
+          <option value="ACTIVE">Active</option>
+          <option value="DISABLED">Disabled</option>
+        </select>
+        <select
+          className="input"
+          value={approvalFilter}
+          onChange={(e) => setApprovalFilter(e.target.value)}
+          style={{ width: '190px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
+        >
+          <option value="ALL">All Approval</option>
+          <option value="PENDING">Awaiting approval ({summary.pendingApproval})</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+      </div>
 
-        {/* Details Panel */}
-        {selectedUser && (
-          <div className="card" style={{ padding: '2rem', alignSelf: 'start', position: 'sticky', top: 'calc(64px + 20px)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      {/* Table */}
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ backgroundColor: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>User</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Role</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Status</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Approval</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</th>
+              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isInitialLoad ? (
+              <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>Loading users...</td></tr>
+            ) : filteredUsers.length === 0 ? (
+              <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>No users found matching filters.</td></tr>
+            ) : (
+              filteredUsers.map(user => (
+                <tr key={user.id} style={{ borderBottom: '1px solid var(--gray-100)', backgroundColor: selectedUser?.id === user.id ? 'var(--gray-50)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleSelectUser(user)}>
+                  <td style={{ padding: '1rem 1.5rem' }}>
+                    <div style={{ fontWeight: 800, color: 'var(--black)' }}>{user.fullName}</div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {user.email}
+                      {user.emailDeliveryStatus === 'bounced' && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.5rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#FEF2F2', color: '#DC2626', whiteSpace: 'nowrap' }}>
+                          <AlertTriangle size={10} /> Bounced
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ padding: '1rem 1.5rem' }}>
+                    <span style={{ 
+                      padding: '0.25rem 0.75rem', 
+                      borderRadius: '20px', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 800, 
+                      textTransform: 'uppercase',
+                      backgroundColor: user.role === 'admin' ? '#EEF2FF' : '#F3F4F6',
+                      color: user.role === 'admin' ? '#4F46E5' : '#4B5563'
+                    }}>
+                      {user.role}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem 1.5rem' }}>
+                    <span style={{ 
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.25rem 0.75rem', 
+                      borderRadius: '20px', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 800, 
+                      textTransform: 'uppercase',
+                      backgroundColor: user.isActive ? '#ECFDF5' : '#FEF2F2',
+                      color: user.isActive ? '#10B981' : '#EF4444'
+                    }}>
+                      {user.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                      {user.isActive ? 'Active' : 'Disabled'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem 1.5rem' }}>
+                    {user.role === 'customer' ? (
+                      <div>
+                        <ApprovalBadge status={user.approvalStatus} />
+                        {user.approvalStatus === 'rejected' && user.rejectionReason && (
+                          <div
+                            title={user.rejectionReason}
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--gray-500)',
+                              marginTop: '0.35rem',
+                              maxWidth: '180px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {user.rejectionReason}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--gray-300)', fontSize: '0.8rem' }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
+                    {formatDate(user.createdAt, 'short')}
+                  </td>
+                  <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                    <button 
+                      className="btn-outline" 
+                      onClick={(e) => { e.stopPropagation(); handleSelectUser(user); }}
+                      style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Slide-over User Details Drawer */}
+      {selectedUser && (
+        <div 
+          className="slide-over-backdrop"
+          onClick={() => setSelectedUser(null)}
+        >
+          <div 
+            className="slide-over-panel"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-details-title"
+          >
+            <div className="slide-over-header">
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem' }}>User Details</h3>
-                <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontFamily: 'monospace' }}>ID: {selectedUser.id}</div>
+                <h3 id="user-details-title" style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.25rem', color: 'var(--black)' }}>
+                  User Details
+                </h3>
+                <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontFamily: 'monospace' }}>
+                  ID: {selectedUser.id}
+                </div>
               </div>
-              <button onClick={() => setSelectedUser(null)} className="btn-outline" style={{ padding: '0.4rem', border: 'none' }}>
-                <XCircle size={20} />
+              <button 
+                onClick={() => setSelectedUser(null)} 
+                className="btn-outline" 
+                style={{ padding: '0.4rem', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                aria-label="Close user details"
+              >
+                <X size={20} />
               </button>
             </div>
 
-            {detailsLoading ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--gray-500)' }}>Loading details...</div>
-            ) : userDetails ? (
-              <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <UserCheck size={30} color="var(--gray-400)" />
+            <div className="slide-over-body">
+              {detailsLoading ? (
+                <div style={{ textAlign: 'center', padding: '3rem 2rem', color: 'var(--gray-500)' }}>
+                  Loading details...
+                </div>
+              ) : userDetails ? (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <UserCheck size={30} color="var(--gray-400)" />
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 900, wordBreak: 'break-word' }}>{userDetails.fullName}</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--gray-500)', wordBreak: 'break-word' }}>{userDetails.email}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 900 }}>{userDetails.fullName}</div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--gray-500)' }}>{userDetails.email}</div>
-                    </div>
-                  </div>
 
-                  <div style={{ backgroundColor: 'var(--gray-50)', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--gray-200)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Phone</span>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{userDetails.phoneNumber || 'Not provided'}</div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</span>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{formatDate(userDetails.createdAt, 'long')}</div>
-                    </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Last Login</span>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{userDetails.lastLoginAt ? formatDate(userDetails.lastLoginAt, 'datetime') : 'Never'}</div>
-                    </div>
-                    {userDetails.emailDeliveryStatus === 'bounced' && (
+                    <div style={{ backgroundColor: 'var(--gray-50)', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--gray-200)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Phone</span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{userDetails.phoneNumber || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{formatDate(userDetails.createdAt, 'long')}</div>
+                      </div>
                       <div style={{ gridColumn: 'span 2' }}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Email Status</span>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <AlertTriangle size={14} /> Bounced{userDetails.emailBouncedAt ? ` — ${formatDate(userDetails.emailBouncedAt, 'datetime')}` : ''}
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Last Login</span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{userDetails.lastLoginAt ? formatDate(userDetails.lastLoginAt, 'datetime') : 'Never'}</div>
+                      </div>
+                      {userDetails.emailDeliveryStatus === 'bounced' && (
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Email Status</span>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <AlertTriangle size={14} /> Bounced{userDetails.emailBouncedAt ? ` — ${formatDate(userDetails.emailBouncedAt, 'datetime')}` : ''}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {userDetails.role === 'admin' && (
+                      <div style={{ padding: '1rem', backgroundColor: '#EEF2FF', borderRadius: '12px', border: '1px solid #C7D2FE', display: 'flex', gap: '0.75rem' }}>
+                        <ShieldAlert size={20} color="#4F46E5" style={{ flexShrink: 0 }} />
+                        <div style={{ fontSize: '0.85rem', color: '#4338CA' }}>
+                          <strong>Administrator Account</strong><br/>
+                          This user has full access to the management dashboard.
+                        </div>
+                      </div>
+                    )}
+
+                    {userDetails.role === 'customer' && userDetails.bookings?.length > 0 && (
+                      <div>
+                        <h4 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <History size={16} /> Recent Bookings
+                        </h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {userDetails.bookings.map((b: any) => (
+                            <div key={b.id} style={{ padding: '0.75rem', border: '1px solid var(--gray-200)', borderRadius: '8px', fontSize: '0.8rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                <span style={{ fontWeight: 700 }}>{b.vehicle.brand} {b.vehicle.model}</span>
+                                <StatusBadge status={b.status} />
+                              </div>
+                              <div style={{ color: 'var(--gray-500)' }}>{formatDate(b.startDate, 'short')} - {formatDate(b.endDate, 'short')}</div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {userDetails.role === 'admin' && (
-                    <div style={{ padding: '1rem', backgroundColor: '#EEF2FF', borderRadius: '12px', border: '1px solid #C7D2FE', display: 'flex', gap: '0.75rem' }}>
-                      <ShieldAlert size={20} color="#4F46E5" style={{ flexShrink: 0 }} />
-                      <div style={{ fontSize: '0.85rem', color: '#4338CA' }}>
-                        <strong>Administrator Account</strong><br/>
-                        This user has full access to the management dashboard.
-                      </div>
-                    </div>
-                  )}
-
-                  {userDetails.role === 'customer' && userDetails.bookings?.length > 0 && (
-                    <div>
-                      <h4 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <History size={16} /> Recent Bookings
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {userDetails.bookings.map((b: any) => (
-                          <div key={b.id} style={{ padding: '0.75rem', border: '1px solid var(--gray-200)', borderRadius: '8px', fontSize: '0.8rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                              <span style={{ fontWeight: 700 }}>{b.vehicle.brand} {b.vehicle.model}</span>
-                              <StatusBadge status={b.status} />
-                            </div>
-                            <div style={{ color: 'var(--gray-500)' }}>{formatDate(b.startDate, 'short')} - {formatDate(b.endDate, 'short')}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '0.25rem' }}>Quick Actions</h4>
-                  
-                  {userDetails.isActive ? (
-                    <button onClick={() => openModal('DISABLE', userDetails)} disabled={currentUser?.id === userDetails.id} className="btn-outline" style={{ color: '#EF4444', borderColor: '#EF4444' }}>
-                      Disable Account
-                    </button>
-                  ) : (
-                    <button onClick={() => openModal('ENABLE', userDetails)} className="btn-outline" style={{ color: '#10B981', borderColor: '#10B981' }}>
-                      Enable Account
-                    </button>
-                  )}
-
-                  {userDetails.role === 'customer' ? (
-                    <button onClick={() => openModal('PROMOTE', userDetails)} className="btn-outline" style={{ color: '#4F46E5', borderColor: '#4F46E5' }}>
-                      Promote to Admin
-                    </button>
-                  ) : (
-                    <button onClick={() => openModal('DEMOTE', userDetails)} disabled={currentUser?.id === userDetails.id} className="btn-outline" style={{ color: '#F59E0B', borderColor: '#F59E0B' }}>
-                      Demote to Customer
-                    </button>
-                  )}
-
-                  {/* Approval controls — customers only. Admins never have an approvalStatus
-                      that matters (never subject to approval, per the backend), and this
-                      whole block is skipped for any non-customer row, which also covers
-                      "the current admin" since an admin can never be role: 'customer'. */}
-                  {userDetails.role === 'customer' && (userDetails.approvalStatus === 'pending' || userDetails.approvalStatus === 'rejected') && (
-                    <>
-                      <button
-                        onClick={() => openModal('APPROVE', userDetails)}
-                        disabled={actionLoading}
-                        className="btn-outline"
-                        style={{ color: '#10B981', borderColor: '#10B981' }}
-                      >
-                        <UserPlus size={16} style={{ marginRight: '0.4rem', verticalAlign: 'text-bottom' }} />
-                        Approve Registration
+                  <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: '0.25rem' }}>Quick Actions</h4>
+                    
+                    {userDetails.isActive ? (
+                      <button onClick={() => openModal('DISABLE', userDetails)} disabled={currentUser?.id === userDetails.id} className="btn-outline" style={{ color: '#EF4444', borderColor: '#EF4444' }}>
+                        Disable Account
                       </button>
-                      {userDetails.approvalStatus === 'pending' && (
+                    ) : (
+                      <button onClick={() => openModal('ENABLE', userDetails)} className="btn-outline" style={{ color: '#10B981', borderColor: '#10B981' }}>
+                        Enable Account
+                      </button>
+                    )}
+
+                    {userDetails.role === 'customer' ? (
+                      <button onClick={() => openModal('PROMOTE', userDetails)} className="btn-outline" style={{ color: '#4F46E5', borderColor: '#4F46E5' }}>
+                        Promote to Admin
+                      </button>
+                    ) : (
+                      <button onClick={() => openModal('DEMOTE', userDetails)} disabled={currentUser?.id === userDetails.id} className="btn-outline" style={{ color: '#F59E0B', borderColor: '#F59E0B' }}>
+                        Demote to Customer
+                      </button>
+                    )}
+
+                    {/* Approval controls — customers only. Admins never have an approvalStatus
+                        that matters (never subject to approval, per the backend), and this
+                        whole block is skipped for any non-customer row, which also covers
+                        "the current admin" since an admin can never be role: 'customer'. */}
+                    {userDetails.role === 'customer' && (userDetails.approvalStatus === 'pending' || userDetails.approvalStatus === 'rejected') && (
+                      <>
                         <button
-                          onClick={() => openModal('REJECT', userDetails)}
+                          onClick={() => openModal('APPROVE', userDetails)}
                           disabled={actionLoading}
                           className="btn-outline"
-                          style={{ color: '#DC2626', borderColor: '#DC2626' }}
+                          style={{ color: '#10B981', borderColor: '#10B981' }}
                         >
-                          <Ban size={16} style={{ marginRight: '0.4rem', verticalAlign: 'text-bottom' }} />
-                          Reject Registration
+                          <UserPlus size={16} style={{ marginRight: '0.4rem', verticalAlign: 'text-bottom' }} />
+                          Approve Registration
                         </button>
-                      )}
-                    </>
-                  )}
+                        {userDetails.approvalStatus === 'pending' && (
+                          <button
+                            onClick={() => openModal('REJECT', userDetails)}
+                            disabled={actionLoading}
+                            className="btn-outline"
+                            style={{ color: '#DC2626', borderColor: '#DC2626' }}
+                          >
+                            <Ban size={16} style={{ marginRight: '0.4rem', verticalAlign: 'text-bottom' }} />
+                            Reject Registration
+                          </button>
+                        )}
+                      </>
+                    )}
 
-                  {currentUser?.id === userDetails.id && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', textAlign: 'center', marginTop: '0.25rem' }}>
-                      You cannot change your own role or status.
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : null}
+                    {currentUser?.id === userDetails.id && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', textAlign: 'center', marginTop: '0.25rem' }}>
+                        You cannot change your own role or status.
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : null}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <ConfirmActionModal
         isOpen={modalConfig.isOpen}
