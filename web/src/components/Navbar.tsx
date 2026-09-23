@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Car, User, LogOut, Bookmark, Bell, Settings } from 'lucide-react';
+import { Car, User, LogOut, Bell, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsApi } from '../services/api';
 import { connectAuthedSocket } from '../utils/socket';
@@ -135,6 +135,15 @@ const Navbar: React.FC = () => {
               >
                 Vehicles
               </Link>
+              {user && profile?.role === 'customer' && (
+                <Link
+                  to="/customer/my-bookings"
+                  className={`nav-link${location.pathname.startsWith('/customer/my-bookings') ? ' nav-link-current' : ''}`}
+                  style={{ fontWeight: 500, fontSize: '0.95rem' }}
+                >
+                  My Bookings
+                </Link>
+              )}
             </>
           )}
           
@@ -183,11 +192,6 @@ const Navbar: React.FC = () => {
                           <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{profile?.full_name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{profile?.email}</div>
                         </div>
-                        
-                        <Link to="/customer/my-bookings" className="dropdown-item" onClick={closeDropdown}>
-                          <Bookmark size={18} />
-                          My Bookings
-                        </Link>
                         
                         <Link to="/customer/notifications" className="dropdown-item" onClick={closeDropdown}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
