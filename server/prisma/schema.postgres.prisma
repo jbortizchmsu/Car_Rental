@@ -50,6 +50,7 @@ model User {
   notifications  Notification[]
   geofences      GeofenceZone[]
   resolvedAlerts GeofenceAlert[]   @relation("ResolvedBy")
+  reportSnapshots ReportSnapshot[]
 }
 
 // 2. Vehicles
@@ -83,6 +84,7 @@ model Vehicle {
   maintenanceLogs MaintenanceLog[]
   geofenceZones   GeofenceZone[]
   geofenceAlerts  GeofenceAlert[]
+  utilizationStats VehicleUtilizationStats[]
 }
 
 // 3. Bookings
@@ -358,3 +360,49 @@ model SystemSettings {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// 16. Vehicle Utilization Stats
+model VehicleUtilizationStats {
+  id              String   @id @default(uuid())
+  vehicleId       String
+  periodStart     DateTime
+  periodEnd       DateTime
+  totalRentalDays Int      @default(0)
+  totalRevenue    Decimal  @default(0)
+  utilizationRate Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  vehicle         Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+// 17. Report Snapshots
+model ReportSnapshot {
+  id            String   @id @default(uuid())
+  generatedById String
+  reportType    String   @default("summary")
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalRevenue  Decimal  @default(0)
+  totalBookings Int      @default(0)
+  generatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  generatedBy   User     @relation(fields: [generatedById], references: [id], onDelete: Cascade)
+}
+
+// 18. Revenue Analytics
+model RevenueAnalytics {
+  id              String   @id @default(uuid())
+  period          String   @default("monthly")
+  totalRevenue    Decimal  @default(0)
+  bookingRevenue  Decimal  @default(0)
+  maintenanceCost Decimal  @default(0)
+  netProfit       Decimal  @default(0)
+  periodStart     DateTime
+  periodEnd       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+

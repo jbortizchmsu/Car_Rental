@@ -63,6 +63,24 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
         unresolved: unresolvedAlerts
       }
     });
+
+    // Minimal non-blocking snapshot logging
+    try {
+      const userId = (req as any).user?.id;
+      if (userId) {
+        const now = new Date();
+        await prisma.reportSnapshot.create({
+          data: {
+            generatedById: userId,
+            reportType: 'summary',
+            periodStart: new Date(now.getFullYear(), now.getMonth(), 1),
+            periodEnd: now,
+            totalRevenue: totalRevenue._sum.amount || 0,
+            totalBookings: bookingsCount,
+          }
+        });
+      }
+    } catch (_) {}
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch summary report' });
   }
@@ -94,7 +112,38 @@ router.get('/revenue', authenticate, authorizeAdmin, async (req, res) => {
       return acc;
     }, { FULL_GCASH: 0, DOWNPAYMENT_GCASH: 0, REMAINING_CASH: 0, total: 0 });
 
-    res.json({ breakdown, details: verifiedPayments });
+    // Fetch maintenance expenses in period to compute Net Profit
+    const maintenanceExpenses = await prisma.maintenanceLog.aggregate({
+      where: { serviceDate: dateFilter },
+      _sum: { cost: true }
+    });
+    const maintenanceCost = Number(maintenanceExpenses._sum.cost || 0);
+    const netProfit = breakdown.total - maintenanceCost;
+
+    res.json({ 
+      breakdown, 
+      maintenanceCost, 
+      netProfit, 
+      details: verifiedPayments 
+    });
+
+    // Minimal non-blocking RevenueAnalytics logging
+    try {
+      const now = new Date();
+      const pStart = startDate ? new Date(startDate as string) : new Date(now.getFullYear(), now.getMonth(), 1);
+      const pEnd = endDate ? new Date(endDate as string) : now;
+      await prisma.revenueAnalytics.create({
+        data: {
+          period: startDate && endDate ? `${startDate} to ${endDate}` : 'Monthly',
+          totalRevenue: breakdown.total,
+          bookingRevenue: breakdown.total,
+          maintenanceCost,
+          netProfit,
+          periodStart: pStart,
+          periodEnd: pEnd,
+        }
+      });
+    } catch (_) {}
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch revenue report' });
   }
@@ -197,6 +246,25 @@ router.get('/vehicles', authenticate, authorizeAdmin, async (req, res) => {
         serviceSoon
       }
     });
+
+    // Minimal non-blocking VehicleUtilizationStats logging
+    try {
+      const now = new Date();
+      const pStart = startDate ? new Date(startDate as string) : new Date(now.getFullYear(), now.getMonth(), 1);
+      const pEnd = endDate ? new Date(endDate as string) : now;
+      for (const vp of vehiclePerformance.slice(0, 10)) {
+        await prisma.vehicleUtilizationStats.create({
+          data: {
+            vehicleId: vp.id,
+            periodStart: pStart,
+            periodEnd: pEnd,
+            totalRentalDays: vp.rentalsCount || 0,
+            totalRevenue: vp.revenue || 0,
+            utilizationRate: utilizationRate,
+          }
+        });
+      }
+    } catch (_) {}
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch vehicle utilization report' });
   }
@@ -287,6 +355,45 @@ router.get('/geofence-alerts', authenticate, authorizeAdmin, async (req, res) =>
     res.json({ stats: { unresolved, resolved, total: alerts.length }, details: alerts });
   } catch (error) {
     res.json({ stats: { unresolved: 0, resolved: 0, total: 0 }, details: [], note: 'Safety data integration initialized' });
+  }
+});
+
+// 8. Report Snapshots History (Minimal)
+router.get('/snapshots', authenticate, authorizeAdmin, async (req, res) => {
+  try {
+    const snapshots = await prisma.reportSnapshot.findMany({
+      include: {
+        generatedBy: { select: { fullName: true, email: true, role: true } }
+      },
+      orderBy: { generatedAt: 'desc' },
+      take: 50
+    });
+    res.json({ snapshots });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch report snapshots' });
+  }
+});
+
+// 9. Manual Report Snapshot Save
+router.post('/snapshots', authenticate, authorizeAdmin, async (req, res) => {
+  const { reportType, periodStart, periodEnd, totalRevenue, totalBookings } = req.body;
+  try {
+    const snapshot = await prisma.reportSnapshot.create({
+      data: {
+        generatedById: (req as any).user.id,
+        reportType: reportType || 'custom',
+        periodStart: periodStart ? new Date(periodStart) : new Date(Date.now() - 30 * 86400000),
+        periodEnd: periodEnd ? new Date(periodEnd) : new Date(),
+        totalRevenue: totalRevenue || 0,
+        totalBookings: totalBookings || 0,
+      },
+      include: {
+        generatedBy: { select: { fullName: true, email: true } }
+      }
+    });
+    res.status(201).json({ snapshot });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create report snapshot' });
   }
 });
 
