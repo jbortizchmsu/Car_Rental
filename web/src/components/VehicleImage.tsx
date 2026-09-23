@@ -6,12 +6,15 @@ interface VehicleImageProps {
   vehicleId: string;
   brand: string;
   model: string;
+  imageUrl?: string | null;
   className?: string;
 }
 
-const VehicleImage = ({ vehicleId, brand, model, className }: VehicleImageProps) => {
+const VehicleImage = ({ vehicleId, brand, model, imageUrl: propImageUrl, className }: VehicleImageProps) => {
   const [error, setError] = useState(false);
-  const imageUrl = `${API_BASE}/vehicles/${vehicleId}/image`;
+  const imageUrl = propImageUrl && (propImageUrl.startsWith('http://') || propImageUrl.startsWith('https://'))
+    ? propImageUrl
+    : `${API_BASE}/vehicles/${vehicleId}/image`;
 
   if (error) {
     return (

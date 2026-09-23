@@ -295,7 +295,7 @@ router.get('/my', authenticate, async (req: AuthRequest, res) => {
     const skipNum = skip ? parseInt(skip as string, 10) : 0;
     const takeNum = take ? parseInt(take as string, 10) : 10;
 
-    const [bookings, total, activeCount, pastCount] = await Promise.all([
+    const [bookings, activeCount, pastCount] = await Promise.all([
       prisma.booking.findMany({
         where,
         include,
@@ -303,7 +303,6 @@ router.get('/my', authenticate, async (req: AuthRequest, res) => {
         skip: skipNum,
         take: takeNum
       }),
-      prisma.booking.count({ where }),
       prisma.booking.count({
         where: {
           customerId: req.user!.id,
@@ -317,6 +316,8 @@ router.get('/my', authenticate, async (req: AuthRequest, res) => {
         }
       })
     ]);
+
+    const total = tab === 'ACTIVE' ? activeCount : tab === 'PAST' ? pastCount : (activeCount + pastCount);
 
     return res.json({
       data: bookings,
@@ -369,7 +370,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     const skipNum = skip ? parseInt(skip as string, 10) : 0;
     const takeNum = take ? parseInt(take as string, 10) : 10;
 
-    const [bookings, total, activeCount, pastCount] = await Promise.all([
+    const [bookings, activeCount, pastCount] = await Promise.all([
       prisma.booking.findMany({
         where,
         include,
@@ -377,7 +378,6 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         skip: skipNum,
         take: takeNum
       }),
-      prisma.booking.count({ where }),
       prisma.booking.count({
         where: {
           customerId: req.user!.id,
@@ -391,6 +391,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         }
       })
     ]);
+
+    const total = tab === 'ACTIVE' ? activeCount : tab === 'PAST' ? pastCount : (activeCount + pastCount);
 
     return res.json({
       data: bookings,

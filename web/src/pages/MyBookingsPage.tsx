@@ -5,7 +5,6 @@ import { Loader2, Calendar, MapPin, ChevronRight, CreditCard, CheckCircle2, Navi
 import { Link, useSearchParams } from 'react-router-dom';
 import { bookingsApi, filesApi, getApiErrorMessage } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
-import { useInitialLoad } from '../utils/useInitialLoad';
 import { SkeletonGroup, SkeletonCard } from '../components/Skeleton';
 import VehicleImage from '../components/VehicleImage';
 import { useToast } from '../components/ToastProvider';
@@ -25,19 +24,33 @@ const extractList = (responseData: any): any[] =>
 const extractHasMore = (responseData: any): boolean => 
   (Array.isArray(responseData) ? false : !!responseData?.hasMore);
 
+interface TabState {
+  list: any[];
+  hasMore: boolean;
+  loaded: boolean;
+}
+
 const MyBookingsPage: React.FC = () => {
   const toast = useToast();
   const { user } = useAuth();
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [tabData, setTabData] = useState<{
+    ACTIVE: TabState;
+    PAST: TabState;
+  }>({
+    ACTIVE: { list: [], hasMore: false, loaded: false },
+    PAST: { list: [], hasMore: false, loaded: false },
+  });
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
   const [tabCounts, setTabCounts] = useState<{ active: number; past: number }>({ active: 0, past: 0 });
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'PAST'>('ACTIVE');
-  // True only for the very first fetch — never true again on a live/socket refetch,
-  // so the list stays visible (not replaced by a spinner) when a status changes.
-  const isInitialLoad = useInitialLoad(loading);
+
+  const currentTab = tabData[activeTab];
+  const bookings = currentTab.list;
+  const hasMore = currentTab.hasMore;
+  // Tab skeleton shows immediately whenever the active tab has not yet loaded and a fetch is in progress
+  const isTabLoading = !currentTab.loaded && loading;
 
   const fetchBookings = async (tab: 'ACTIVE' | 'PAST' = activeTab, skip: number = 0, isAppend: boolean = false) => {
     try {
@@ -51,23 +64,25 @@ const MyBookingsPage: React.FC = () => {
       const list = extractList(data);
       const more = extractHasMore(data);
 
-      if (isAppend) {
-        setBookings(prev => [...prev, ...list]);
-      } else {
-        setBookings(list);
-      }
-      setHasMore(more);
+      setTabData(prev => ({
+        ...prev,
+        [tab]: {
+          list: isAppend ? [...prev[tab].list, ...list] : list,
+          hasMore: more,
+          loaded: true,
+        },
+      }));
 
       if (data?.counts) {
         setTabCounts({
           active: data.counts.active ?? 0,
-          past: data.counts.past ?? 0
+          past: data.counts.past ?? 0,
         });
       } else if (Array.isArray(data)) {
         const act = data.filter((b: any) => ACTIVE_STATUSES.includes(b.status)).length;
         setTabCounts({
           active: act,
-          past: data.length - act
+          past: data.length - act,
         });
       }
     } catch (error: any) {
@@ -80,14 +95,17 @@ const MyBookingsPage: React.FC = () => {
   };
 
   const loadMore = () => {
-    if (loadingMore || !hasMore) return;
-    fetchBookings(activeTab, bookings.length, true);
+    if (loadingMore || !currentTab.hasMore) return;
+    fetchBookings(activeTab, currentTab.list.length, true);
   };
 
   const handleTabChange = (newTab: 'ACTIVE' | 'PAST') => {
     if (newTab === activeTab) return;
     setActiveTab(newTab);
-    fetchBookings(newTab, 0, false);
+    // Instant 0ms transition if tab was already loaded; fetch only on first visit
+    if (!tabData[newTab].loaded) {
+      fetchBookings(newTab, 0, false);
+    }
   };
 
   useEffect(() => {
@@ -97,7 +115,19 @@ const MyBookingsPage: React.FC = () => {
   }, [user]);
 
   // Live refresh when this customer's booking status changes elsewhere
-  useNotificationRefresh(() => { fetchBookings(activeTab, 0, false); }, !!user);
+  useNotificationRefresh(() => {
+    fetchBookings(activeTab, 0, false);
+    setTabData(prev => {
+      const otherTab: 'ACTIVE' | 'PAST' = activeTab === 'ACTIVE' ? 'PAST' : 'ACTIVE';
+      return {
+        ...prev,
+        [otherTab]: {
+          ...prev[otherTab],
+          loaded: false,
+        },
+      };
+    });
+  }, !!user);
 
   const getStatusDescription = (booking: any) => {
     switch (booking.status) {
@@ -134,11 +164,27 @@ const MyBookingsPage: React.FC = () => {
     try {
       await bookingsApi.cancel(cancelTargetId);
       if (activeTab === 'ACTIVE') {
-        setBookings(prev => prev.filter(b => b.id !== cancelTargetId));
+        setTabData(prev => ({
+          ...prev,
+          ACTIVE: {
+            ...prev.ACTIVE,
+            list: prev.ACTIVE.list.filter(b => b.id !== cancelTargetId),
+          },
+          PAST: {
+            ...prev.PAST,
+            loaded: false,
+          },
+        }));
       } else {
-        setBookings(prev => prev.map(b =>
-          b.id === cancelTargetId ? { ...b, status: 'CANCELLED' } : b
-        ));
+        setTabData(prev => ({
+          ...prev,
+          PAST: {
+            ...prev.PAST,
+            list: prev.PAST.list.map(b =>
+              b.id === cancelTargetId ? { ...b, status: 'CANCELLED' } : b
+            ),
+          },
+        }));
       }
       setTabCounts(prev => ({
         active: Math.max(0, prev.active - 1),
@@ -170,7 +216,12 @@ const MyBookingsPage: React.FC = () => {
       setDetails(data);
       if (data?.status && PAST_STATUSES.includes(data.status) && activeTab !== 'PAST') {
         setActiveTab('PAST');
-        fetchBookings('PAST', 0, false);
+        setTabData(prev => {
+          if (!prev.PAST.loaded) {
+            fetchBookings('PAST', 0, false);
+          }
+          return prev;
+        });
       }
     } catch (error) {
       console.error('Error fetching details:', error);
@@ -219,13 +270,13 @@ const MyBookingsPage: React.FC = () => {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  {tab.label}{!isInitialLoad ? ` (${tab.count})` : ''}
+                  {tab.label}{(tabData.ACTIVE.loaded || tabData.PAST.loaded) ? ` (${tab.count})` : ''}
                 </button>
               ))}
             </div>
           )}
 
-          {isInitialLoad ? (
+          {isTabLoading ? (
             <SkeletonGroup style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
             </SkeletonGroup>
@@ -301,6 +352,7 @@ const MyBookingsPage: React.FC = () => {
                           vehicleId={booking.vehicle.id}
                           brand={booking.vehicle.brand}
                           model={booking.vehicle.model}
+                          imageUrl={booking.vehicle.imageUrl}
                           className="w-full h-full rounded"
                         />
                       </div>
@@ -563,6 +615,7 @@ const MyBookingsPage: React.FC = () => {
                             vehicleId={details.vehicle.id}
                             brand={details.vehicle.brand}
                             model={details.vehicle.model}
+                            imageUrl={details.vehicle.imageUrl}
                             className="w-full h-full rounded"
                           />
                         </div>
