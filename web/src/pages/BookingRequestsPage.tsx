@@ -54,6 +54,29 @@ const BookingRequestsPage: React.FC = () => {
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ id: string; title: string } | null>(null);
+  const [openedFromUrl, setOpenedFromUrl] = useState<string | null>(null);
+
+  // Auto-select targeted booking if ?id= or ?bookingId= is present in URL
+  useEffect(() => {
+    const targetBookingId = searchParams.get('id') || searchParams.get('bookingId');
+    if (targetBookingId && openedFromUrl !== targetBookingId) {
+      setOpenedFromUrl(targetBookingId);
+      const found = bookings.find((b: any) => b.id === targetBookingId);
+      if (found) {
+        setSelectedBooking(found);
+      } else {
+        bookingsApi.getDetails(targetBookingId)
+          .then(res => {
+            if (res.data) {
+              setSelectedBooking(res.data);
+            }
+          })
+          .catch(err => {
+            console.error('Failed to load targeted booking details:', err);
+          });
+      }
+    }
+  }, [searchParams, bookings, openedFromUrl]);
   
   // New States
   const [searchQuery, setSearchQuery] = useState('');

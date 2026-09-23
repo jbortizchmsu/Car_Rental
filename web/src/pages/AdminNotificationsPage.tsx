@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Bell, CheckCircle2, Clock, Info, Loader2, X, AlertTriangle, 
-  CreditCard, AlertCircle, Wrench, Calendar, FileText 
+  CreditCard, AlertCircle, Wrench, Calendar, FileText, ChevronRight 
 } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { connectAuthedSocket } from '../utils/socket';
@@ -10,7 +11,7 @@ import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 import { SkeletonGroup, SkeletonListRow } from '../components/Skeleton';
 import { formatDate } from '../utils/formatDate';
-import { getRelativeTime, notificationTypeColors } from '../lib/notification-types';
+import { getRelativeTime, notificationTypeColors, getNotificationRedirectUrl } from '../lib/notification-types';
 
 const PAGE_SIZE = 20;
 
@@ -63,6 +64,7 @@ const isAlertNotification = (type?: string): boolean => {
 };
 
 const AdminNotificationsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { setPageHeader } = usePageHeader();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -327,6 +329,12 @@ const AdminNotificationsPage: React.FC = () => {
                   <p style={{ color: 'var(--gray-600)', margin: 0, fontSize: '0.875rem', lineHeight: 1.5 }}>
                     {notification.message}
                   </p>
+                  {getNotificationRedirectUrl(notification, 'admin') && (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--warm-taupe)', fontWeight: 600 }}>
+                      <span>View Booking</span>
+                      <ChevronRight size={14} />
+                    </div>
+                  )}
                 </div>
 
                 {!notification.isRead && (
@@ -434,13 +442,36 @@ const AdminNotificationsPage: React.FC = () => {
               Received on {formatDate(selectedNotification.createdAt, 'datetime')}
             </div>
 
-            <button
-              onClick={() => setSelectedNotification(null)}
-              className="btn-primary"
-              style={{ width: '100%', marginTop: '1.5rem' }}
-            >
-              Close
-            </button>
+            {selectedNotification && getNotificationRedirectUrl(selectedNotification, 'admin') ? (
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  onClick={() => {
+                    const url = getNotificationRedirectUrl(selectedNotification, 'admin');
+                    setSelectedNotification(null);
+                    if (url) navigate(url);
+                  }}
+                  className="btn-primary"
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  View Booking <ChevronRight size={16} />
+                </button>
+                <button
+                  onClick={() => setSelectedNotification(null)}
+                  className="btn-outline"
+                  style={{ padding: '0.6rem 1.25rem' }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setSelectedNotification(null)}
+                className="btn-primary"
+                style={{ width: '100%', marginTop: '1.5rem' }}
+              >
+                Close
+              </button>
+            )}
           </div>
         </div>
       )}

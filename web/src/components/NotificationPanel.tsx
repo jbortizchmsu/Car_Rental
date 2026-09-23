@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Bell, Info, AlertTriangle, X, Clock, CreditCard,
-  AlertCircle, Wrench, Calendar, FileText
+  AlertCircle, Wrench, Calendar, FileText, ChevronRight
 } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { connectAuthedSocket } from '../utils/socket';
-import { getRelativeTime, notificationTypeColors } from '../lib/notification-types';
+import { getRelativeTime, notificationTypeColors, getNotificationRedirectUrl } from '../lib/notification-types';
 
 const IconMap: Record<string, React.ReactNode> = {
   'AlertTriangle': <AlertTriangle size={18} />,
@@ -25,6 +25,7 @@ const NotificationPanel: React.FC = () => {
   const [showPanel, setShowPanel] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const panelRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,6 +147,17 @@ const NotificationPanel: React.FC = () => {
     return 'var(--warm-taupe)';
   };
 
+  const handleItemClick = (n: any) => {
+    if (!n.isRead) {
+      markAsRead(n.id);
+    }
+    const redirectUrl = getNotificationRedirectUrl(n, user?.role);
+    if (redirectUrl) {
+      setShowPanel(false);
+      navigate(redirectUrl);
+    }
+  };
+
   return (
     <div className="notification-wrapper" ref={panelRef} style={{ position: 'relative' }}>
       <button
@@ -229,41 +241,61 @@ const NotificationPanel: React.FC = () => {
                 <p style={{ fontSize: '0.875rem' }}>No notifications yet</p>
               </div>
             ) : (
-              notifications.slice(0, 10).map((n) => (
-                <div
-                  key={n.id}
-                  onClick={() => !n.isRead && markAsRead(n.id)}
-                  style={{
-                    padding: '1rem 1.25rem',
-                    borderBottom: '1px solid var(--gray-100)',
-                    backgroundColor: n.isRead ? 'transparent' : 'rgba(173, 155, 141, 0.05)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    gap: '12px'
-                  }}
-                >
-                  <div style={{ marginTop: '3px', color: getColorForNotification(n) }}>
-                    {getIconForNotification(n)}
+              notifications.slice(0, 10).map((n) => {
+                const redirectUrl = getNotificationRedirectUrl(n, user?.role);
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => handleItemClick(n)}
+                    style={{
+                      padding: '1rem 1.25rem',
+                      borderBottom: '1px solid var(--gray-100)',
+                      backgroundColor: n.isRead ? 'transparent' : 'rgba(173, 155, 141, 0.05)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      gap: '12px',
+                      alignItems: 'flex-start',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(173, 155, 141, 0.12)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = n.isRead ? 'transparent' : 'rgba(173, 155, 141, 0.05)';
+                    }}
+                  >
+                    <div style={{ marginTop: '3px', color: getColorForNotification(n), flexShrink: 0 }}>
+                      {getIconForNotification(n)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{
+                        fontSize: '0.875rem',
+                        fontWeight: n.isRead ? 500 : 700,
+                        margin: '0 0 4px 0',
+                        color: 'var(--black)'
+                      }}>
+                        {n.title}
+                      </p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--gray-600)', margin: '0 0 4px 0', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                        {n.message}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--gray-400)' }}>
+                          {getRelativeTime(n.createdAt)}
+                        </span>
+                        {redirectUrl && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--warm-taupe)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                            View <ChevronRight size={12} />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {!n.isRead && (
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--warm-taupe)', marginTop: '6px', flexShrink: 0 }} />
+                    )}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{
-                      fontSize: '0.875rem',
-                      fontWeight: n.isRead ? 500 : 700,
-                      margin: '0 0 4px 0',
-                      color: 'var(--black)'
-                    }}>
-                      {n.title}
-                    </p>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--gray-600)', margin: '0 0 4px 0', lineHeight: 1.4 }}>
-                      {n.message}
-                    </p>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--gray-400)', margin: 0 }}>
-                      {getRelativeTime(n.createdAt)}
-                    </p>
-                  </div>
-                  {!n.isRead && <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--warm-taupe)', marginTop: '6px' }} />}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -273,7 +305,7 @@ const NotificationPanel: React.FC = () => {
             textAlign: 'center'
           }}>
             <Link 
-              to="/admin/notifications" 
+              to={user?.role === 'admin' ? "/admin/notifications" : "/customer/notifications"} 
               onClick={() => setShowPanel(false)}
               style={{
                 fontSize: '0.875rem',

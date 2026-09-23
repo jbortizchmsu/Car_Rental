@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Check, CheckCircle2, Clock, Info, Loader2, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Check, CheckCircle2, Clock, Info, Loader2, X, ChevronRight } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
 import { useInitialLoad } from '../utils/useInitialLoad';
 import { SkeletonGroup, SkeletonListRow } from '../components/Skeleton';
 import { formatDate } from '../utils/formatDate';
+import { getNotificationRedirectUrl } from '../lib/notification-types';
 
 // Full-width cards here (vs. NotificationPanel's compact dropdown rows), so a smaller
 // page keeps "Load More" pacing sensible rather than dumping a huge single fetch.
@@ -19,6 +21,7 @@ const extractList = (responseData: any): any[] => (Array.isArray(responseData) ?
 const extractHasMore = (responseData: any): boolean => (Array.isArray(responseData) ? false : !!responseData?.hasMore);
 
 const CustomerNotificationsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -200,6 +203,12 @@ const CustomerNotificationsPage: React.FC = () => {
                 }}>
                   {notification.message}
                 </p>
+                {getNotificationRedirectUrl(notification, 'customer') && (
+                  <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--warm-taupe)', fontWeight: 600 }}>
+                    <span>View Booking</span>
+                    <ChevronRight size={14} />
+                  </div>
+                )}
               </div>
             </button>
           ))}
@@ -288,13 +297,36 @@ const CustomerNotificationsPage: React.FC = () => {
               Received on {formatDate(selectedNotification.createdAt, 'datetime')}
             </div>
 
-            <button 
-              onClick={() => setSelectedNotification(null)}
-              className="btn-primary" 
-              style={{ width: '100%', marginTop: '2rem' }}
-            >
-              Close
-            </button>
+            {selectedNotification && getNotificationRedirectUrl(selectedNotification, 'customer') ? (
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2rem' }}>
+                <button 
+                  onClick={() => {
+                    const url = getNotificationRedirectUrl(selectedNotification, 'customer');
+                    setSelectedNotification(null);
+                    if (url) navigate(url);
+                  }}
+                  className="btn-primary" 
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  View Booking <ChevronRight size={16} />
+                </button>
+                <button 
+                  onClick={() => setSelectedNotification(null)}
+                  className="btn-outline" 
+                  style={{ padding: '0.6rem 1.25rem' }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => setSelectedNotification(null)}
+                className="btn-primary" 
+                style={{ width: '100%', marginTop: '2rem' }}
+              >
+                Close
+              </button>
+            )}
           </div>
         </div>
       )}

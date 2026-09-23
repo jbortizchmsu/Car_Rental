@@ -153,7 +153,9 @@ describe('PATCH /api/bookings/:id/cancel', () => {
     });
     expect(createAdminNotificationMock).toHaveBeenCalledWith(
       'Cancellation Request — Payment at Risk',
-      expect.stringContaining('reverted to AVAILABLE')
+      expect.stringContaining('reverted to AVAILABLE'),
+      'booking-1',
+      'booking'
     );
     // Geofence zones are always deactivated on cancel, regardless of prior status.
     expect(prismaMock.geofenceZone.updateMany).toHaveBeenCalledWith({
@@ -173,7 +175,9 @@ describe('PATCH /api/bookings/:id/cancel', () => {
     expect(prismaMock.vehicle.update).not.toHaveBeenCalled();
     expect(createAdminNotificationMock).toHaveBeenCalledWith(
       'Booking Cancelled',
-      expect.stringContaining('cancelled booking')
+      expect.stringContaining('cancelled booking'),
+      'booking-1',
+      'booking'
     );
   });
 });
@@ -275,7 +279,9 @@ describe('POST /api/bookings/:id/return', () => {
     expect(createNotificationMock).toHaveBeenCalledWith(
       'cust-1',
       'Damage Report Filed',
-      expect.stringContaining('Estimated repair cost: ₱2,500.00')
+      expect.stringContaining('Estimated repair cost: ₱2,500.00'),
+      'booking-1',
+      'booking'
     );
   });
 

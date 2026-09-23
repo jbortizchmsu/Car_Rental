@@ -2,7 +2,13 @@ import { prisma } from './prisma';
 import { io } from '../index';
 import { NotificationType, generateNotificationMessage } from './notification-types';
 
-export async function createNotification(userId: string, title: string, message: string) {
+export async function createNotification(
+  userId: string, 
+  title: string, 
+  message: string, 
+  referenceId?: string, 
+  referenceType?: string
+) {
   try {
     const notification = await prisma.notification.create({
       data: {
@@ -11,7 +17,9 @@ export async function createNotification(userId: string, title: string, message:
         message,
         isRead: false,
         type: 'GENERAL',
-        targetRole: 'all'
+        targetRole: 'all',
+        referenceId: referenceId || null,
+        referenceType: referenceType || null
       }
     });
 
@@ -25,7 +33,12 @@ export async function createNotification(userId: string, title: string, message:
   }
 }
 
-export async function createAdminNotification(title: string, message: string) {
+export async function createAdminNotification(
+  title: string, 
+  message: string, 
+  referenceId?: string, 
+  referenceType?: string
+) {
   try {
     // Find all admins
     const admins = await prisma.user.findMany({
@@ -33,7 +46,7 @@ export async function createAdminNotification(title: string, message: string) {
     });
 
     const notifications = await Promise.all(
-      admins.map(admin => createNotification(admin.id, title, message))
+      admins.map(admin => createNotification(admin.id, title, message, referenceId, referenceType))
     );
 
     return notifications;

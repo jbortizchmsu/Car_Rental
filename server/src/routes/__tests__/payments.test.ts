@@ -272,7 +272,9 @@ describe('POST /api/payments/:id/reject', () => {
     expect(createNotificationMock).toHaveBeenCalledWith(
       'cust-1',
       'Payment Rejected',
-      expect.stringContaining('Reason: Blurry image, cannot verify.')
+      expect.stringContaining('Reason: Blurry image, cannot verify.'),
+      'booking-1',
+      'booking'
     );
   });
 
@@ -290,7 +292,9 @@ describe('POST /api/payments/:id/reject', () => {
     expect(createNotificationMock).toHaveBeenCalledWith(
       'cust-1',
       'Payment Rejected',
-      expect.stringContaining('Reason: Proof of payment invalid or unclear.')
+      expect.stringContaining('Reason: Proof of payment invalid or unclear.'),
+      'booking-1',
+      'booking'
     );
   });
 

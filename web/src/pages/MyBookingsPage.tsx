@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import { Loader2, Calendar, MapPin, ChevronRight, CreditCard, CheckCircle2, Navigation, RotateCcw, Info, X, ExternalLink, FileText, User, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { bookingsApi, filesApi, getApiErrorMessage } from '../services/api';
 import { useNotificationRefresh } from '../utils/socket';
 import { useInitialLoad } from '../utils/useInitialLoad';
@@ -114,6 +114,9 @@ const MyBookingsPage: React.FC = () => {
   const pastTabBookings = bookings.filter(b => PAST_STATUSES.includes(b.status));
   const visibleBookings = activeTab === 'ACTIVE' ? activeTabBookings : pastTabBookings;
 
+  const [searchParams] = useSearchParams();
+  const [openedFromUrl, setOpenedFromUrl] = useState<string | null>(null);
+
   const handleViewDetails = async (id: string) => {
     setSelectedBookingId(id);
     setDetailsLoading(true);
@@ -127,6 +130,19 @@ const MyBookingsPage: React.FC = () => {
       setDetailsLoading(false);
     }
   };
+
+  // Auto-open booking details if ?id= or ?bookingId= is present in URL
+  useEffect(() => {
+    const targetBookingId = searchParams.get('id') || searchParams.get('bookingId');
+    if (targetBookingId && openedFromUrl !== targetBookingId) {
+      setOpenedFromUrl(targetBookingId);
+      handleViewDetails(targetBookingId);
+      const match = bookings.find(b => b.id === targetBookingId);
+      if (match && PAST_STATUSES.includes(match.status)) {
+        setActiveTab('PAST');
+      }
+    }
+  }, [searchParams, bookings, openedFromUrl]);
 
 
 

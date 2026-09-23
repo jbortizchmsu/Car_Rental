@@ -109,7 +109,9 @@ router.post('/:id/submit', authenticate, upload.single('proof'), async (req: Aut
     // Notify Admin
     await createAdminNotification(
       'Payment Submitted',
-      `${booking.customer.fullName} submitted a ${paymentType.replace('_', ' ').toLowerCase()} for booking #${bookingId.slice(0, 8)}`
+      `${booking.customer.fullName} submitted a ${paymentType.replace('_', ' ').toLowerCase()} for booking #${bookingId.slice(0, 8)}`,
+      bookingId,
+      'booking'
     );
 
     res.status(201).json(payment);
@@ -261,7 +263,9 @@ router.post('/booking/:id/confirm-cash', authenticate, authorizeAdmin, async (re
     await createNotification(
       booking.customerId,
       'Payment Verified',
-      'Your remaining cash balance has been verified. Your vehicle is now ready for pickup!'
+      'Your remaining cash balance has been verified. Your vehicle is now ready for pickup!',
+      id,
+      'booking'
     );
 
     res.json(updated);
@@ -318,7 +322,9 @@ router.post('/:id/verify', authenticate, authorizeAdmin, async (req: AuthRequest
     await createNotification(
       payment.booking.customerId,
       'Payment Verified',
-      message
+      message,
+      payment.bookingId,
+      'booking'
     );
 
     res.json(payment);
@@ -358,7 +364,9 @@ router.post('/:id/reject', authenticate, authorizeAdmin, async (req, res) => {
     await createNotification(
       payment.booking.customerId,
       'Payment Rejected',
-      `Your payment submission was rejected. Reason: ${rejectionMessage}. Your booking has been reset — please resubmit your payment proof to continue with your booking.`
+      `Your payment submission was rejected. Reason: ${rejectionMessage}. Your booking has been reset — please resubmit your payment proof to continue with your booking.`,
+      payment.bookingId,
+      'booking'
     );
 
     res.json(payment);

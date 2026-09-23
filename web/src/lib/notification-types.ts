@@ -45,3 +45,28 @@ export function getRelativeTime(date: string | Date): string {
   if (diffDays < 7) return `${diffDays}d ago`;
   return formatDate(createdAt, 'short');
 }
+
+export interface NotificationLike {
+  id?: string;
+  referenceId?: string | null;
+  referenceType?: string | null;
+  type?: string;
+  title?: string;
+  message?: string;
+}
+
+export function getNotificationRedirectUrl(notification: NotificationLike, role?: string): string | null {
+  const refType = notification.referenceType?.toLowerCase();
+  const refId = notification.referenceId;
+
+  if (refType === 'booking' && refId) {
+    if (role === 'admin') {
+      return `/admin/bookings?id=${encodeURIComponent(refId)}`;
+    } else {
+      return `/customer/my-bookings?id=${encodeURIComponent(refId)}`;
+    }
+  }
+
+  return null;
+}
+

@@ -112,7 +112,9 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     // Notify Admin
     await createAdminNotification(
       'New Rental Request',
-      `${req.user!.fullName} requested to rent ${vehicle.brand} ${vehicle.model} for travel to ${destinationName}`
+      `${req.user!.fullName} requested to rent ${vehicle.brand} ${vehicle.model} for travel to ${destinationName}`,
+      booking.id,
+      'booking'
     );
 
     res.status(201).json(booking);
@@ -424,7 +426,9 @@ router.post('/:id/approve', authenticate, authorizeAdmin, async (req, res) => {
     await createNotification(
       booking.customerId,
       'Booking Approved',
-      'Your booking has been approved. Please proceed with payment.'
+      'Your booking has been approved. Please proceed with payment.',
+      booking.id,
+      'booking'
     );
 
     res.json(booking);
@@ -449,7 +453,9 @@ router.post('/:id/reject', authenticate, authorizeAdmin, async (req, res) => {
     await createNotification(
       booking.customerId,
       'Booking Rejected',
-      `Your booking was rejected. Reason: ${reason || 'Documents incomplete or invalid.'}`
+      `Your booking was rejected. Reason: ${reason || 'Documents incomplete or invalid.'}`,
+      booking.id,
+      'booking'
     );
 
     res.json(booking);
@@ -672,7 +678,9 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
     await createNotification(
       booking.customerId,
       'Rental Active',
-      `Your rental for ${existingBooking.vehicle.brand} ${existingBooking.vehicle.model} is now ACTIVE. GPS tracking has started. Drive safely!`
+      `Your rental for ${existingBooking.vehicle.brand} ${existingBooking.vehicle.model} is now ACTIVE. GPS tracking has started. Drive safely!`,
+      booking.id,
+      'booking'
     );
 
     res.json(booking);
@@ -764,7 +772,9 @@ router.post('/:id/return', authenticate, authorizeAdmin, async (req: AuthRequest
       await createNotification(
         existingBooking.customerId,
         'Damage Report Filed',
-        `A damage report (${damageTypeStr}) was filed for your rental of ${vehicleName} (Booking #${id.slice(0, 8).toUpperCase()}).${descriptionText}${costText} Please check your booking details for more information.`
+        `A damage report (${damageTypeStr}) was filed for your rental of ${vehicleName} (Booking #${id.slice(0, 8).toUpperCase()}).${descriptionText}${costText} Please check your booking details for more information.`,
+        id,
+        'booking'
       );
     }
 
@@ -809,7 +819,9 @@ router.post('/:id/complete', authenticate, authorizeAdmin, async (req: AuthReque
     await createNotification(
       booking.customerId,
       'Rental Completed',
-      `Your rental (Booking #${id.slice(0, 8).toUpperCase()}) has been marked as completed. Thank you for renting with us!`
+      `Your rental (Booking #${id.slice(0, 8).toUpperCase()}) has been marked as completed. Thank you for renting with us!`,
+      booking.id,
+      'booking'
     );
 
     res.json(booking);
@@ -898,12 +910,16 @@ router.patch('/:id/cancel', authenticate, async (req: AuthRequest, res) => {
       });
       await createAdminNotification(
         'Cancellation Request — Payment at Risk',
-        `Customer ${req.user!.fullName} cancelled booking ${id.split('-')[0].toUpperCase()} which was READY_FOR_PICKUP. Vehicle ${booking.vehicle.brand} ${booking.vehicle.model} reverted to AVAILABLE. Please review refund eligibility.`
+        `Customer ${req.user!.fullName} cancelled booking ${id.split('-')[0].toUpperCase()} which was READY_FOR_PICKUP. Vehicle ${booking.vehicle.brand} ${booking.vehicle.model} reverted to AVAILABLE. Please review refund eligibility.`,
+        id,
+        'booking'
       );
     } else {
       await createAdminNotification(
         'Booking Cancelled',
-        `Customer ${req.user!.fullName} cancelled booking ${id.split('-')[0].toUpperCase()}.`
+        `Customer ${req.user!.fullName} cancelled booking ${id.split('-')[0].toUpperCase()}.`,
+        id,
+        'booking'
       );
     }
 
@@ -961,13 +977,17 @@ router.patch('/:id/void', authenticate, authorizeAdmin, async (req: AuthRequest,
     await createNotification(
       booking.customerId,
       'Booking Voided',
-      `Your booking for ${booking.vehicle.brand} ${booking.vehicle.model} has been voided by the admin. Reason: ${reason}. Please contact us regarding your payment refund.`
+      `Your booking for ${booking.vehicle.brand} ${booking.vehicle.model} has been voided by the admin. Reason: ${reason}. Please contact us regarding your payment refund.`,
+      id,
+      'booking'
     );
 
     // Notify admin log
     await createAdminNotification(
       'Booking Voided by Admin',
-      `Booking ${id.split('-')[0].toUpperCase()} (${booking.vehicle.brand} ${booking.vehicle.model}) voided by ${req.user!.fullName}. Reason: ${reason}`
+      `Booking ${id.split('-')[0].toUpperCase()} (${booking.vehicle.brand} ${booking.vehicle.model}) voided by ${req.user!.fullName}. Reason: ${reason}`,
+      id,
+      'booking'
     );
 
     return res.status(200).json({ message: 'Booking voided successfully.' });

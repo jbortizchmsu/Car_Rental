@@ -111,7 +111,9 @@ router.post('/bookings/:id/release', authenticate, authorizeAdmin, async (req: A
     await createNotification(
       booking.customerId,
       'Vehicle Released',
-      `Your rental for ${booking.vehicle.brand} ${booking.vehicle.model} is now ACTIVE. GPS tracking has started.`
+      `Your rental for ${booking.vehicle.brand} ${booking.vehicle.model} is now ACTIVE. GPS tracking has started.`,
+      booking.id,
+      'booking'
     );
 
     res.json(booking);
@@ -154,7 +156,9 @@ router.post('/bookings/:id/return', authenticate, authorizeAdmin, async (req, re
     await createNotification(
       booking.customerId,
       'Vehicle Returned',
-      'The vehicle has been successfully returned and is awaiting final inspection.'
+      'The vehicle has been successfully returned and is awaiting final inspection.',
+      booking.id,
+      'booking'
     );
 
     res.json(booking);
@@ -197,7 +201,9 @@ router.post('/bookings/:id/complete', authenticate, authorizeAdmin, async (req, 
     await createNotification(
       booking.customerId,
       'Rental Completed',
-      `Your rental of ${booking.vehicle.brand} ${booking.vehicle.model} is now officially COMPLETED. Thank you for choosing JD Car Rental!`
+      `Your rental of ${booking.vehicle.brand} ${booking.vehicle.model} is now officially COMPLETED. Thank you for choosing JD Car Rental!`,
+      booking.id,
+      'booking'
     );
 
     res.json(booking);
