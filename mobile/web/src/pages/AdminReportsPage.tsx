@@ -33,6 +33,12 @@ const AdminReportsPage: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportScope, setExportScope] = useState<'all' | 'current' | 'custom'>('all');
+  const [fromPage, setFromPage] = useState(1);
+  const [toPage, setToPage] = useState(1);
 
   useEffect(() => {
     setPageHeader({
@@ -47,6 +53,7 @@ const AdminReportsPage: React.FC = () => {
   }, [reportType]);
 
   const handleQuickFilter = (range: string) => {
+    setCurrentPage(1);
     setDateRange(range);
     const now = new Date();
     let start = new Date();
@@ -108,17 +115,56 @@ const AdminReportsPage: React.FC = () => {
 
   const exportToCSV = () => {
     if (!data || !data.details) return;
-    
+    const count = data.details?.length || 0;
+    const totalP = Math.max(1, Math.ceil(count / pageSize));
+    setExportScope('all');
+    setFromPage(1);
+    setToPage(totalP);
+    setIsExportModalOpen(true);
+  };
+
+  const executeExportCSV = () => {
+    if (!data || !data.details) return;
+
+    const baseItems = data.details || [];
+    const totalP = Math.max(1, Math.ceil(baseItems.length / pageSize));
+    const validCurrPage = Math.min(currentPage, totalP);
+
+    let targetItems: any[] = [];
+    let fileSuffix = 'all';
+
+    if (exportScope === 'current') {
+      const start = (validCurrPage - 1) * pageSize;
+      targetItems = baseItems.slice(start, start + pageSize);
+      fileSuffix = `page-${validCurrPage}`;
+    } else if (exportScope === 'custom') {
+      const startP = Math.max(1, Math.min(fromPage, totalP));
+      const endP = Math.max(startP, Math.min(toPage, totalP));
+      const start = (startP - 1) * pageSize;
+      const end = endP * pageSize;
+      targetItems = baseItems.slice(start, end);
+      fileSuffix = `pages-${startP}-to-${endP}`;
+    } else {
+      targetItems = baseItems;
+      fileSuffix = 'all';
+    }
+
+    if (targetItems.length === 0) {
+      toast.info('No Records', 'There are no records to export for this selection.');
+      setIsExportModalOpen(false);
+      return;
+    }
+
     let headers: string[] = [];
     let rows: any[] = [];
-    
+
     switch (reportType) {
       case 'revenue':
-        headers = ['Date', 'Customer', 'Vehicle', 'Type', 'Amount', 'Status'];
-        rows = data.details.map((p: any) => [
+        headers = ['Date', 'Customer', 'Vehicle', 'Payment Type', 'Amount', 'Status'];
+        rows = targetItems.map((p: any) => [
           new Date(p.createdAt).toLocaleDateString(),
-          p.booking.customer.fullName,
-          `${p.booking.vehicle.brand} ${p.booking.vehicle.model}`,
+          p.booking?.customer?.fullName || 'N/A',
+          `${p.booking?.vehicle?.brand || ''} ${p.booking?.vehicle?.model || ''}`,
           p.paymentType,
           p.amount,
           p.status
@@ -126,11 +172,11 @@ const AdminReportsPage: React.FC = () => {
         break;
       case 'bookings':
         headers = ['ID', 'Requested', 'Customer', 'Vehicle', 'Pickup', 'Return', 'Total', 'Status'];
-        rows = data.details.map((b: any) => [
+        rows = targetItems.map((b: any) => [
           b.id,
           new Date(b.createdAt).toLocaleDateString(),
-          b.customer.fullName,
-          `${b.vehicle.brand} ${b.vehicle.model}`,
+          b.customer?.fullName || 'N/A',
+          `${b.vehicle?.brand || ''} ${b.vehicle?.model || ''}`,
           new Date(b.startDate).toLocaleDateString(),
           new Date(b.endDate).toLocaleDateString(),
           b.totalAmount,
@@ -139,10 +185,10 @@ const AdminReportsPage: React.FC = () => {
         break;
       case 'payments':
         headers = ['Date', 'Customer', 'Vehicle', 'Type', 'Amount', 'Ref#', 'Status'];
-        rows = data.details.map((p: any) => [
+        rows = targetItems.map((p: any) => [
           new Date(p.createdAt).toLocaleDateString(),
-          p.booking.customer.fullName,
-          `${p.booking.vehicle.brand} ${p.booking.vehicle.model}`,
+          p.booking?.customer?.fullName || 'N/A',
+          `${p.booking?.vehicle?.brand || ''} ${p.booking?.vehicle?.model || ''}`,
           p.paymentType,
           p.amount,
           p.proofs?.[0]?.referenceNumber || 'N/A',
@@ -151,6 +197,7 @@ const AdminReportsPage: React.FC = () => {
         break;
       default:
         toast.info('Export Unavailable', 'Export for this report type is coming soon.');
+        setIsExportModalOpen(false);
         return;
     }
 
@@ -163,10 +210,13 @@ const AdminReportsPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `jd-rental-${reportType}-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `jd-rental-${reportType}-${fileSuffix}-${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    toast.success('CSV Exported', `Successfully exported ${targetItems.length} transaction(s).`);
+    setIsExportModalOpen(false);
   };
 
   const renderRevenueReport = () => {
@@ -178,6 +228,13 @@ const AdminReportsPage: React.FC = () => {
     const gcashTotal = fullGcash + downpaymentGcash;
     const gcashRatio = totalRev > 0 ? Math.round((gcashTotal / totalRev) * 100) : 0;
     const avgBookingValue = data.details?.length > 0 ? (totalRev / data.details.length) : 0;
+    
+    const totalRecords = data.details?.length || 0;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+    const validCurrentPage = Math.min(currentPage, totalPages);
+    const startIndex = (validCurrentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalRecords);
+    const paginatedDetails = (data.details || []).slice(startIndex, endIndex);
     
     return (
       <div className="reports-dashboard">
@@ -274,7 +331,7 @@ const AdminReportsPage: React.FC = () => {
         <div className="reports-table-card">
           <div className="card-header" style={{ padding: '1.5rem', borderBottom: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="card-title">Verified Transactions</h3>
-            <button onClick={exportToCSV} className="btn btn-outline" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', minWidth: 'auto' }}>
+            <button onClick={exportToCSV} className="btn btn-outline" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', minWidth: 'auto', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <Download size={14} /> Export CSV
             </button>
           </div>
@@ -290,11 +347,11 @@ const AdminReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.details.map((payment: any) => (
+              {paginatedDetails.map((payment: any) => (
                 <tr key={payment.id}>
                   <td className="text-sm">{new Date(payment.createdAt).toLocaleDateString()}</td>
-                  <td className="text-sm font-semibold">{payment.booking.customer.fullName}</td>
-                  <td className="text-sm">{payment.booking.vehicle.brand} {payment.booking.vehicle.model}</td>
+                  <td className="text-sm font-semibold">{payment.booking?.customer?.fullName || 'N/A'}</td>
+                  <td className="text-sm">{payment.booking?.vehicle?.brand || ''} {payment.booking?.vehicle?.model || ''}</td>
                   <td>
                     <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded-md" style={{ color: 'var(--gray-600)' }}>
                       {payment.paymentType.replace('_', ' ')}
@@ -306,6 +363,72 @@ const AdminReportsPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+
+          {totalRecords > 0 && (
+            <div className="table-pagination">
+              <div className="pagination-info">
+                Showing <span style={{ fontWeight: 800, color: 'var(--black)' }}>{startIndex + 1}</span> to <span style={{ fontWeight: 800, color: 'var(--black)' }}>{endIndex}</span> of <span style={{ fontWeight: 800, color: 'var(--black)' }}>{totalRecords}</span> transactions
+              </div>
+              <div className="pagination-controls">
+                <div className="page-size-selector">
+                  <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontWeight: 600 }}>Show:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="page-select"
+                  >
+                    <option value={10}>10 per page</option>
+                    <option value={20}>20 per page</option>
+                    <option value={50}>50 per page</option>
+                  </select>
+                </div>
+                
+                <div className="page-nav-buttons">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={validCurrentPage <= 1}
+                    className="page-nav-btn"
+                    title="Previous Page"
+                  >
+                    ‹ Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - validCurrentPage) <= 1)
+                    .reduce((acc: (number | string)[], p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) => (
+                      item === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="page-ellipsis">...</span>
+                      ) : (
+                        <button
+                          key={`page-${item}`}
+                          onClick={() => setCurrentPage(item as number)}
+                          className={`page-num-btn ${validCurrentPage === item ? 'active' : ''}`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={validCurrentPage >= totalPages}
+                    className="page-nav-btn"
+                    title="Next Page"
+                  >
+                    Next ›
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -778,6 +901,145 @@ const AdminReportsPage: React.FC = () => {
           {reportType === 'payments' && renderPaymentReport()}
           {reportType === 'maintenance' && renderMaintenanceReport()}
           {reportType === 'alerts' && renderAlertReport()}
+        </div>
+      )}
+
+      {/* Export CSV Configuration Modal */}
+      {isExportModalOpen && (
+        <div className="export-modal-backdrop" onClick={() => setIsExportModalOpen(false)}>
+          <div className="export-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="export-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F0FDF4', color: '#16A34A', width: '36px', height: '36px' }}>
+                  <Download size={18} />
+                </div>
+                <div>
+                  <h3 className="export-modal-title">Export Transactions to CSV</h3>
+                  <p className="export-modal-subtitle">
+                    Select which pages or records to include in the exported report.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsExportModalOpen(false)}
+                className="export-modal-close"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="export-modal-body">
+              <div className="export-summary-pill">
+                <span>Matching Records: <strong>{data?.details?.length || 0}</strong></span>
+                <span>•</span>
+                <span>Page Size: <strong>{pageSize} rows/page</strong></span>
+                <span>•</span>
+                <span>Total Pages: <strong>{Math.max(1, Math.ceil((data?.details?.length || 0) / pageSize))}</strong></span>
+              </div>
+
+              {/* Option 1: All Pages */}
+              <label className={`export-radio-card ${exportScope === 'all' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="exportScope"
+                  value="all"
+                  checked={exportScope === 'all'}
+                  onChange={() => setExportScope('all')}
+                />
+                <div className="export-radio-content">
+                  <div className="export-radio-title">All Pages (Full Dataset)</div>
+                  <div className="export-radio-desc">
+                    Exports all {data?.details?.length || 0} transactions for the current period across all {Math.max(1, Math.ceil((data?.details?.length || 0) / pageSize))} page(s).
+                  </div>
+                </div>
+              </label>
+
+              {/* Option 2: Current Page Only */}
+              <label className={`export-radio-card ${exportScope === 'current' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="exportScope"
+                  value="current"
+                  checked={exportScope === 'current'}
+                  onChange={() => setExportScope('current')}
+                />
+                <div className="export-radio-content">
+                  <div className="export-radio-title">
+                    Current Page Only (Page {Math.min(currentPage, Math.max(1, Math.ceil((data?.details?.length || 0) / pageSize)))})
+                  </div>
+                  <div className="export-radio-desc">
+                    Exports only the records visible on the current page (up to {pageSize} transactions).
+                  </div>
+                </div>
+              </label>
+
+              {/* Option 3: Custom Page Range */}
+              <label className={`export-radio-card ${exportScope === 'custom' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="exportScope"
+                  value="custom"
+                  checked={exportScope === 'custom'}
+                  onChange={() => setExportScope('custom')}
+                />
+                <div className="export-radio-content">
+                  <div className="export-radio-title">Custom Page Range</div>
+                  <div className="export-radio-desc">
+                    Specify the starting and ending page numbers to include.
+                  </div>
+                  
+                  {exportScope === 'custom' && (
+                    <div className="export-range-inputs" onClick={(e) => e.stopPropagation()}>
+                      <div className="range-field">
+                        <label>From Page</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={Math.max(1, Math.ceil((data?.details?.length || 0) / pageSize))}
+                          value={fromPage}
+                          onChange={(e) => setFromPage(Math.max(1, Math.min(Math.max(1, Math.ceil((data?.details?.length || 0) / pageSize)), Number(e.target.value))))}
+                          className="range-input"
+                        />
+                      </div>
+                      <span className="range-separator">to</span>
+                      <div className="range-field">
+                        <label>To Page</label>
+                        <input
+                          type="number"
+                          min={fromPage}
+                          max={Math.max(1, Math.ceil((data?.details?.length || 0) / pageSize))}
+                          value={toPage}
+                          onChange={(e) => setToPage(Math.max(fromPage, Math.min(Math.max(1, Math.ceil((data?.details?.length || 0) / pageSize)), Number(e.target.value))))}
+                          className="range-input"
+                        />
+                      </div>
+                      <div className="range-hint">
+                        (Exports {Math.min(data?.details?.length || 0, Math.max(0, (toPage - fromPage + 1) * pageSize))} transactions)
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            <div className="export-modal-footer">
+              <button
+                onClick={() => setIsExportModalOpen(false)}
+                className="btn btn-outline"
+                style={{ padding: '0.45rem 1rem', fontSize: '0.82rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeExportCSV}
+                className="btn btn-primary"
+                style={{ padding: '0.45rem 1.25rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem', backgroundColor: '#16A34A', borderColor: '#16A34A' }}
+              >
+                <Download size={15} /> Download CSV
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
