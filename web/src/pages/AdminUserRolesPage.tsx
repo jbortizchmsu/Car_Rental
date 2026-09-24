@@ -55,6 +55,8 @@ const AdminUserRolesPage: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [approvalFilter, setApprovalFilter] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const toast = useToast();
   const { setPageHeader } = usePageHeader();
@@ -187,6 +189,16 @@ const AdminUserRolesPage: React.FC = () => {
     });
   }, [users, searchQuery, roleFilter, statusFilter, approvalFilter]);
 
+  const totalRecords = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalRecords);
+
+  const paginatedUsers = useMemo(() => {
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, startIndex, endIndex]);
+
   const summary = useMemo(() => {
     return {
       total: users.length,
@@ -241,14 +253,14 @@ const AdminUserRolesPage: React.FC = () => {
             className="input"
             placeholder="Search by name or email..." 
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             style={{ width: '100%', paddingLeft: '2.5rem', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
           />
         </div>
         <select 
           className="input" 
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
+          onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
           style={{ width: '150px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
         >
           <option value="ALL">All Roles</option>
@@ -258,7 +270,7 @@ const AdminUserRolesPage: React.FC = () => {
         <select 
           className="input" 
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
           style={{ width: '150px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
         >
           <option value="ALL">All Status</option>
@@ -268,7 +280,7 @@ const AdminUserRolesPage: React.FC = () => {
         <select
           className="input"
           value={approvalFilter}
-          onChange={(e) => setApprovalFilter(e.target.value)}
+          onChange={(e) => { setApprovalFilter(e.target.value); setCurrentPage(1); }}
           style={{ width: '190px', borderRadius: '12px', border: '1px solid var(--gray-200)' }}
         >
           <option value="ALL">All Approval</option>
@@ -279,109 +291,177 @@ const AdminUserRolesPage: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ backgroundColor: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
-              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>User</th>
-              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Role</th>
-              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Status</th>
-              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Approval</th>
-              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</th>
-              <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isInitialLoad ? (
-              <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>Loading users...</td></tr>
-            ) : filteredUsers.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>No users found matching filters.</td></tr>
-            ) : (
-              filteredUsers.map(user => (
-                <tr key={user.id} style={{ borderBottom: '1px solid var(--gray-100)', backgroundColor: selectedUser?.id === user.id ? 'var(--gray-50)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleSelectUser(user)}>
-                  <td style={{ padding: '1rem 1.5rem' }}>
-                    <div style={{ fontWeight: 800, color: 'var(--black)' }}>{user.fullName}</div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      {user.email}
-                      {user.emailDeliveryStatus === 'bounced' && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.5rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#FEF2F2', color: '#DC2626', whiteSpace: 'nowrap' }}>
-                          <AlertTriangle size={10} /> Bounced
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td style={{ padding: '1rem 1.5rem' }}>
-                    <span style={{ 
-                      padding: '0.25rem 0.75rem', 
-                      borderRadius: '20px', 
-                      fontSize: '0.75rem', 
-                      fontWeight: 800, 
-                      textTransform: 'uppercase',
-                      backgroundColor: user.role === 'admin' ? '#EEF2FF' : '#F3F4F6',
-                      color: user.role === 'admin' ? '#4F46E5' : '#4B5563'
-                    }}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem 1.5rem' }}>
-                    <span style={{ 
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      padding: '0.25rem 0.75rem', 
-                      borderRadius: '20px', 
-                      fontSize: '0.75rem', 
-                      fontWeight: 800, 
-                      textTransform: 'uppercase',
-                      backgroundColor: user.isActive ? '#ECFDF5' : '#FEF2F2',
-                      color: user.isActive ? '#10B981' : '#EF4444'
-                    }}>
-                      {user.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                      {user.isActive ? 'Active' : 'Disabled'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem 1.5rem' }}>
-                    {user.role === 'customer' ? (
-                      <div>
-                        <ApprovalBadge status={user.approvalStatus} />
-                        {user.approvalStatus === 'rejected' && user.rejectionReason && (
-                          <div
-                            title={user.rejectionReason}
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--gray-500)',
-                              marginTop: '0.35rem',
-                              maxWidth: '180px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {user.rejectionReason}
-                          </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
+                <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>User</th>
+                <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Role</th>
+                <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Status</th>
+                <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Approval</th>
+                <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Joined</th>
+                <th style={{ padding: '1rem 1.5rem', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-500)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isInitialLoad ? (
+                <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>Loading users...</td></tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--gray-500)' }}>No users found matching filters.</td></tr>
+              ) : (
+                paginatedUsers.map(user => (
+                  <tr key={user.id} style={{ borderBottom: '1px solid var(--gray-100)', backgroundColor: selectedUser?.id === user.id ? 'var(--gray-50)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => handleSelectUser(user)}>
+                    <td style={{ padding: '1rem 1.5rem' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--black)' }}>{user.fullName}</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {user.email}
+                        {user.emailDeliveryStatus === 'bounced' && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.5rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: '#FEF2F2', color: '#DC2626', whiteSpace: 'nowrap' }}>
+                            <AlertTriangle size={10} /> Bounced
+                          </span>
                         )}
                       </div>
+                    </td>
+                    <td style={{ padding: '1rem 1.5rem' }}>
+                      <span style={{ 
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '20px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 800, 
+                        textTransform: 'uppercase',
+                        backgroundColor: user.role === 'admin' ? '#EEF2FF' : '#F3F4F6',
+                        color: user.role === 'admin' ? '#4F46E5' : '#4B5563'
+                      }}>
+                        {user.role}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem 1.5rem' }}>
+                      <span style={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '20px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 800, 
+                        textTransform: 'uppercase',
+                        backgroundColor: user.isActive ? '#ECFDF5' : '#FEF2F2',
+                        color: user.isActive ? '#10B981' : '#EF4444'
+                      }}>
+                        {user.isActive ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                        {user.isActive ? 'Active' : 'Disabled'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem 1.5rem' }}>
+                      {user.role === 'customer' ? (
+                        <div>
+                          <ApprovalBadge status={user.approvalStatus} />
+                          {user.approvalStatus === 'rejected' && user.rejectionReason && (
+                            <div
+                              title={user.rejectionReason}
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--gray-500)',
+                                marginTop: '0.35rem',
+                                maxWidth: '180px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {user.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--gray-300)', fontSize: '0.8rem' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
+                      {formatDate(user.createdAt, 'short')}
+                    </td>
+                    <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                      <button 
+                        className="btn-outline" 
+                        onClick={(e) => { e.stopPropagation(); handleSelectUser(user); }}
+                        style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {totalRecords > 0 && (
+          <div className="table-pagination">
+            <div className="pagination-info">
+              Showing <span style={{ fontWeight: 800, color: 'var(--black)' }}>{startIndex + 1}</span> to <span style={{ fontWeight: 800, color: 'var(--black)' }}>{endIndex}</span> of <span style={{ fontWeight: 800, color: 'var(--black)' }}>{totalRecords}</span> users
+            </div>
+            <div className="pagination-controls">
+              <div className="page-size-selector">
+                <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontWeight: 600 }}>Show:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="page-select"
+                >
+                  <option value={10}>10 per page</option>
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+              </div>
+              
+              <div className="page-nav-buttons">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={validCurrentPage <= 1}
+                  className="page-nav-btn"
+                  title="Previous Page"
+                >
+                  ‹ Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - validCurrentPage) <= 1)
+                  .reduce((acc: (number | string)[], p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                      acc.push('...');
+                    }
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, idx) => (
+                    item === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="page-ellipsis">...</span>
                     ) : (
-                      <span style={{ color: 'var(--gray-300)', fontSize: '0.8rem' }}>—</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
-                    {formatDate(user.createdAt, 'short')}
-                  </td>
-                  <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                    <button 
-                      className="btn-outline" 
-                      onClick={(e) => { e.stopPropagation(); handleSelectUser(user); }}
-                      style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                      <button
+                        key={`page-${item}`}
+                        onClick={() => setCurrentPage(item as number)}
+                        className={`page-num-btn ${validCurrentPage === item ? 'active' : ''}`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  ))}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={validCurrentPage >= totalPages}
+                  className="page-nav-btn"
+                  title="Next Page"
+                >
+                  Next ›
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Slide-over User Details Drawer */}
