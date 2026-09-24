@@ -319,6 +319,13 @@ const AdminReportsPage: React.FC = () => {
       );
     });
 
+    const totalRecords = filteredDetails.length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+    const validCurrentPage = Math.min(currentPage, totalPages);
+    const startIndex = (validCurrentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalRecords);
+    const paginatedDetails = filteredDetails.slice(startIndex, endIndex);
+
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid">
