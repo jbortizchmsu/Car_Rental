@@ -29,6 +29,8 @@ const AdminPaymentVerificationPage: React.FC = () => {
   const [paymentTypeFilter, setPaymentTypeFilter] = useState('ALL');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Cash recording modal state
   const [showCashModal, setShowCashModal] = useState(false);
@@ -39,6 +41,10 @@ const AdminPaymentVerificationPage: React.FC = () => {
     dateCollected: new Date().toISOString().split('T')[0],
     notes: ''
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, dateRangeFilter, paymentTypeFilter, customStartDate, customEndDate]);
 
   useEffect(() => {
     setPageHeader({
@@ -260,6 +266,16 @@ const AdminPaymentVerificationPage: React.FC = () => {
 
     return filtered;
   }, [payments, searchQuery, paymentTypeFilter, isCashMode]);
+
+  const totalRecords = filteredPayments.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalRecords);
+
+  const paginatedPayments = useMemo(() => {
+    return filteredPayments.slice(startIndex, endIndex);
+  }, [filteredPayments, startIndex, endIndex]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -610,74 +626,142 @@ const AdminPaymentVerificationPage: React.FC = () => {
           <p>No payments found</p>
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--gray-200)', backgroundColor: 'var(--gray-50)' }}>
-                <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Date</th>
-                <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Customer</th>
-                <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Vehicle</th>
-                <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Booking ID</th>
-                <th style={{ textAlign: 'right', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Amount</th>
-                <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Ref #</th>
-                <th style={{ textAlign: 'center', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Status</th>
-                <th style={{ textAlign: 'center', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPayments.map((p: any, i: number) => {
-                const isCashMode = activeTab === 'CASH_AT_PICKUP';
-                const safePayments = Array.isArray(p.payments) ? p.payments : [];
-                const paid = isCashMode ? safePayments.reduce((sum: number, pay: any) => sum + Number(pay.amount), 0) : 0;
-                const amount = isCashMode ? (Number(p.totalAmount) - paid) : Number(p.amount);
-                const ref = isCashMode ? 'N/A' : (p.proofs?.[0]?.referenceNumber || '-');
-                const customer = isCashMode ? p.customer?.fullName : p.booking?.customer?.fullName;
-                const vehicle = isCashMode ? `${p.vehicle?.brand} ${p.vehicle?.model}` : `${p.booking?.vehicle?.brand} ${p.booking?.vehicle?.model}`;
-                const bookingId = isCashMode ? p.id : p.bookingId;
-                const status = isCashMode ? 'BALANCE DUE' : p.status;
-                const isOverdue = !isCashMode && new Date(p.booking?.endDate) < new Date() && p.status === 'SUBMITTED';
+        <div style={{ borderRadius: '12px', border: '1px solid var(--gray-200)', background: 'white', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--gray-200)', backgroundColor: 'var(--gray-50)' }}>
+                  <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Date</th>
+                  <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Customer</th>
+                  <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Vehicle</th>
+                  <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Booking ID</th>
+                  <th style={{ textAlign: 'right', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Amount</th>
+                  <th style={{ textAlign: 'left', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Ref #</th>
+                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Status</th>
+                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: 700, color: 'var(--gray-700)', fontSize: '0.9rem' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedPayments.map((p: any, i: number) => {
+                  const isCashMode = activeTab === 'CASH_AT_PICKUP';
+                  const safePayments = Array.isArray(p.payments) ? p.payments : [];
+                  const paid = isCashMode ? safePayments.reduce((sum: number, pay: any) => sum + Number(pay.amount), 0) : 0;
+                  const amount = isCashMode ? (Number(p.totalAmount) - paid) : Number(p.amount);
+                  const ref = isCashMode ? 'N/A' : (p.proofs?.[0]?.referenceNumber || '-');
+                  const customer = isCashMode ? p.customer?.fullName : p.booking?.customer?.fullName;
+                  const vehicle = isCashMode ? `${p.vehicle?.brand} ${p.vehicle?.model}` : `${p.booking?.vehicle?.brand} ${p.booking?.vehicle?.model}`;
+                  const bookingId = isCashMode ? p.id : p.bookingId;
+                  const status = isCashMode ? 'BALANCE DUE' : p.status;
+                  const isOverdue = !isCashMode && new Date(p.booking?.endDate) < new Date() && p.status === 'SUBMITTED';
 
-                return (
-                  <tr
-                    key={i}
-                    style={{
-                      borderBottom: '1px solid var(--gray-200)',
-                      backgroundColor: isOverdue ? '#FED7AA' : i % 2 === 0 ? 'var(--gray-50)' : 'white',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s'
+                  return (
+                    <tr
+                      key={p.id || i}
+                      style={{
+                        borderBottom: '1px solid var(--gray-200)',
+                        backgroundColor: isOverdue ? '#FED7AA' : i % 2 === 0 ? 'var(--gray-50)' : 'white',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onClick={() => setSelectedPayment(p)}
+                      onMouseEnter={(e) => { if (!isOverdue) e.currentTarget.style.backgroundColor = '#F3F4F6'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? 'var(--gray-50)' : isOverdue ? '#FED7AA' : 'white'; }}
+                    >
+                      <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{formatDate(p.createdAt || p.updatedAt, 'short')}</td>
+                      <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{customer}</td>
+                      <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{vehicle}</td>
+                      <td style={{ padding: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>#{bookingId.slice(0, 8).toUpperCase()}</td>
+                      <td style={{ padding: '1rem', textAlign: 'right', fontSize: '0.95rem', fontWeight: 700 }}>₱{amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--gray-600)' }} title={ref}>{ref.length > 15 ? ref.slice(0, 15) + '...' : ref}</td>
+                      <td style={{ padding: '1rem', textAlign: 'center' }}>
+                        <span style={{ backgroundColor: getStatusBgColor(status), color: getStatusColor(status), padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>
+                          {status}
+                          {isOverdue && ' 🔴'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'center' }}>
+                        {activeTab === 'SUBMITTED' && (
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                            <button onClick={(e) => { e.stopPropagation(); setSelectedPayment(p); handleAction('VERIFY'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#16A34A', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✓ Verify</button>
+                            <button onClick={(e) => { e.stopPropagation(); setSelectedPayment(p); handleAction('REJECT'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✕ Reject</button>
+                          </div>
+                        )}
+                        {activeTab === 'CASH_AT_PICKUP' && (
+                          <button onClick={(e) => { e.stopPropagation(); setSelectedPayment(p); handleAction('CONFIRM_CASH'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#0284C7', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Record</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalRecords > 0 && (
+            <div className="table-pagination">
+              <div className="pagination-info">
+                Showing <span style={{ fontWeight: 800, color: 'var(--black)' }}>{startIndex + 1}</span> to <span style={{ fontWeight: 800, color: 'var(--black)' }}>{endIndex}</span> of <span style={{ fontWeight: 800, color: 'var(--black)' }}>{totalRecords}</span> records
+              </div>
+              <div className="pagination-controls">
+                <div className="page-size-selector">
+                  <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontWeight: 600 }}>Show:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
                     }}
-                    onClick={() => setSelectedPayment(p)}
-                    onMouseEnter={(e) => { if (!isOverdue) e.currentTarget.style.backgroundColor = '#F3F4F6'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = i % 2 === 0 ? 'var(--gray-50)' : isOverdue ? '#FED7AA' : 'white'; }}
+                    className="page-select"
                   >
-                    <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{formatDate(p.createdAt || p.updatedAt, 'short')}</td>
-                    <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{customer}</td>
-                    <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{vehicle}</td>
-                    <td style={{ padding: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>#${bookingId.slice(0, 8).toUpperCase()}</td>
-                    <td style={{ padding: '1rem', textAlign: 'right', fontSize: '0.95rem', fontWeight: 700 }}>₱{amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--gray-600)' }} title={ref}>{ref.length > 15 ? ref.slice(0, 15) + '...' : ref}</td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <span style={{ backgroundColor: getStatusBgColor(status), color: getStatusColor(status), padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>
-                        {status}
-                        {isOverdue && ' 🔴'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      {activeTab === 'SUBMITTED' && (
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                          <button onClick={(e) => { e.stopPropagation(); handleAction('VERIFY'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#16A34A', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✓ Verify</button>
-                          <button onClick={(e) => { e.stopPropagation(); handleAction('REJECT'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✕ Reject</button>
-                        </div>
-                      )}
-                      {activeTab === 'CASH_AT_PICKUP' && (
-                        <button onClick={(e) => { e.stopPropagation(); handleAction('CONFIRM_CASH'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#0284C7', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Record</button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    <option value={10}>10 per page</option>
+                    <option value={20}>20 per page</option>
+                    <option value={50}>50 per page</option>
+                  </select>
+                </div>
+                
+                <div className="page-nav-buttons">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={validCurrentPage <= 1}
+                    className="page-nav-btn"
+                    title="Previous Page"
+                  >
+                    ‹ Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - validCurrentPage) <= 1)
+                    .reduce((acc: (number | string)[], p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) => (
+                      item === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="page-ellipsis">...</span>
+                      ) : (
+                        <button
+                          key={`page-${item}`}
+                          onClick={() => setCurrentPage(item as number)}
+                          className={`page-num-btn ${validCurrentPage === item ? 'active' : ''}`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={validCurrentPage >= totalPages}
+                    className="page-nav-btn"
+                    title="Next Page"
+                  >
+                    Next ›
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

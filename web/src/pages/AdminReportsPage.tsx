@@ -582,6 +582,13 @@ const AdminReportsPage: React.FC = () => {
       );
     });
 
+    const totalRecords = filteredBookings.length;
+    const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+    const validCurrentPage = Math.min(currentPage, totalPages);
+    const startIndex = (validCurrentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalRecords);
+    const paginatedBookings = filteredBookings.slice(startIndex, endIndex);
+
     return (
       <div className="reports-dashboard">
         <div className="reports-kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
@@ -629,7 +636,7 @@ const AdminReportsPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredBookings.map((booking: any) => (
+                paginatedBookings.map((booking: any) => (
                   <tr key={booking.id}>
                     <td className="text-xs font-mono">#{booking.id.slice(0, 8).toUpperCase()}</td>
                     <td className="text-sm">{formatDate(booking.createdAt, 'short')}</td>
@@ -645,6 +652,72 @@ const AdminReportsPage: React.FC = () => {
               )}
             </tbody>
           </table>
+
+          {totalRecords > 0 && (
+            <div className="table-pagination">
+              <div className="pagination-info">
+                Showing <span style={{ fontWeight: 800, color: 'var(--black)' }}>{startIndex + 1}</span> to <span style={{ fontWeight: 800, color: 'var(--black)' }}>{endIndex}</span> of <span style={{ fontWeight: 800, color: 'var(--black)' }}>{totalRecords}</span> bookings
+              </div>
+              <div className="pagination-controls">
+                <div className="page-size-selector">
+                  <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontWeight: 600 }}>Show:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="page-select"
+                  >
+                    <option value={10}>10 per page</option>
+                    <option value={20}>20 per page</option>
+                    <option value={50}>50 per page</option>
+                  </select>
+                </div>
+                
+                <div className="page-nav-buttons">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={validCurrentPage <= 1}
+                    className="page-nav-btn"
+                    title="Previous Page"
+                  >
+                    ‹ Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - validCurrentPage) <= 1)
+                    .reduce((acc: (number | string)[], p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) => (
+                      item === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="page-ellipsis">...</span>
+                      ) : (
+                        <button
+                          key={`page-${item}`}
+                          onClick={() => setCurrentPage(item as number)}
+                          className={`page-num-btn ${validCurrentPage === item ? 'active' : ''}`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={validCurrentPage >= totalPages}
+                    className="page-nav-btn"
+                    title="Next Page"
+                  >
+                    Next ›
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
