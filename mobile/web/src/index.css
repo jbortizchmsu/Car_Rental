@@ -1750,10 +1750,11 @@ h5 {
 /* Simple CSS Bar Chart */
 .bar-chart-container {
   display: flex;
-  align-items: flex-end;
-  gap: 1rem;
-  height: 200px;
-  padding-top: 1rem;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 1.25rem;
+  height: 230px;
+  padding-top: 0.75rem;
 }
 
 .bar-wrapper {
@@ -1761,16 +1762,39 @@ h5 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  min-width: 0;
+  height: 100%;
+}
+
+.bar-value {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--black);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.bar-track {
+  width: 100%;
+  max-width: 46px;
+  height: 130px;
+  background: var(--gray-50);
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+  overflow: visible;
 }
 
 .bar {
   width: 100%;
-  max-width: 40px;
-  background: var(--warm-taupe);
-  border-radius: 6px 6px 0 0;
-  transition: all 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+  border-radius: 8px 8px 0 0;
+  transition: height 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67);
   position: relative;
+  cursor: pointer;
 }
 
 .bar:hover {
@@ -1779,19 +1803,21 @@ h5 {
 
 .bar-tooltip {
   position: absolute;
-  top: -30px;
+  top: -34px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--black);
   color: var(--white);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 700;
   opacity: 0;
   transition: opacity 0.2s;
   white-space: nowrap;
   pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .bar:hover .bar-tooltip {
@@ -1799,8 +1825,16 @@ h5 {
 }
 
 .bar-label {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
+  color: var(--gray-700);
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.bar-pct {
+  font-size: 0.7rem;
+  font-weight: 600;
   color: var(--gray-400);
   text-align: center;
 }

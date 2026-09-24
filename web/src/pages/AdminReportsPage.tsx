@@ -211,9 +211,15 @@ const AdminReportsPage: React.FC = () => {
 
   const renderRevenueReport = () => {
     if (!data) return null;
-    const avgBookingValue = data.details.length > 0 ? (data.breakdown.total / data.details.length) : 0;
+    const totalRev = Number(data.breakdown?.total || 0);
+    const fullGcash = Number(data.breakdown?.FULL_GCASH || 0);
+    const downpaymentGcash = Number(data.breakdown?.DOWNPAYMENT_GCASH || 0);
+    const remainingCash = Number(data.breakdown?.REMAINING_CASH || 0);
+    const gcashTotal = fullGcash + downpaymentGcash;
+    const gcashRatio = totalRev > 0 ? Math.round((gcashTotal / totalRev) * 100) : 0;
+    const avgBookingValue = data.details?.length > 0 ? (totalRev / data.details.length) : 0;
     
-    const filteredDetails = data.details.filter((payment: any) => {
+    const filteredDetails = (data.details || []).filter((payment: any) => {
       if (!searchTerm.trim()) return true;
       const term = searchTerm.toLowerCase();
       const customer = payment.booking?.customer?.fullName ?? '';
@@ -239,28 +245,28 @@ const AdminReportsPage: React.FC = () => {
             <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F0FDF4', color: '#16A34A' }}>
               <TrendingUp size={20} />
             </div>
-            <div className="kpi-value">₱{data.breakdown.total.toLocaleString()}</div>
+            <div className="kpi-value">₱{totalRev.toLocaleString()}</div>
             <div className="kpi-label">Total Verified Revenue</div>
           </div>
           <div className="reports-kpi-card">
             <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F0F9FF', color: '#0284C7' }}>
               <CreditCard size={20} />
             </div>
-            <div className="kpi-value">₱{data.breakdown.FULL_GCASH.toLocaleString()}</div>
+            <div className="kpi-value">₱{fullGcash.toLocaleString()}</div>
             <div className="kpi-label">Full GCash Payments</div>
           </div>
           <div className="reports-kpi-card">
             <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F5F3FF', color: '#7C3AED' }}>
               <Smartphone size={20} />
             </div>
-            <div className="kpi-value">₱{data.breakdown.DOWNPAYMENT_GCASH.toLocaleString()}</div>
+            <div className="kpi-value">₱{downpaymentGcash.toLocaleString()}</div>
             <div className="kpi-label">Downpayments Received</div>
           </div>
           <div className="reports-kpi-card">
             <div className="kpi-icon-wrapper" style={{ backgroundColor: '#FEF2F2', color: '#DC2626' }}>
               <DollarSign size={20} />
             </div>
-            <div className="kpi-value">₱{data.breakdown.REMAINING_CASH.toLocaleString()}</div>
+            <div className="kpi-value">₱{remainingCash.toLocaleString()}</div>
             <div className="kpi-label">Cash Collected at Pickup</div>
           </div>
           <div className="reports-kpi-card">
@@ -300,17 +306,28 @@ const AdminReportsPage: React.FC = () => {
             </div>
             <div className="bar-chart-container">
               {[
-                { label: 'Full GCash', value: data.breakdown.FULL_GCASH, color: '#0284C7' },
-                { label: 'Downpayment', value: data.breakdown.DOWNPAYMENT_GCASH, color: '#7C3AED' },
-                { label: 'Cash Pickup', value: data.breakdown.REMAINING_CASH, color: '#16A34A' }
+                { label: 'Full GCash', value: fullGcash, color: '#0284C7' },
+                { label: 'Downpayment', value: downpaymentGcash, color: '#7C3AED' },
+                { label: 'Cash Pickup', value: remainingCash, color: '#16A34A' }
               ].map((item, idx) => {
-                const height = data.breakdown.total > 0 ? (item.value / data.breakdown.total) * 100 : 0;
+                const pct = totalRev > 0 ? Math.round((item.value / totalRev) * 100) : 0;
                 return (
                   <div key={idx} className="bar-wrapper">
-                    <div className="bar" style={{ height: `${height}%`, backgroundColor: item.color }}>
-                      <div className="bar-tooltip">₱{item.value.toLocaleString()}</div>
+                    <div className="bar-value">₱{item.value.toLocaleString()}</div>
+                    <div className="bar-track">
+                      <div 
+                        className="bar" 
+                        style={{ 
+                          height: `${pct}%`, 
+                          backgroundColor: item.color,
+                          minHeight: item.value > 0 ? '6px' : '0px'
+                        }}
+                      >
+                        <div className="bar-tooltip">₱{item.value.toLocaleString()} ({pct}%)</div>
+                      </div>
                     </div>
                     <div className="bar-label">{item.label}</div>
+                    <div className="bar-pct">{pct}% of revenue</div>
                   </div>
                 );
               })}
@@ -324,10 +341,10 @@ const AdminReportsPage: React.FC = () => {
                 <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#F3F4F6" strokeWidth="3" />
                 <circle 
                   cx="18" cy="18" r="15.915" fill="transparent" stroke="var(--warm-taupe)" strokeWidth="3" 
-                  strokeDasharray="70 30" strokeDashoffset="0"
+                  strokeDasharray={`${gcashRatio} ${100 - gcashRatio}`} strokeDashoffset="0"
                 />
               </svg>
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontWeight: 900, fontSize: '1.5rem' }}>70%</div>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontWeight: 900, fontSize: '1.5rem' }}>{gcashRatio}%</div>
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '1.5rem', fontWeight: 700 }}>GCash vs Cash Ratio</p>
           </div>
