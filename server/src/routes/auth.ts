@@ -9,6 +9,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { JWT_SECRET, GOOGLE_CLIENT_ID } from '../lib/config';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/email';
 import { registerSchema } from '../lib/validation';
+import { clientIpKeyGenerator } from '../lib/client-ip';
 import { createTypedNotification } from '../lib/notifications';
 import { NotificationType } from '../lib/notification-types';
 
@@ -21,6 +22,7 @@ const router = Router();
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const loginLimiter = rateLimit({
+  keyGenerator: clientIpKeyGenerator,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
@@ -30,6 +32,7 @@ const loginLimiter = rateLimit({
 });
 
 const registerLimiter = rateLimit({
+  keyGenerator: clientIpKeyGenerator,
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5,
   message: { error: 'Too many registration attempts. Please try again later.' },
@@ -38,6 +41,7 @@ const registerLimiter = rateLimit({
 });
 
 const resendLimiter = rateLimit({
+  keyGenerator: clientIpKeyGenerator,
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 3,
   message: {
@@ -49,6 +53,7 @@ const resendLimiter = rateLimit({
 });
 
 const emailStatusLimiter = rateLimit({
+  keyGenerator: clientIpKeyGenerator,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 60, // generous enough for the 5-10s polling window (~2 min = ~24 requests)
   message: { error: 'Too many status checks. Please slow down.' },
@@ -57,6 +62,7 @@ const emailStatusLimiter = rateLimit({
 });
 
 const googleAuthLimiter = rateLimit({
+  keyGenerator: clientIpKeyGenerator,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   message: { error: 'Too many sign-in attempts. Please try again in 15 minutes.' },
@@ -66,6 +72,7 @@ const googleAuthLimiter = rateLimit({
 });
 
 const forgotPasswordLimiter = rateLimit({
+  keyGenerator: clientIpKeyGenerator,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 3,
   message: {
