@@ -12,7 +12,7 @@ import { adminApi, settingsApi } from '../services/api';
 import { io } from 'socket.io-client';
 import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polygon, Polyline } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
-import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
+import { buildTrail, GAP_POLYLINE_OPTIONS, cleanTrackPoints, flattenCleanedSegments, buildTrailPolylineOptions } from '../utils/gps-trail';
 import type { RawGpsPoint, ShopLocation } from '../utils/gps-trail';
 import { calculateBearing, distanceMeters, shortestRotationTarget, isValidReportedHeading, MIN_MOVEMENT_METERS } from '../utils/heading';
 
@@ -432,11 +432,15 @@ const AdminLiveMapPage: React.FC = () => {
     // closure was fixed at mount time and would otherwise never see a fresh value. The
     // marker's own position is updated separately below/above and is unaffected by this.
     if (newLoc.bookingId === trackedBookingIdRef.current) {
+      // Capped to the most recent 500 points — an active rental can otherwise run for
+      // hours/days, and this array was previously unbounded.
       setTrailPoints(prev => [...prev, {
         latitude: newLoc.latitude,
         longitude: newLoc.longitude,
         recordedAt: newLoc.recordedAt,
-      }]);
+        accuracy: newLoc.accuracy ?? null,
+        speed: newLoc.speed ?? null,
+      }].slice(-500));
     }
 
     // Update selected rental if it's the one that moved
@@ -521,8 +525,14 @@ const AdminLiveMapPage: React.FC = () => {
         if (cancelled || trackedBookingIdRef.current !== bookingId) return;
         const points: RawGpsPoint[] = (res.data?.locations || [])
           .filter((l: any) => typeof l.latitude === 'number' && typeof l.longitude === 'number')
-          .map((l: any) => ({ latitude: l.latitude, longitude: l.longitude, recordedAt: l.recordedAt }));
-        setTrailPoints(points);
+          .map((l: any) => ({
+            latitude: l.latitude,
+            longitude: l.longitude,
+            recordedAt: l.recordedAt,
+            accuracy: l.accuracy ?? null,
+            speed: l.speed ?? null,
+          }));
+        setTrailPoints(points.slice(-500));
       })
       .catch((error) => {
         if (!cancelled) console.error('Failed to fetch vehicle GPS trail history:', error);
@@ -534,10 +544,24 @@ const AdminLiveMapPage: React.FC = () => {
   // Shop-prefixed, gap-segmented trail. Purely a rendering concern — `trailPoints` itself keeps
   // accumulating raw points untouched; this is recomputed on every render from that plus
   // whichever booking is tracked (for its `releasedAt`).
-  const trail = useMemo(
-    () => buildTrail(trailPoints, selectedRental?.releasedAt ?? null, shopLocation),
-    [trailPoints, selectedRental?.releasedAt, shopLocation]
-  );
+  //
+  // trailPoints is cleaned (sorted, deduped, filtered for bad accuracy/impossible-speed/
+  // parked-jitter, then re-flattened) before it ever reaches buildTrail, so a handful of
+  // noisy fixes can no longer distort buildTrail's own gap detection or draw a kink in the
+  // line. The cleaning filter can legitimately drop the very latest point (e.g. the vehicle
+  // hasn't moved 5m since the previous kept point) — the vehicle marker's live position must
+  // still connect to the trail regardless, so it's appended back on if cleaning dropped it.
+  const trail = useMemo(() => {
+    const cleanedFlat = flattenCleanedSegments(cleanTrackPoints(trailPoints));
+    const currentLoc = selectedRental?.locations?.[0];
+    const last = cleanedFlat[cleanedFlat.length - 1];
+    const needsConnector =
+      currentLoc && (!last || last.latitude !== currentLoc.latitude || last.longitude !== currentLoc.longitude);
+    const withConnector = needsConnector
+      ? [...cleanedFlat, { latitude: currentLoc!.latitude, longitude: currentLoc!.longitude, recordedAt: currentLoc!.recordedAt }]
+      : cleanedFlat;
+    return buildTrail(withConnector, selectedRental?.releasedAt ?? null, shopLocation);
+  }, [trailPoints, selectedRental?.id, selectedRental?.releasedAt, selectedRental?.locations, shopLocation]);
 
   // Imperatively re-center map when defaultCenter updates if no rental is selected
   useEffect(() => {
@@ -647,19 +671,22 @@ const AdminLiveMapPage: React.FC = () => {
 
         {/* Movement trail for the currently-tracked vehicle — solid for normal travel
             (including the synthetic shop-departure leg), dashed for signal-loss gaps */}
-        {selectedRental && trail.segments.map((seg, idx) =>
-          seg.path.length > 1 ? (
-            <Polyline
-              key={idx}
-              path={seg.path}
-              options={
-                seg.isGap
-                  ? GAP_POLYLINE_OPTIONS
-                  : { strokeColor: '#AD9B8D', strokeOpacity: 0.8, strokeWeight: 3, geodesic: true, zIndex: 1 }
-              }
-            />
-          ) : null
-        )}
+        {selectedRental && trail.segments.map((seg, idx) => {
+          if (seg.path.length <= 1) return null;
+          if (seg.isGap) {
+            return <Polyline key={idx} path={seg.path} options={GAP_POLYLINE_OPTIONS} />;
+          }
+          // Solid route: a white "casing" polyline underneath for contrast on satellite
+          // view, then the brand-colored line (a touch thicker than before) with small
+          // direction arrows repeated along it.
+          const { outline, line } = buildTrailPolylineOptions('#AD9B8D');
+          return (
+            <React.Fragment key={idx}>
+              <Polyline path={seg.path} options={outline} />
+              <Polyline path={seg.path} options={line} />
+            </React.Fragment>
+          );
+        })}
 
         {/* Shop-departure marker — always shown when a trail was seeded (even with zero real
             pings yet, this is the only visible indicator of the vehicle's tracked route so far) */}

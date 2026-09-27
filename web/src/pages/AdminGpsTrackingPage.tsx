@@ -5,7 +5,7 @@ import { adminApi, bookingsApi, settingsApi } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { GoogleMap, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
-import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
+import { buildTrail, GAP_POLYLINE_OPTIONS, cleanTrackPoints, flattenCleanedSegments, buildTrailPolylineOptions } from '../utils/gps-trail';
 import type { ShopLocation } from '../utils/gps-trail';
 import { formatDate } from '../utils/formatDate';
 
@@ -111,8 +111,12 @@ const AdminGpsTrackingPage: React.FC = () => {
 
   // Shop-prefixed, gap-segmented trail built from the raw recorded points. Purely a rendering
   // concern — `locations` itself (used for stats, CSV export, start/end markers) is untouched.
+  //
+  // Cleaned (sorted, deduped, filtered for bad accuracy/impossible-speed/parked-jitter, then
+  // re-flattened) before reaching buildTrail, same as the live map — a handful of noisy fixes
+  // can no longer distort buildTrail's own gap detection or draw a kink in a completed trip's line.
   const trail = useMemo(
-    () => buildTrail(locations, selectedBooking?.releasedAt ?? null, shopLocation),
+    () => buildTrail(flattenCleanedSegments(cleanTrackPoints(locations)), selectedBooking?.releasedAt ?? null, shopLocation),
     [locations, selectedBooking?.releasedAt, shopLocation]
   );
 
@@ -484,19 +488,19 @@ const AdminGpsTrackingPage: React.FC = () => {
                   }}
                 >
                   {/* Route polylines — solid segments for normal travel, dashed for signal-loss gaps */}
-                  {trail.segments.map((seg, idx) =>
-                    seg.path.length > 1 ? (
-                      <Polyline
-                        key={idx}
-                        path={seg.path}
-                        options={
-                          seg.isGap
-                            ? GAP_POLYLINE_OPTIONS
-                            : { strokeColor: '#2563EB', strokeWeight: 3, strokeOpacity: 0.85 }
-                        }
-                      />
-                    ) : null
-                  )}
+                  {trail.segments.map((seg, idx) => {
+                    if (seg.path.length <= 1) return null;
+                    if (seg.isGap) {
+                      return <Polyline key={idx} path={seg.path} options={GAP_POLYLINE_OPTIONS} />;
+                    }
+                    const { outline, line } = buildTrailPolylineOptions('#2563EB');
+                    return (
+                      <React.Fragment key={idx}>
+                        <Polyline path={seg.path} options={outline} />
+                        <Polyline path={seg.path} options={line} />
+                      </React.Fragment>
+                    );
+                  })}
 
                   {/* Shop-departure marker — always shown when a trail was seeded (even with
                       zero real pings recorded, e.g. an incomplete/interrupted session) */}
