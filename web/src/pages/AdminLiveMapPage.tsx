@@ -1036,7 +1036,7 @@ const AdminLiveMapPage: React.FC = () => {
               <Activity size={16} className="text-gray-300" style={{ flexShrink: 0 }} />
             </div>
 
-            <div className="space-y-3">
+            <div className="map-fleet-stack">
               <div className="fleet-active-bar map-fleet-active-bar flex items-center bg-black text-white rounded-2xl shadow-md">
                 <div className="map-fleet-active-label-group flex items-center gap-3">
                   <div className="map-fleet-active-icon-box rounded-lg flex items-center justify-center">
@@ -1074,11 +1074,11 @@ const AdminLiveMapPage: React.FC = () => {
               <AlertTriangle size={16} className={unresolvedAlerts.length > 0 ? 'text-red-600' : 'text-gray-300'} style={{ flexShrink: 0 }} />
             </div>
 
-            <div className="space-y-3">
+            <div className="map-fleet-stack">
               {unresolvedAlerts.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                  <CheckCircle size={20} className="mx-auto text-green-500 mb-2" />
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">No current threats</p>
+                <div className="map-fleet-alerts-empty bg-gray-50 rounded-2xl">
+                  <CheckCircle size={16} className="text-green-500" style={{ flexShrink: 0 }} />
+                  <p className="map-fleet-alerts-empty-text">No current threats</p>
                 </div>
               ) : (
                 unresolvedAlerts.slice(0, 3).map(alert => (
@@ -1103,12 +1103,12 @@ const AdminLiveMapPage: React.FC = () => {
 
           {/* Tracking Stats */}
           <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400" style={{ margin: 0 }}>Monitoring Stats</h3>
-              <Activity size={16} className="text-gray-300" />
+            <div className="map-fleet-panel-header flex items-center justify-between">
+              <h3 className="map-fleet-panel-heading font-black text-gray-400" style={{ margin: 0 }}>Monitoring Stats</h3>
+              <Activity size={16} className="text-gray-300" style={{ flexShrink: 0 }} />
             </div>
 
-            <div className="space-y-4">
+            <div className="map-fleet-stack">
               <div className="map-status-row">
                 <span className="map-status-label">Avg Fleet Speed</span>
                 <span className="map-status-value">
@@ -1135,19 +1135,19 @@ const AdminLiveMapPage: React.FC = () => {
           </section>
 
           {/* Quick Actions */}
-          <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm mb-2">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Actions</h3>
+          <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm">
+            <h3 className="map-fleet-panel-heading map-fleet-panel-heading-standalone font-black text-gray-400">Actions</h3>
             <div className="map-actions-grid">
-              <button className="flex flex-col items-center justify-center gap-2 p-3.5 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all opacity-50 cursor-not-allowed border border-gray-100">
+              <button className="map-fleet-action-btn flex flex-col items-center justify-center gap-2 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all opacity-50 cursor-not-allowed border border-gray-100">
                 <Download size={16} className="text-gray-400" />
-                <span className="text-[8px] font-black text-gray-500 uppercase">Report</span>
+                <span className="map-fleet-action-label font-black text-gray-500 uppercase">Report</span>
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/admin/gps-tracking')}
-                className="flex flex-col items-center justify-center gap-2 p-3.5 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all border border-gray-100"
+                className="map-fleet-action-btn flex flex-col items-center justify-center gap-2 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all border border-gray-100"
               >
                 <History size={16} className="text-black" />
-                <span className="text-[8px] font-black text-black uppercase">History</span>
+                <span className="map-fleet-action-label font-black text-black uppercase">History</span>
               </button>
             </div>
           </section>
