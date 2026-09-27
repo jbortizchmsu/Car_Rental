@@ -808,21 +808,19 @@ const BookingRequestsPage: React.FC = () => {
                     </div>
                     <div className="booking-list-meta">
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Customer</span>
-                      <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--black)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.customer?.fullName}</span>
+                      <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--black)' }}>{booking.customer?.fullName}</span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontFamily: 'monospace' }}>#{booking.id.slice(0, 8).toUpperCase()}</span>
                     </div>
                   </div>
 
-                  {/* Middle: Vehicle & Dates — fixed even split (not content-sized flex),
-                      so Schedule always starts at the same offset regardless of how long
-                      this row's vehicle name/plate happens to be. */}
-                  <div className="booking-list-vehicle-schedule">
+                  {/* Middle: Vehicle & Dates */}
+                  <div style={{ display: 'flex', gap: '2rem', flex: 1 }}>
                     <div className="booking-list-meta">
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Vehicle</span>
-                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--black)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.vehicle.brand} {booking.vehicle.model}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{booking.vehicle.licensePlate}</span>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--black)' }}>{booking.vehicle.brand} {booking.vehicle.model}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontFamily: 'monospace' }}>{booking.vehicle.licensePlate}</span>
                     </div>
-                    <div className="booking-list-meta">
+                    <div className="booking-list-meta" style={{ minWidth: 0 }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Schedule</span>
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--black)', whiteSpace: 'nowrap' }}>
                         {formatDate(booking.startDate, 'short')}
@@ -833,37 +831,37 @@ const BookingRequestsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Right: Amount & Status — one fixed arrangement on every card: amount
-                      + badge (never wraps, column is fixed-width wide enough for both),
-                      status text, then the action button, each its own row. */}
+                  {/* Right: Amount & Status */}
                   <div className="booking-list-status" style={{ minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', flexWrap: 'nowrap', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--black)', whiteSpace: 'nowrap' }}>₱{Number(booking.totalAmount).toLocaleString()}</span>
-
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--black)' }}>₱{Number(booking.totalAmount).toLocaleString()}</span>
+                      
                       {wf.actionPriority === 'ACTION_REQUIRED' && (
-                        <span style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#FEF2F2', color: '#DC2626', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#FEF2F2', color: '#DC2626', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>
                           Action Required
                         </span>
                       )}
                       {wf.actionPriority === 'WAITING' && (
-                        <span style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#F0F9FF', color: '#0284C7', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#F0F9FF', color: '#0284C7', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>
                           Waiting for Customer
                         </span>
                       )}
                     </div>
-
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)' }}>{wf.label}</span>
-
-                    <button
-                      className={`booking-list-action ${wf.actionPriority === 'ACTION_REQUIRED' ? 'priority' : ''}`}
-                      style={{
-                        backgroundColor: wf.actionPriority === 'ACTION_REQUIRED' ? 'var(--warm-taupe)' : 'var(--gray-100)',
-                        color: wf.actionPriority === 'ACTION_REQUIRED' ? 'white' : 'var(--gray-600)',
-                        border: 'none'
-                      }}
-                    >
-                      {wf.actionLabel}
-                    </button>
+                    
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                      <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)' }}>{wf.label}</span>
+                      <button
+                        className={`booking-list-action ${wf.actionPriority === 'ACTION_REQUIRED' ? 'priority' : ''}`}
+                        style={{
+                          flexShrink: 0,
+                          backgroundColor: wf.actionPriority === 'ACTION_REQUIRED' ? 'var(--warm-taupe)' : 'var(--gray-100)',
+                          color: wf.actionPriority === 'ACTION_REQUIRED' ? 'white' : 'var(--gray-600)',
+                          border: 'none'
+                        }}
+                      >
+                        {wf.actionLabel}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

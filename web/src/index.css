@@ -2924,12 +2924,12 @@ h5 {
 
 .booking-list-item {
   display: grid;
-  /* 3rd column (amount/status badge/action) is a fixed width, not minmax/auto — wide
-     enough that the amount (including a value like ₱400,000) and the ACTION REQUIRED
-     badge always fit on one line, on every card, regardless of that row's own content.
-     A proportional/capped track here previously let the badge wrap onto its own line
-     on some rows but not others, which is also what caused card heights to differ. */
-  grid-template-columns: minmax(200px, 1fr) minmax(280px, 1.3fr) 260px;
+  /* 3rd column (amount/status badge/action) is capped rather than minmax(0, auto),
+     so a long badge like "Waiting for Customer" can't eat variable space from the
+     2nd column (Vehicle + Schedule) on a row-by-row basis — every row now reserves
+     the same width for that column regardless of its own badge text length, which
+     is what was causing the Schedule column to wrap inconsistently between rows. */
+  grid-template-columns: minmax(200px, 1fr) minmax(280px, 1.3fr) minmax(170px, 200px);
   gap: 1.5rem;
   background: var(--white);
   border: 1px solid var(--gray-100);
@@ -2996,7 +2996,7 @@ h5 {
    BookingRequestsPage.tsx) instead of relying on an ellipsis/title fallback, since
    a single line never had enough room to show the full range at this width. */
 .booking-layout-grid.has-selection .booking-list-item {
-  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1.1fr) 260px;
+  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1.1fr) minmax(160px, 180px);
 }
 
 /* De-emphasize the rest of the list once a booking is selected, so the side-by-side
@@ -3020,23 +3020,10 @@ h5 {
   gap: 1rem;
 }
 
-/* Vehicle + Schedule sub-columns, as a fixed even split rather than unconstrained
-   flex — the previous plain `display: flex` sized each side to its own content, so
-   Schedule's start position drifted card to card depending on that card's own
-   vehicle name/plate length. minmax(0, 1fr) (not plain 1fr) so a long name can
-   truncate via .booking-list-meta's own min-width: 0 instead of forcing this wider. */
-.booking-list-vehicle-schedule {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2rem;
-  min-width: 0;
-}
-
 .booking-list-meta {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  min-width: 0;
 }
 
 .booking-list-status {
@@ -4061,24 +4048,6 @@ h5 {
 @media (max-width: 1200px) {
   .booking-layout-grid.has-selection {
     grid-template-columns: 1fr; /* Stack vertically on smaller screens */
-  }
-}
-
-/* .booking-list-item's fixed-width 3rd column (260px, needed so the amount + ACTION
-   REQUIRED badge never wrap) means each card's own minimum content width is now
-   roughly 830px (200 + 280 + 260 + gaps + padding) — comfortably inside a 1024px
-   viewport, but not a 768px or narrower one. Rather than let the badge/button wrap
-   again (reopening the exact inconsistency this fix addresses) or letting the whole
-   page scroll horizontally, only the list itself scrolls — every card keeps its
-   fixed, consistent structure at any width; card 1024px wide and up needed no
-   change (already fit) and are unaffected by this query. */
-@media (max-width: 1024px) {
-  .booking-list {
-    overflow-x: auto;
-  }
-
-  .booking-list-item {
-    min-width: 840px;
   }
 }
 
