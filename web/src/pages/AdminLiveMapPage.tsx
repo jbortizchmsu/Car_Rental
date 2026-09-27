@@ -563,12 +563,17 @@ const AdminLiveMapPage: React.FC = () => {
     return buildTrail(withConnector, selectedRental?.releasedAt ?? null, shopLocation);
   }, [trailPoints, selectedRental?.id, selectedRental?.releasedAt, selectedRental?.locations, shopLocation]);
 
-  // Imperatively re-center map when defaultCenter updates if no rental is selected
+  // Imperatively re-center (and, now, re-zoom) the map back to the overview whenever no
+  // rental is selected — covers both "never selected anything yet" and "just clicked
+  // Untrack". mapZoom already resolves to the correct overview zoom (12, or
+  // DEFAULT_ZOOM if no active rental has a location) once selectedRental is null, so
+  // this reuses that same memo rather than recomputing it.
   useEffect(() => {
     if (map && !selectedRental) {
       map.panTo(defaultCenter);
+      map.setZoom(mapZoom);
     }
-  }, [defaultCenter, map, selectedRental]);
+  }, [defaultCenter, map, selectedRental, mapZoom]);
 
   const handleTrackVehicle = (rental: ActiveRental) => {
     setSelectedRental(rental);
@@ -580,6 +585,18 @@ const AdminLiveMapPage: React.FC = () => {
       });
       map.setZoom(16);
     }
+  };
+
+  // Untrack: only ever changes what THIS admin's map is looking at. Never touches GPS
+  // sending, storage, geofencing, or alerts — those are entirely independent of
+  // selectedRental. Clearing it reuses the exact state the page already treats as "no
+  // vehicle selected" everywhere else (the effect above, mapCenter/mapZoom, the
+  // LIVE TELEMETRY panel and trail rendering, and the socket handler's own
+  // `if (prev && prev.id === newLoc.bookingId)` guard, which already no-ops once
+  // prev is null) — no new "untracked" concept was introduced.
+  const handleUntrackVehicle = () => {
+    setSelectedRental(null);
+    setPopupRentalId(null);
   };
 
   const renderMapArea = () => {
@@ -960,13 +977,25 @@ const AdminLiveMapPage: React.FC = () => {
                   </div>
 
                   <div className="map-vehicle-actions-row">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleTrackVehicle(rental); }}
-                      className={`map-vehicle-track-btn rounded-xl font-black transition-all ${selectedRental?.id === rental.id ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 map-vehicle-track-btn-inactive'}`}
-                    >
-                      <NavIcon size={12} />
-                      Track
-                    </button>
+                    {(() => {
+                      const isTracked = selectedRental?.id === rental.id;
+                      const vehicleName = `${rental.vehicle.brand} ${rental.vehicle.model}`;
+                      return (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isTracked) handleUntrackVehicle();
+                            else handleTrackVehicle(rental);
+                          }}
+                          aria-pressed={isTracked}
+                          aria-label={isTracked ? `Stop tracking ${vehicleName}` : `Track ${vehicleName}`}
+                          className={`map-vehicle-track-btn rounded-xl font-black transition-all ${isTracked ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 map-vehicle-track-btn-inactive'}`}
+                        >
+                          {isTracked ? <X size={12} /> : <NavIcon size={12} />}
+                          {isTracked ? 'Untrack' : 'Track'}
+                        </button>
+                      );
+                    })()}
                     <button className="map-vehicle-more-btn bg-gray-50 text-gray-400 rounded-xl transition-all">
                       <MoreHorizontal size={16} />
                     </button>

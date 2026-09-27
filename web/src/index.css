@@ -1251,12 +1251,15 @@ h5 {
 .map-vehicle-track-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 6px 14px;
   white-space: nowrap;
   flex-shrink: 0;
   min-height: 32px;
-  width: auto;
+  /* Fits "Untrack" (the longer of the two labels) so toggling never shifts the card
+     layout. */
+  min-width: 100px;
   border: none;
   font-size: 10px;
   cursor: pointer;
