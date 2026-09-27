@@ -926,23 +926,23 @@ const AdminLiveMapPage: React.FC = () => {
                   onClick={() => { setSelectedRental(rental); setPopupRentalId(rental.id); }}
                   className={`map-vehicle-card ${selectedRental?.id === rental.id ? 'map-vehicle-card-active' : ''} ${rental.geofenceAlerts?.length > 0 ? 'alert' : ''}`}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
+                  <div className="map-vehicle-name-row">
+                    <div className="map-vehicle-name-block">
                       <div className="card-icon">
                         <Car size={18} />
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black" style={{ margin: 0 }}>{rental.vehicle.brand} {rental.vehicle.model}</h4>
+                      <div style={{ minWidth: 0 }}>
+                        <h4 className="map-vehicle-name-text text-sm font-black">{rental.vehicle.brand} {rental.vehicle.model}</h4>
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{rental.vehicle.licensePlate}</span>
                       </div>
                     </div>
                     {rental.locations?.[0] ? (
-                      <div className="live-badge">
+                      <div className="live-badge map-vehicle-badge-slot">
                         <div className="live-ping" />
                         <span className="text-[9px]">LIVE</span>
                       </div>
                     ) : (
-                      <span className="text-[9px] font-black text-gray-400 uppercase bg-gray-50 px-1.5 py-0.5 rounded">NO GPS</span>
+                      <span className="map-vehicle-badge-slot text-[9px] font-black text-gray-400 uppercase bg-gray-50 px-1.5 py-0.5 rounded">NO GPS</span>
                     )}
                   </div>
 
@@ -959,15 +959,15 @@ const AdminLiveMapPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button 
+                  <div className="map-vehicle-actions-row">
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleTrackVehicle(rental); }}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-[10px] font-black transition-all ${selectedRental?.id === rental.id ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`map-vehicle-track-btn rounded-xl font-black transition-all ${selectedRental?.id === rental.id ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 map-vehicle-track-btn-inactive'}`}
                     >
                       <NavIcon size={12} />
                       Track
                     </button>
-                    <button className="w-9 h-9 flex items-center justify-center bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-100 transition-all border border-gray-100">
+                    <button className="map-vehicle-more-btn bg-gray-50 text-gray-400 rounded-xl transition-all">
                       <MoreHorizontal size={16} />
                     </button>
                   </div>

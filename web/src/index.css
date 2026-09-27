@@ -1205,6 +1205,86 @@ h5 {
   animation: pulse 2s infinite;
 }
 
+/* --- Live Map vehicle card: name row + action buttons ---
+   New, scoped classes only. The utility-class-looking names this card used before
+   (flex-1, w-9, h-9, text-[10px], text-[9px], hover:bg-gray-200, border, border-gray-100)
+   are not real Tailwind — this project only has a small hand-written set of matching
+   utility classes in this file, and none of those specific ones were ever defined, so
+   they were silent no-ops: the Track button's label rendered at the browser's inherited
+   default font-size instead of 10px (overflowing the pill), the ⋯ button had no
+   width/height/border at all (collapsing to icon size), and neither button nor the
+   LIVE badge had any flex-shrink protection against the vehicle name's unbounded width. */
+.map-vehicle-name-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+
+.map-vehicle-name-block {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.map-vehicle-name-text {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-vehicle-badge-slot {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.map-vehicle-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-vehicle-track-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 32px;
+  width: auto;
+  border: none;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .map-vehicle-track-btn.map-vehicle-track-btn-inactive:hover {
+    background-color: var(--gray-200);
+  }
+}
+
+.map-vehicle-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--gray-100);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .map-vehicle-more-btn:hover {
+    background-color: var(--gray-100);
+  }
+}
+
 
 @keyframes pulse {
   0% {
