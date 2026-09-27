@@ -23,6 +23,7 @@ import StatusBadge from '../components/StatusBadge';
 import RevenueSummaryPanels from '../components/RevenueSummaryPanels';
 import type { TrendPeriod } from '../components/RevenueSummaryPanels';
 import { formatDate } from '../utils/formatDate';
+import { getTodayRange, getThisMonthRange } from '../utils/report-date-ranges';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
 
@@ -61,27 +62,32 @@ const AdminReportsPage: React.FC = () => {
   const handleQuickFilter = (range: string) => {
     setCurrentPage(1);
     setDateRange(range);
-    const now = new Date();
-    let start = new Date();
-    let end = new Date();
 
-    switch (range) {
-      case 'today':
-        start.setHours(0, 0, 0, 0);
-        break;
-      case 'week':
-        start.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        start.setMonth(now.getMonth() - 1);
-        break;
-      case 'custom':
-        return; // Don't trigger fetch yet, wait for manual input
+    if (range === 'custom') return; // Don't trigger fetch yet, wait for manual input
+
+    let newStartDate: string;
+    let newEndDate: string;
+
+    if (range === 'today') {
+      ({ startDate: newStartDate, endDate: newEndDate } = getTodayRange());
+    } else if (range === 'month') {
+      // The 1st of the current Manila calendar month to today — was previously a
+      // rolling "one month back from today" window (e.g. Aug 28 to Sep 27), not the
+      // calendar month it's labeled as.
+      ({ startDate: newStartDate, endDate: newEndDate } = getThisMonthRange());
+    } else {
+      // 'week' (and any other legacy value) — unchanged rolling-window behavior.
+      const now = new Date();
+      const start = new Date();
+      const end = new Date();
+      if (range === 'week') start.setDate(now.getDate() - 7);
+      newStartDate = start.toISOString().split('T')[0];
+      newEndDate = end.toISOString().split('T')[0];
     }
 
-    setStartDate(start.toISOString().split('T')[0]);
-    setEndDate(end.toISOString().split('T')[0]);
-    fetchReport(start.toISOString().split('T')[0], end.toISOString().split('T')[0]);
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+    fetchReport(newStartDate, newEndDate);
   };
 
   const fetchReport = async (sDate = startDate, eDate = endDate) => {
