@@ -46,6 +46,7 @@ export const authApi = {
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token: string, password: string) => api.post('/auth/reset-password', { token, password }),
   changePassword: (data: { currentPassword: string; newPassword: string }) => api.post('/auth/change-password', data),
+  setPassword: (data: { newPassword: string; confirmPassword: string }) => api.post('/auth/set-password', data),
 };
 
 // Vehicles API

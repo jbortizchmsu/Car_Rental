@@ -7,7 +7,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { JWT_SECRET, GOOGLE_CLIENT_ID } from '../lib/config';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../lib/email';
+import { sendVerificationEmail, sendPasswordResetEmail, sendPasswordAddedEmail } from '../lib/email';
 import { registerSchema } from '../lib/validation';
 import { clientIpKeyGenerator } from '../lib/client-ip';
 import { createTypedNotification } from '../lib/notifications';
@@ -69,6 +69,15 @@ const googleAuthLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
+});
+
+const setPasswordLimiter = rateLimit({
+  keyGenerator: clientIpKeyGenerator,
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: { error: 'Too many attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const forgotPasswordLimiter = rateLimit({
@@ -566,7 +575,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
     }
 
     if (!user.passwordHash) {
-      return res.status(400).json({ error: 'This account uses Google Sign-In and has no password to change.' });
+      return res.status(400).json({ error: 'This account has no password yet. Use Add Password instead.' });
     }
 
     const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
@@ -584,6 +593,57 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
   } catch (err) {
     console.error('Change password error:', err);
     return res.status(500).json({ error: 'Failed to change password.' });
+  }
+});
+
+// POST /auth/set-password — authenticated users only. For a Google-only account
+// (passwordHash: null) that wants to also be able to log in with email + password.
+// Deliberately separate from /change-password, which requires a currentPassword that
+// a Google-only account doesn't have.
+router.post('/set-password', authenticate, setPasswordLimiter, async (req: AuthRequest, res) => {
+  const { newPassword, confirmPassword } = req.body;
+
+  if (!newPassword || !confirmPassword) {
+    return res.status(400).json({ error: 'New password and confirm password are required.' });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ error: 'New password and confirm password do not match.' });
+  }
+  if (!newPassword.trim()) {
+    return res.status(400).json({ error: 'Password cannot be blank or whitespace only.' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+  }
+  if (newPassword.length > 72) {
+    return res.status(400).json({ error: 'New password must be at most 72 characters.' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Atomic: the WHERE clause re-checks passwordHash is still null at the moment of
+    // the update, so two simultaneous requests can't both succeed — only the first to
+    // commit matches this filter; the second sees count: 0 and is rejected below.
+    const result = await prisma.user.updateMany({
+      where: { id: req.user!.id, passwordHash: null },
+      data: { passwordHash: hashedPassword }
+    });
+
+    if (result.count === 0) {
+      return res.status(400).json({ error: 'This account already has a password. Use Change Password instead.' });
+    }
+
+    try {
+      await sendPasswordAddedEmail(req.user!.email, req.user!.fullName);
+    } catch (emailErr) {
+      console.error('[SetPassword] Failed to send password-added notification email:', emailErr);
+    }
+
+    return res.status(200).json({ message: 'Password added successfully.' });
+  } catch (err) {
+    console.error('Set password error:', err);
+    return res.status(500).json({ error: 'Failed to add password.' });
   }
 });
 

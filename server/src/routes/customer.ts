@@ -43,18 +43,22 @@ router.get('/profile', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { 
-        id: true, 
-        email: true, 
-        fullName: true, 
-        role: true, 
-        phoneNumber: true, 
-        address: true, 
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        phoneNumber: true,
+        address: true,
         avatarUrl: true,
-        createdAt: true
+        createdAt: true,
+        passwordHash: true // only to derive hasPassword below — never sent to the client
       }
     });
-    res.json(user);
+    if (!user) return res.json(user);
+
+    const { passwordHash, ...safeUser } = user;
+    res.json({ ...safeUser, hasPassword: passwordHash !== null });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }

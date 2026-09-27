@@ -31,6 +31,19 @@ const CustomerProfilePage: React.FC = () => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  // Google-only accounts have no password yet (hasPassword: false) and get an "Add
+  // Password" form instead of "Change Password". undefined (missing from an older
+  // backend response, or if this were ever read from cached data) falls back to the
+  // normal Change Password form, matching every account that already has a password.
+  const [hasPassword, setHasPassword] = useState<boolean | undefined>(undefined);
+  const [newPasswordToAdd, setNewPasswordToAdd] = useState('');
+  const [confirmPasswordToAdd, setConfirmPasswordToAdd] = useState('');
+  const [showNewPasswordToAdd, setShowNewPasswordToAdd] = useState(false);
+  const [showConfirmPasswordToAdd, setShowConfirmPasswordToAdd] = useState(false);
+  const [addPasswordError, setAddPasswordError] = useState('');
+  const [addPasswordSuccess, setAddPasswordSuccess] = useState('');
+  const [isAddingPassword, setIsAddingPassword] = useState(false);
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -42,6 +55,7 @@ const CustomerProfilePage: React.FC = () => {
           phoneNumber: data.phoneNumber || '',
           address: data.address || ''
         });
+        setHasPassword(data.hasPassword);
       } catch (err) {
         setError('Failed to load profile data');
       } finally {
@@ -118,6 +132,46 @@ const CustomerProfilePage: React.FC = () => {
       }
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleAddPassword = async () => {
+    setAddPasswordError('');
+    setAddPasswordSuccess('');
+
+    if (!newPasswordToAdd || !confirmPasswordToAdd) {
+      setAddPasswordError('New password and confirm password are required.');
+      return;
+    }
+    if (!newPasswordToAdd.trim()) {
+      setAddPasswordError('Password cannot be blank or whitespace only.');
+      return;
+    }
+    if (newPasswordToAdd.length < 8) {
+      setAddPasswordError('New password must be at least 8 characters.');
+      return;
+    }
+    if (newPasswordToAdd.length > 72) {
+      setAddPasswordError('New password must be at most 72 characters.');
+      return;
+    }
+    if (newPasswordToAdd !== confirmPasswordToAdd) {
+      setAddPasswordError('New passwords do not match.');
+      return;
+    }
+
+    setIsAddingPassword(true);
+    try {
+      await authApi.setPassword({ newPassword: newPasswordToAdd, confirmPassword: confirmPasswordToAdd });
+      setAddPasswordSuccess('Password added successfully. You can now also log in with your email and password.');
+      setHasPassword(true);
+      setNewPasswordToAdd('');
+      setConfirmPasswordToAdd('');
+      setTimeout(() => setAddPasswordSuccess(''), 5000);
+    } catch (err: any) {
+      setAddPasswordError(err?.response?.data?.error || 'Failed to add password. Please try again.');
+    } finally {
+      setIsAddingPassword(false);
     }
   };
 
@@ -221,120 +275,224 @@ const CustomerProfilePage: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-              {/* Current Password */}
-              <div className="form-group">
-                <label className="form-label">Current Password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    className="form-input"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter your current password"
-                    style={passwordError && !currentPassword ? { borderColor: '#DC2626', backgroundColor: '#FEF2F2' } : {}}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
-                  >
-                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+              {hasPassword === false ? (
+                <>
+                  {/* Google-only account: no password set yet */}
+                  <p style={{ fontSize: '0.875rem', color: 'var(--gray-500)', margin: 0 }}>
+                    You signed in with Google. Add a password so you can also log in with your email.
+                  </p>
 
-              {/* New Password */}
-              <div className="form-group">
-                <label className="form-label">New Password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    className="form-input"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password (min 8 characters)"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
-                  >
-                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+                  {/* New Password (Add) */}
+                  <div className="form-group">
+                    <label className="form-label">New Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showNewPasswordToAdd ? 'text' : 'password'}
+                        className="form-input"
+                        value={newPasswordToAdd}
+                        onChange={(e) => setNewPasswordToAdd(e.target.value)}
+                        placeholder="Enter new password (min 8 characters)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPasswordToAdd(!showNewPasswordToAdd)}
+                        style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
+                      >
+                        {showNewPasswordToAdd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Confirm New Password */}
-              <div className="form-group">
-                <label className="form-label">Confirm New Password</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    className="form-input"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
-                    style={confirmPassword && newPassword !== confirmPassword ? { borderColor: '#DC2626', backgroundColor: '#FEF2F2' } : {}}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
-                  >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {confirmPassword && newPassword !== confirmPassword && (
-                  <span style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '0.25rem', display: 'block' }}>
-                    Passwords do not match.
-                  </span>
-                )}
-              </div>
+                  {/* Confirm New Password (Add) */}
+                  <div className="form-group">
+                    <label className="form-label">Confirm New Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showConfirmPasswordToAdd ? 'text' : 'password'}
+                        className="form-input"
+                        value={confirmPasswordToAdd}
+                        onChange={(e) => setConfirmPasswordToAdd(e.target.value)}
+                        placeholder="Re-enter new password"
+                        style={confirmPasswordToAdd && newPasswordToAdd !== confirmPasswordToAdd ? { borderColor: '#DC2626', backgroundColor: '#FEF2F2' } : {}}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPasswordToAdd(!showConfirmPasswordToAdd)}
+                        style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
+                      >
+                        {showConfirmPasswordToAdd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {confirmPasswordToAdd && newPasswordToAdd !== confirmPasswordToAdd && (
+                      <span style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '0.25rem', display: 'block' }}>
+                        Passwords do not match.
+                      </span>
+                    )}
+                  </div>
 
-              {/* Password Error */}
-              {passwordError && (
-                <div style={{ backgroundColor: '#FEF2F2', color: '#DC2626', padding: '0.875rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: '1px solid #FECACA' }}>
-                  <AlertCircle size={16} />
-                  {passwordError}
-                </div>
-              )}
-
-              {/* Password Success */}
-              {passwordSuccess && (
-                <div style={{ backgroundColor: '#DCFCE7', color: '#16A34A', padding: '0.875rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: '1px solid #BBF7D0' }}>
-                  <CheckCircle2 size={16} />
-                  {passwordSuccess}
-                </div>
-              )}
-
-              {/* Change Password Button */}
-              <div>
-                <button
-                  type="button"
-                  onClick={handleChangePassword}
-                  disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
-                  style={{
-                    padding: '0.7rem 1.5rem',
-                    backgroundColor: 'var(--gray-800, #1f2937)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    cursor: isChangingPassword || !currentPassword || !newPassword || !confirmPassword ? 'not-allowed' : 'pointer',
-                    opacity: isChangingPassword || !currentPassword || !newPassword || !confirmPassword ? 0.5 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
-                >
-                  {isChangingPassword ? (
-                    <><Loader2 className="animate-spin" size={16} /> Changing...</>
-                  ) : (
-                    <><Lock size={16} /> Change Password</>
+                  {/* Add Password Error */}
+                  {addPasswordError && (
+                    <div style={{ backgroundColor: '#FEF2F2', color: '#DC2626', padding: '0.875rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: '1px solid #FECACA' }}>
+                      <AlertCircle size={16} />
+                      {addPasswordError}
+                    </div>
                   )}
-                </button>
-              </div>
+
+                  {/* Add Password Success */}
+                  {addPasswordSuccess && (
+                    <div style={{ backgroundColor: '#DCFCE7', color: '#16A34A', padding: '0.875rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: '1px solid #BBF7D0' }}>
+                      <CheckCircle2 size={16} />
+                      {addPasswordSuccess}
+                    </div>
+                  )}
+
+                  {/* Add Password Button */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleAddPassword}
+                      disabled={isAddingPassword || !newPasswordToAdd || !confirmPasswordToAdd}
+                      style={{
+                        padding: '0.7rem 1.5rem',
+                        backgroundColor: 'var(--gray-800, #1f2937)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        cursor: isAddingPassword || !newPasswordToAdd || !confirmPasswordToAdd ? 'not-allowed' : 'pointer',
+                        opacity: isAddingPassword || !newPasswordToAdd || !confirmPasswordToAdd ? 0.5 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      {isAddingPassword ? (
+                        <><Loader2 className="animate-spin" size={16} /> Adding...</>
+                      ) : (
+                        <><Lock size={16} /> Add Password</>
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Current Password */}
+                  <div className="form-group">
+                    <label className="form-label">Current Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        className="form-input"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter your current password"
+                        style={passwordError && !currentPassword ? { borderColor: '#DC2626', backgroundColor: '#FEF2F2' } : {}}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
+                      >
+                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div className="form-group">
+                    <label className="form-label">New Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        className="form-input"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min 8 characters)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
+                      >
+                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div className="form-group">
+                    <label className="form-label">Confirm New Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        className="form-input"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter new password"
+                        style={confirmPassword && newPassword !== confirmPassword ? { borderColor: '#DC2626', backgroundColor: '#FEF2F2' } : {}}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}
+                      >
+                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {confirmPassword && newPassword !== confirmPassword && (
+                      <span style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '0.25rem', display: 'block' }}>
+                        Passwords do not match.
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Password Error */}
+                  {passwordError && (
+                    <div style={{ backgroundColor: '#FEF2F2', color: '#DC2626', padding: '0.875rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: '1px solid #FECACA' }}>
+                      <AlertCircle size={16} />
+                      {passwordError}
+                    </div>
+                  )}
+
+                  {/* Password Success */}
+                  {passwordSuccess && (
+                    <div style={{ backgroundColor: '#DCFCE7', color: '#16A34A', padding: '0.875rem 1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: '1px solid #BBF7D0' }}>
+                      <CheckCircle2 size={16} />
+                      {passwordSuccess}
+                    </div>
+                  )}
+
+                  {/* Change Password Button */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleChangePassword}
+                      disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+                      style={{
+                        padding: '0.7rem 1.5rem',
+                        backgroundColor: 'var(--gray-800, #1f2937)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        cursor: isChangingPassword || !currentPassword || !newPassword || !confirmPassword ? 'not-allowed' : 'pointer',
+                        opacity: isChangingPassword || !currentPassword || !newPassword || !confirmPassword ? 0.5 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      {isChangingPassword ? (
+                        <><Loader2 className="animate-spin" size={16} /> Changing...</>
+                      ) : (
+                        <><Lock size={16} /> Change Password</>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
 
             </div>
           </div>

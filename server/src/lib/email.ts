@@ -93,6 +93,43 @@ export const sendVerificationEmail = async (
   }
 };
 
+export const sendPasswordAddedEmail = async (
+  email: string,
+  fullName: string
+): Promise<void> => {
+  const forgotPasswordUrl = `${APP_URL}/forgot-password`;
+
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `A password was added to your account — ${APP_NAME}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #1a1a1a;">Password Added</h2>
+        <p style="color: #444; font-size: 15px;">
+          Hi ${fullName}, a password was just added to your ${APP_NAME} account, so you can now log in
+          with your email and password in addition to Google Sign-In.
+        </p>
+        <p style="color: #444; font-size: 15px;">
+          If this wasn't you, reset your password immediately.
+        </p>
+        <a href="${forgotPasswordUrl}"
+           style="display: inline-block; margin: 24px 0; padding: 12px 24px;
+                  background-color: #2563eb; color: white; text-decoration: none;
+                  border-radius: 6px; font-size: 15px; font-weight: bold;">
+          Reset My Password
+        </a>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #aaa; font-size: 12px;">${APP_NAME} · Car Rental Management</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    throw new Error(`Resend email error: ${error.message}`);
+  }
+};
+
 export const sendApprovalEmail = async (
   email: string,
   fullName: string

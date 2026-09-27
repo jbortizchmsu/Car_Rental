@@ -34,6 +34,54 @@ beforeEach(() => {
   prismaMock.user.findUnique.mockResolvedValue(CUSTOMER_USER as any);
 });
 
+describe('GET /api/customer/profile', () => {
+  function getProfileRequest() {
+    return request(app)
+      .get('/api/customer/profile')
+      .set('Authorization', `Bearer ${customerToken}`);
+  }
+
+  test('passwordHash set → hasPassword: true, passwordHash never included in the response', async () => {
+    prismaMock.user.findUnique.mockImplementation(((args: any) => {
+      // First call is the authenticate middleware's own lookup; second is the route's.
+      if (args?.select?.passwordHash !== undefined) {
+        return Promise.resolve({
+          id: 'cust-1', email: 'jane@example.com', fullName: 'Jane Dela Cruz', role: 'customer',
+          phoneNumber: '09123456789', address: 'Bacolod City', avatarUrl: null, createdAt: new Date(),
+          passwordHash: 'hashed-value',
+        } as any);
+      }
+      return Promise.resolve(CUSTOMER_USER as any);
+    }) as any);
+
+    const res = await getProfileRequest();
+
+    expect(res.status).toBe(200);
+    expect(res.body.hasPassword).toBe(true);
+    expect(res.body.passwordHash).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain('hashed-value');
+  });
+
+  test('passwordHash null (Google-only account) → hasPassword: false', async () => {
+    prismaMock.user.findUnique.mockImplementation(((args: any) => {
+      if (args?.select?.passwordHash !== undefined) {
+        return Promise.resolve({
+          id: 'cust-1', email: 'jane@example.com', fullName: 'Jane Dela Cruz', role: 'customer',
+          phoneNumber: null, address: null, avatarUrl: null, createdAt: new Date(),
+          passwordHash: null,
+        } as any);
+      }
+      return Promise.resolve(CUSTOMER_USER as any);
+    }) as any);
+
+    const res = await getProfileRequest();
+
+    expect(res.status).toBe(200);
+    expect(res.body.hasPassword).toBe(false);
+    expect(res.body.passwordHash).toBeUndefined();
+  });
+});
+
 describe('PUT /api/customer/profile', () => {
   test('valid full update → 200, all fields passed through trimmed', async () => {
     prismaMock.user.update.mockResolvedValue({
