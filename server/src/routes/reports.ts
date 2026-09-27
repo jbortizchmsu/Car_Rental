@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin } from '../middleware/auth';
+import { chooseGrouping, buildReportPeriods } from '../lib/report-periods';
 
 const router = Router();
 
@@ -146,6 +147,76 @@ router.get('/revenue', authenticate, authorizeAdmin, async (req, res) => {
     } catch (_) {}
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch revenue report' });
+  }
+});
+
+// 2b. Revenue Trend — net operating profit grouped into day/week/month periods over the
+// same range /revenue reports a single total for. Read-only; does not alter /revenue's
+// own totals or date-filter logic in any way.
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+router.get('/revenue-trend', authenticate, authorizeAdmin, async (req, res) => {
+  const { startDate, endDate } = req.query;
+
+  if (typeof startDate !== 'string' || typeof endDate !== 'string' || !startDate || !endDate) {
+    return res.status(400).json({ error: 'startDate and endDate are required.' });
+  }
+  if (!DATE_ONLY_PATTERN.test(startDate) || !DATE_ONLY_PATTERN.test(endDate)) {
+    return res.status(400).json({ error: 'startDate and endDate must be valid dates.' });
+  }
+  const startProbe = new Date(`${startDate}T00:00:00+08:00`);
+  const endProbe = new Date(`${endDate}T00:00:00+08:00`);
+  if (isNaN(startProbe.getTime()) || isNaN(endProbe.getTime())) {
+    return res.status(400).json({ error: 'startDate and endDate must be valid dates.' });
+  }
+  if (startProbe.getTime() > endProbe.getTime()) {
+    return res.status(400).json({ error: 'startDate must not be after endDate.' });
+  }
+
+  try {
+    const grouping = chooseGrouping(startDate, endDate);
+    const periods = buildReportPeriods(startDate, endDate, grouping);
+
+    // Same overall bounds as /revenue's own getDateFilter(startDate, endDate) — reused
+    // exactly (not recomputed) so the sum of every period below is guaranteed to equal
+    // /revenue's own total for this exact range, even though getDateFilter's gte/lte
+    // aren't quite the same time basis as the Manila-calendar period boundaries used to
+    // split that same record set below (every fetched record still falls inside the
+    // full span of periods, so the split loses nothing — see report-periods.ts).
+    const dateFilter = getDateFilter(startDate, endDate);
+
+    const [payments, maintenanceLogs] = await Promise.all([
+      prisma.payment.findMany({
+        where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] }, createdAt: dateFilter },
+        select: { amount: true, createdAt: true }
+      }),
+      prisma.maintenanceLog.findMany({
+        where: { serviceDate: dateFilter },
+        select: { cost: true, serviceDate: true }
+      })
+    ]);
+
+    const result = periods.map((period) => {
+      const revenue = payments
+        .filter((p) => p.createdAt >= period.start && p.createdAt <= period.end)
+        .reduce((sum, p) => sum + Number(p.amount), 0);
+      const maintenanceCost = maintenanceLogs
+        .filter((m) => m.serviceDate >= period.start && m.serviceDate <= period.end)
+        .reduce((sum, m) => sum + Number(m.cost || 0), 0);
+
+      return {
+        label: period.label,
+        startDate: period.startDateStr,
+        revenue,
+        maintenanceCost,
+        netProfit: revenue - maintenanceCost
+      };
+    });
+
+    res.json({ grouping, periods: result });
+  } catch (error) {
+    console.error('Revenue trend report error:', error);
+    res.status(500).json({ error: 'Failed to fetch revenue trend' });
   }
 });
 

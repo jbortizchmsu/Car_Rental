@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  BarChart3, 
-  Calendar, 
-  Download, 
-  ChevronRight, 
-  Clock, 
+import {
+  Calendar,
+  Download,
+  ChevronRight,
+  Clock,
   Loader2,
   TrendingUp,
   CreditCard,
-  Smartphone,
   CheckCircle2,
   AlertTriangle,
   Car,
@@ -22,6 +20,8 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
+import RevenueSummaryPanels from '../components/RevenueSummaryPanels';
+import type { TrendPeriod } from '../components/RevenueSummaryPanels';
 import { formatDate } from '../utils/formatDate';
 import { useToast } from '../components/ToastProvider';
 import { usePageHeader } from '../contexts/PageHeaderContext';
@@ -35,6 +35,9 @@ const AdminReportsPage: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [data, setData] = useState<any>(null);
+  // Independent from `data`/`loading` on purpose: a trend-fetch failure must only hide
+  // the graph, never blank out the rest of the (already-successfully-loaded) panel.
+  const [trendPeriods, setTrendPeriods] = useState<TrendPeriod[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -85,13 +88,23 @@ const AdminReportsPage: React.FC = () => {
     setCurrentPage(1);
     setLoading(true);
     setData(null); // clear stale data — prevents wrong-shape render while new fetch is in flight
+    if (reportType === 'revenue') setTrendPeriods(null);
     try {
       let response;
       const params = { startDate: sDate, endDate: eDate };
-      
+
       switch (reportType) {
         case 'revenue':
+          // Fetched together so the trend graph always updates in lockstep with the
+          // totals above it. The trend request is caught on its own — if it fails, only
+          // the graph stays hidden (trendPeriods left null); the totals still render.
           response = await adminApi.getRevenueReport(params);
+          adminApi.getRevenueTrend(params)
+            .then((trendRes) => setTrendPeriods(trendRes.data?.periods || []))
+            .catch((err) => {
+              console.error('Error fetching revenue trend:', err);
+              setTrendPeriods([]);
+            });
           break;
         case 'bookings':
           response = await adminApi.getBookingReport(params);
@@ -328,63 +341,16 @@ const AdminReportsPage: React.FC = () => {
 
     return (
       <div className="reports-dashboard">
-        <div className="reports-kpi-grid">
-          <div className="reports-kpi-card">
-            <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F0FDF4', color: '#16A34A' }}>
-              <TrendingUp size={20} />
-            </div>
-            <div className="kpi-value">₱{totalRev.toLocaleString()}</div>
-            <div className="kpi-label">Total Verified Revenue</div>
-          </div>
-          <div className="reports-kpi-card">
-            <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F0F9FF', color: '#0284C7' }}>
-              <CreditCard size={20} />
-            </div>
-            <div className="kpi-value">₱{fullGcash.toLocaleString()}</div>
-            <div className="kpi-label">Full GCash Payments</div>
-          </div>
-          <div className="reports-kpi-card">
-            <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F5F3FF', color: '#7C3AED' }}>
-              <Smartphone size={20} />
-            </div>
-            <div className="kpi-value">₱{downpaymentGcash.toLocaleString()}</div>
-            <div className="kpi-label">Downpayments Received</div>
-          </div>
-          <div className="reports-kpi-card">
-            <div className="kpi-icon-wrapper" style={{ backgroundColor: '#FEF2F2', color: '#DC2626' }}>
-              <DollarSign size={20} />
-            </div>
-            <div className="kpi-value">₱{remainingCash.toLocaleString()}</div>
-            <div className="kpi-label">Cash Collected at Pickup</div>
-          </div>
-          <div className="reports-kpi-card">
-            <div className="kpi-icon-wrapper" style={{ backgroundColor: '#F9FAFB', color: '#4B5563' }}>
-              <BarChart3 size={20} />
-            </div>
-            <div className="kpi-value">₱{Math.round(avgBookingValue).toLocaleString()}</div>
-            <div className="kpi-label">Avg. Booking Value</div>
-          </div>
-          {data.maintenanceCost !== undefined && (
-            <div className="reports-kpi-card">
-              <div className="kpi-icon-wrapper" style={{ backgroundColor: '#FEF3C7', color: '#D97706' }}>
-                <Wrench size={20} />
-              </div>
-              <div className="kpi-value">₱{(data.maintenanceCost || 0).toLocaleString()}</div>
-              <div className="kpi-label">Fleet Maintenance</div>
-            </div>
-          )}
-          {data.netProfit !== undefined && (
-            <div className="reports-kpi-card">
-              <div className="kpi-icon-wrapper" style={{ backgroundColor: '#ECFDF5', color: '#059669' }}>
-                <TrendingUp size={20} />
-              </div>
-              <div className="kpi-value" style={{ color: data.netProfit >= 0 ? '#059669' : '#DC2626' }}>
-                ₱{(data.netProfit || 0).toLocaleString()}
-              </div>
-              <div className="kpi-label">Net Operating Profit</div>
-            </div>
-          )}
-        </div>
+        <RevenueSummaryPanels
+          totalRevenue={totalRev}
+          fullGcash={fullGcash}
+          downpaymentGcash={downpaymentGcash}
+          remainingCash={remainingCash}
+          maintenanceCost={Number(data.maintenanceCost || 0)}
+          netProfit={Number(data.netProfit || 0)}
+          avgBookingValue={avgBookingValue}
+          trendPeriods={trendPeriods}
+        />
 
         <div className="reports-chart-grid">
           <div className="chart-card">

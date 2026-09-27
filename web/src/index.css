@@ -1891,6 +1891,211 @@ h5 {
   letter-spacing: 0.05em;
 }
 
+/* --- Revenue + Net Operating Profit summary panels (Revenue report tab only) — new,
+   scoped class names; .reports-kpi-card and friends above are left untouched since
+   other report tabs still use them for their own KPI cards. --- */
+.revenue-summary-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 767px) {
+  .revenue-summary-panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.revenue-summary-panel {
+  background: var(--white);
+  padding: 1.5rem;
+  border-radius: 24px;
+  border: 1px solid var(--gray-100);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.revenue-panel-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.revenue-panel-value {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: var(--black);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.revenue-stacked-bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--gray-100);
+}
+
+.revenue-stacked-bar-segment {
+  height: 100%;
+}
+
+.revenue-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+}
+
+.revenue-legend-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.revenue-legend-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.revenue-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.revenue-legend-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+.revenue-legend-amount {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--black);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.net-profit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.net-profit-value {
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.revenue-trend-wrap {
+  flex: 1 1 220px;
+  min-width: 220px;
+}
+
+.revenue-trend-graph {
+  position: relative;
+  width: 100%;
+  height: 72px;
+}
+
+.revenue-trend-graph svg {
+  width: 100%;
+  height: 72px;
+  display: block;
+  cursor: crosshair;
+}
+
+.revenue-trend-tooltip {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -100%);
+  background: var(--black);
+  color: var(--white);
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+}
+
+.revenue-trend-tooltip-label {
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.revenue-trend-tooltip-value {
+  font-weight: 800;
+}
+
+.revenue-trend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.revenue-trend-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--gray-400);
+  white-space: nowrap;
+}
+
+.revenue-panel-divider {
+  height: 1px;
+  background: var(--gray-100);
+}
+
+.net-profit-metrics {
+  display: flex;
+  gap: 2rem;
+}
+
+.net-profit-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.net-profit-metric-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.net-profit-metric-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--black);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .reports-filter-bar {
   display: flex;
   justify-content: space-between;

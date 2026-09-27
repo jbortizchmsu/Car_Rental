@@ -133,6 +133,7 @@ export const paymentsApi = {
 export const adminApi = {
   getSummaryReport: () => api.get('/admin/reports/summary'),
   getRevenueReport: (params: any) => api.get('/admin/reports/revenue', { params }),
+  getRevenueTrend: (params: any) => api.get('/admin/reports/revenue-trend', { params }),
   getBookingReport: (params: any) => api.get('/admin/reports/bookings', { params }),
   getVehicleReport: (params?: any) => api.get('/admin/reports/vehicles', { params }),
   getPaymentReport: (params: any) => api.get('/admin/reports/payments', { params }),
