@@ -5,6 +5,7 @@ import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
 import { io } from '../index';
 import { createNotification } from '../lib/notifications';
 import { runGeofenceCheck } from '../lib/geofence-check';
+import { parseLatLng } from '../lib/numeric-input';
 
 const router = Router();
 
@@ -18,6 +19,10 @@ const RETURNED_BOOKING_GRACE_HOURS = 48;
 // Mobile: Update Location
 router.post('/location', authenticate, async (req: AuthRequest, res) => {
   const { trackingSessionId, bookingId, vehicleId, latitude, longitude, speed, heading, accuracy, recordedAt } = req.body;
+
+  if (!parseLatLng(latitude, longitude)) {
+    return res.status(400).json({ error: 'latitude and longitude must be finite numbers within valid range (-90 to 90, -180 to 180).' });
+  }
 
   try {
     // 1. Validate Booking & Session
@@ -138,6 +143,11 @@ router.post('/location/batch', authenticate, async (req: AuthRequest, res) => {
         continue;
       }
 
+      if (!parseLatLng(latitude, longitude)) {
+        rejected.push({ point, reason: 'latitude/longitude out of valid range' });
+        continue;
+      }
+
       try {
         let booking = bookingCache.get(bookingId);
         if (booking === undefined) {
@@ -223,7 +233,7 @@ router.post('/location/batch', authenticate, async (req: AuthRequest, res) => {
       }
     }
 
-    res.status(201).json({ saved, rejected });
+    res.status(201).json({ saved, rejected, skipped: rejected.length });
   } catch (error) {
     console.error('GPS Batch Record Error:', error);
     res.status(500).json({ error: 'Failed to record batch' });

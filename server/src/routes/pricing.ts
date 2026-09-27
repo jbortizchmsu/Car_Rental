@@ -2,8 +2,13 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin } from '../middleware/auth';
 import { calculateBookingPrice } from '../lib/pricing';
+import { parseNonNegativeNumber } from '../lib/numeric-input';
 
 const router = Router();
+
+// Kept in sync with lib/pricing.ts's calculateBookingPrice, which only ever
+// recognizes these four rule types when applying a multiplier.
+const PRICING_RULE_TYPES = ['SEASONAL', 'WEEKEND', 'DEMAND', 'CATEGORY'];
 
 // --- PUBLIC / CUSTOMER ROUTES ---
 
@@ -54,12 +59,21 @@ router.post('/admin/rules', authenticate, authorizeAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Name, type, and multiplier are required.' });
   }
 
+  if (!PRICING_RULE_TYPES.includes(type)) {
+    return res.status(400).json({ error: 'Type must be one of SEASONAL, WEEKEND, DEMAND, CATEGORY.' });
+  }
+
+  const parsedMultiplier = parseNonNegativeNumber(multiplier);
+  if (parsedMultiplier === null || parsedMultiplier <= 0 || parsedMultiplier > 10) {
+    return res.status(400).json({ error: 'Multiplier must be a number greater than 0 and at most 10.' });
+  }
+
   try {
     const rule = await prisma.pricingRule.create({
       data: {
         name,
         type,
-        multiplier: parseFloat(multiplier),
+        multiplier: parsedMultiplier,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         vehicleCategory,
@@ -83,13 +97,25 @@ router.put('/admin/rules/:id', authenticate, authorizeAdmin, async (req, res) =>
     vehicleCategory, utilizationThreshold, description, isActive 
   } = req.body;
 
+  if (type !== undefined && !PRICING_RULE_TYPES.includes(type)) {
+    return res.status(400).json({ error: 'Type must be one of SEASONAL, WEEKEND, DEMAND, CATEGORY.' });
+  }
+
+  let parsedMultiplier: number | undefined = undefined;
+  if (multiplier !== undefined) {
+    parsedMultiplier = parseNonNegativeNumber(multiplier) ?? undefined;
+    if (parsedMultiplier === undefined || parsedMultiplier <= 0 || parsedMultiplier > 10) {
+      return res.status(400).json({ error: 'Multiplier must be a number greater than 0 and at most 10.' });
+    }
+  }
+
   try {
     const rule = await prisma.pricingRule.update({
       where: { id },
       data: {
         name,
         type,
-        multiplier: multiplier !== undefined ? parseFloat(multiplier) : undefined,
+        multiplier: parsedMultiplier,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
         vehicleCategory,

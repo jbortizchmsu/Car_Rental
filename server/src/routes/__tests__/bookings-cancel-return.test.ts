@@ -255,6 +255,53 @@ describe('POST /api/bookings/:id/return', () => {
     );
   });
 
+  test('odometer non-numeric string → 400, not silently saved as NaN', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
+
+    const res = await returnRequest({ odometer: 'abc' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Return odometer must be a valid, non-negative number.');
+    expect(prismaMock.booking.update).not.toHaveBeenCalled();
+  });
+
+  test('odometer negative → 400', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
+
+    const res = await returnRequest({ odometer: '-10' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Return odometer must be a valid, non-negative number.');
+  });
+
+  test('odometer of exactly 0 (string) is accepted', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(
+      makeBooking({ releaseOdometerKm: null, vehicle: { brand: 'Toyota', model: 'Vios', currentOdometerKm: 0 } })
+    );
+    mockSuccessfulReturn();
+
+    const res = await returnRequest({ odometer: '0' });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ returnOdometerKm: 0 }) })
+    );
+  });
+
+  test('whitespace-only odometer is treated as not provided (defaults to 0, not a 400)', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(
+      makeBooking({ releaseOdometerKm: 1500, vehicle: { brand: 'Toyota', model: 'Vios', currentOdometerKm: 9999 } })
+    );
+    mockSuccessfulReturn();
+
+    const res = await returnRequest({ odometer: '   ' });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ returnOdometerKm: 0 }) })
+    );
+  });
+
   test('damageFound with damageDetails → creates a damage report and notifies the customer with cost text', async () => {
     prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
     mockSuccessfulReturn();

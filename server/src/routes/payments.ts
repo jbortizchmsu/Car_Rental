@@ -5,6 +5,7 @@ import { upload } from '../middleware/upload';
 import { createNotification, createAdminNotification } from '../lib/notifications';
 import { checkVehicleAvailability } from '../lib/booking-availability';
 import { paymentTypeSchema } from '../lib/validation';
+import { parseNonNegativeNumber } from '../lib/numeric-input';
 
 const router = Router();
 
@@ -238,11 +239,16 @@ router.post('/booking/:id/confirm-cash', authenticate, authorizeAdmin, async (re
     const booking = await prisma.booking.findUnique({ where: { id } });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
+    const parsedAmount = parseNonNegativeNumber(amount);
+    if (parsedAmount === null || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a valid number greater than 0.' });
+    }
+
     // Create payment record
     await prisma.payment.create({
       data: {
         bookingId: id,
-        amount: Number(amount),
+        amount: parsedAmount,
         paymentType: 'REMAINING_CASH',
         status: 'PAID_IN_PERSON',
         verifiedById: req.user!.id,

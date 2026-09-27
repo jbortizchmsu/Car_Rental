@@ -161,6 +161,49 @@ describe('POST /api/bookings/:id/release', () => {
     expect(res.body.error).toBe('Release odometer is required.');
   });
 
+  test('odometer empty string → 400 "required" (not a NaN parse error)', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
+
+    const res = await releaseRequest({ checklistConfirmed: true, odometer: '' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Release odometer is required.');
+  });
+
+  test('odometer non-numeric string → 400, not silently accepted as NaN', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
+
+    const res = await releaseRequest({ checklistConfirmed: true, odometer: 'abc' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Release odometer must be a valid, non-negative number.');
+  });
+
+  test('odometer negative → 400', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
+
+    const res = await releaseRequest({ checklistConfirmed: true, odometer: '-5' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Release odometer must be a valid, non-negative number.');
+  });
+
+  test('odometer of exactly 0 (string) is accepted, not rejected as falsy', async () => {
+    const releasedBooking = { id: 'booking-1', vehicleId: 'veh-1', customerId: 'cust-1', status: 'ACTIVE' };
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking({ destinationName: null }));
+    prismaMock.vehicle.findUnique.mockResolvedValue({ status: 'RESERVED' } as any);
+    prismaMock.booking.findFirst.mockResolvedValue(null);
+    prismaMock.booking.update.mockResolvedValue(releasedBooking as any);
+    prismaMock.vehicle.update.mockResolvedValue({} as any);
+
+    const res = await releaseRequest({ checklistConfirmed: true, odometer: '0' });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ releaseOdometerKm: 0 }) })
+    );
+  });
+
   test('final availability re-check finds a conflicting booking → 409', async () => {
     prismaMock.booking.findUnique.mockResolvedValue(makeBooking());
     // checkVehicleAvailability's own internal Prisma calls:

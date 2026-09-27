@@ -333,3 +333,92 @@ describe('POST /api/gps/location — geofence-breach alerting block', () => {
     expect(ioEmitMock).toHaveBeenCalledWith('geofence-alert-created', expect.anything());
   });
 });
+
+describe('POST /api/gps/location — coordinate range validation', () => {
+  test('latitude out of range (> 90) → 400, never reaches the DB', async () => {
+    const res = await locationRequest({ lat: 91, lng: 0 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('latitude and longitude');
+    expect(prismaMock.booking.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.vehicleLocation.create).not.toHaveBeenCalled();
+  });
+
+  test('longitude out of range (< -180) → 400', async () => {
+    const res = await locationRequest({ lat: 0, lng: -181 });
+
+    expect(res.status).toBe(400);
+  });
+
+  test('non-finite latitude (NaN via bad JSON coercion) → 400', async () => {
+    const res = await request(app)
+      .post('/api/gps/location')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({
+        trackingSessionId: 'session-1',
+        bookingId: 'booking-1',
+        vehicleId: 'veh-1',
+        latitude: 'not-a-number',
+        longitude: 0,
+      });
+
+    expect(res.status).toBe(400);
+  });
+
+  test('boundary values (90, 180) are accepted', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking({ geofenceActivatedAt: null }));
+
+    const res = await locationRequest({ lat: 90, lng: 180 });
+
+    expect(res.status).toBe(201);
+  });
+});
+
+describe('POST /api/gps/location/batch — coordinate range validation', () => {
+  function batchRequest(points: any[]) {
+    return request(app)
+      .post('/api/gps/location/batch')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ points });
+  }
+
+  test('one out-of-range point among valid points is skipped, not the whole batch', async () => {
+    prismaMock.booking.findUnique.mockResolvedValue(makeBooking({ geofenceActivatedAt: null }));
+
+    const validPoint = {
+      trackingSessionId: 'session-1',
+      bookingId: 'booking-1',
+      vehicleId: 'veh-1',
+      latitude: INSIDE_POINT.lat,
+      longitude: INSIDE_POINT.lng,
+      recordedAt: new Date().toISOString(),
+    };
+    const outOfRangePoint = { ...validPoint, latitude: 999 };
+
+    const res = await batchRequest([validPoint, outOfRangePoint]);
+
+    expect(res.status).toBe(201);
+    expect(res.body.saved).toBe(1);
+    expect(res.body.rejected).toHaveLength(1);
+    expect(res.body.rejected[0].reason).toBe('latitude/longitude out of valid range');
+    expect(res.body.skipped).toBe(1);
+  });
+
+  test('every point out of range → 201 with saved: 0 and full rejected/skipped detail (not a hard failure)', async () => {
+    const outOfRangePoint = {
+      trackingSessionId: 'session-1',
+      bookingId: 'booking-1',
+      vehicleId: 'veh-1',
+      latitude: 999,
+      longitude: 0,
+      recordedAt: new Date().toISOString(),
+    };
+
+    const res = await batchRequest([outOfRangePoint]);
+
+    expect(res.status).toBe(201);
+    expect(res.body.saved).toBe(0);
+    expect(res.body.skipped).toBe(1);
+    expect(prismaMock.vehicleLocation.create).not.toHaveBeenCalled();
+  });
+});

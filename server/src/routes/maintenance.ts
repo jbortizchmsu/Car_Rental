@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, authorizeAdmin, AuthRequest } from '../middleware/auth';
 import { calculateOilChangeStatus } from '../lib/maintenance-alerts';
+import { parseNonNegativeNumber, isBlank } from '../lib/numeric-input';
 
 const router = Router();
 
@@ -220,6 +221,22 @@ router.post('/logs', authenticate, authorizeAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Vehicle ID, service type, and description are required.' });
   }
 
+  let parsedCost: number | null = null;
+  if (!isBlank(cost)) {
+    parsedCost = parseNonNegativeNumber(cost);
+    if (parsedCost === null) {
+      return res.status(400).json({ error: 'Cost must be a valid, non-negative number.' });
+    }
+  }
+
+  let parsedOdometerKm: number | null = null;
+  if (!isBlank(req.body.odometerKm)) {
+    parsedOdometerKm = parseNonNegativeNumber(req.body.odometerKm);
+    if (parsedOdometerKm === null) {
+      return res.status(400).json({ error: 'Odometer reading must be a valid, non-negative number.' });
+    }
+  }
+
   try {
     const log = await (prisma.maintenanceLog as any).create({
       data: {
@@ -227,8 +244,8 @@ router.post('/logs', authenticate, authorizeAdmin, async (req, res) => {
         bookingId: bookingId || null,
         serviceType,
         description,
-        cost: cost ? Number(cost) : null,
-        odometerKm: req.body.odometerKm ? Number(req.body.odometerKm) : null,
+        cost: parsedCost,
+        odometerKm: parsedOdometerKm,
         serviceDate: serviceDate ? new Date(serviceDate) : new Date(),
         nextServiceDate: nextServiceDate ? new Date(nextServiceDate) : null,
         completedAt: status === 'COMPLETED' ? new Date() : null,
@@ -254,7 +271,7 @@ router.post('/logs', authenticate, authorizeAdmin, async (req, res) => {
       await prisma.vehicle.update({
         where: { id: vehicleId },
         data: { 
-          lastOilChangeOdometerKm: req.body.odometerKm ? Number(req.body.odometerKm) : log.vehicle.currentOdometerKm,
+          lastOilChangeOdometerKm: parsedOdometerKm !== null ? parsedOdometerKm : log.vehicle.currentOdometerKm,
           lastServiceDate: new Date()
         }
       });
@@ -280,14 +297,32 @@ router.put('/logs/:id', authenticate, authorizeAdmin, async (req, res) => {
   const { id } = req.params;
   const { serviceType, description, cost, serviceDate, nextServiceDate, status } = req.body;
 
+  let parsedCost: number | undefined = undefined;
+  if (!isBlank(cost)) {
+    const n = parseNonNegativeNumber(cost);
+    if (n === null) {
+      return res.status(400).json({ error: 'Cost must be a valid, non-negative number.' });
+    }
+    parsedCost = n;
+  }
+
+  let parsedOdometerKm: number | undefined = undefined;
+  if (!isBlank(req.body.odometerKm)) {
+    const n = parseNonNegativeNumber(req.body.odometerKm);
+    if (n === null) {
+      return res.status(400).json({ error: 'Odometer reading must be a valid, non-negative number.' });
+    }
+    parsedOdometerKm = n;
+  }
+
   try {
     const log = await (prisma.maintenanceLog as any).update({
       where: { id },
       data: {
         serviceType,
         description,
-        cost: cost ? Number(cost) : undefined,
-        odometerKm: req.body.odometerKm ? Number(req.body.odometerKm) : undefined,
+        cost: parsedCost,
+        odometerKm: parsedOdometerKm,
         serviceDate: serviceDate ? new Date(serviceDate) : undefined,
         nextServiceDate: nextServiceDate ? new Date(nextServiceDate) : undefined,
         completedAt: status === 'COMPLETED' ? new Date() : undefined,
@@ -320,6 +355,15 @@ router.put('/logs/:id', authenticate, authorizeAdmin, async (req, res) => {
 router.post('/vehicles/:vehicleId/mark-maintenance', authenticate, authorizeAdmin, async (req, res) => {
   const { vehicleId } = req.params;
   const { reason, odometerKm } = req.body || {};
+
+  let parsedOdometerKm: number | null = null;
+  if (!isBlank(odometerKm)) {
+    parsedOdometerKm = parseNonNegativeNumber(odometerKm);
+    if (parsedOdometerKm === null) {
+      return res.status(400).json({ error: 'Odometer reading must be a valid, non-negative number.' });
+    }
+  }
+
   try {
     const vehicle = await prisma.vehicle.update({
       where: { id: vehicleId },
@@ -334,7 +378,7 @@ router.post('/vehicles/:vehicleId/mark-maintenance', authenticate, authorizeAdmi
           serviceType: 'ROUTINE',
           description: reason.trim(),
           status: 'IN_PROGRESS',
-          odometerKm: odometerKm ? Number(odometerKm) : vehicle.currentOdometerKm,
+          odometerKm: parsedOdometerKm !== null ? parsedOdometerKm : vehicle.currentOdometerKm,
           serviceDate: new Date()
         }
       });

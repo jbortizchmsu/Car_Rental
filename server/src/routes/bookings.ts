@@ -8,6 +8,7 @@ import { checkVehicleAvailability } from '../lib/booking-availability';
 import { calculateBookingPrice } from '../lib/pricing';
 import { computeGeofence, generateCirclePolygon } from '../lib/negros-coords';
 import { bookingDateRangeSchema } from '../lib/validation';
+import { parseNonNegativeNumber, isBlank } from '../lib/numeric-input';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -633,8 +634,13 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
       return res.status(400).json({ error: 'Release checklist must be confirmed.' });
     }
 
-    if (!odometer) {
+    if (odometer === undefined || odometer === null || odometer === '') {
       return res.status(400).json({ error: 'Release odometer is required.' });
+    }
+
+    const parsedReleaseOdometer = parseNonNegativeNumber(odometer);
+    if (parsedReleaseOdometer === null) {
+      return res.status(400).json({ error: 'Release odometer must be a valid, non-negative number.' });
     }
 
     // Final conflict check before release — re-validating this booking's own already-scheduled
@@ -656,7 +662,7 @@ router.post('/:id/release', authenticate, authorizeAdmin, async (req: AuthReques
       data: {
         status: 'ACTIVE',
         releasedAt: new Date(),
-        releaseOdometerKm: parseFloat(odometer),
+        releaseOdometerKm: parsedReleaseOdometer,
         releaseChecklistConfirmed: true,
         pickupNotes: notes,
         geofenceActivatedAt: new Date(),
@@ -811,7 +817,15 @@ router.post('/:id/return', authenticate, authorizeAdmin, async (req: AuthRequest
     });
     if (!existingBooking) return res.status(404).json({ error: 'Booking not found' });
 
-    const returnKm = odometer ? parseFloat(odometer) : 0;
+    let returnKm = 0;
+    if (!isBlank(odometer)) {
+      const parsedReturnOdometer = parseNonNegativeNumber(odometer);
+      if (parsedReturnOdometer === null) {
+        return res.status(400).json({ error: 'Return odometer must be a valid, non-negative number.' });
+      }
+      returnKm = parsedReturnOdometer;
+    }
+
     const releaseKm = Number(existingBooking.releaseOdometerKm) || Number(existingBooking.vehicle.currentOdometerKm) || 0;
     const tripDistance = Math.max(0, returnKm - releaseKm);
 
