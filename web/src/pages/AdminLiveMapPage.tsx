@@ -14,6 +14,7 @@ import { GoogleMap, Marker, InfoWindow, TrafficLayer, Circle, Polygon, Polyline 
 import { useGoogleMaps } from '../contexts/GoogleMapsContext';
 import { buildTrail, GAP_POLYLINE_OPTIONS } from '../utils/gps-trail';
 import type { RawGpsPoint, ShopLocation } from '../utils/gps-trail';
+import { calculateBearing, distanceMeters, shortestRotationTarget, isValidReportedHeading, MIN_MOVEMENT_METERS } from '../utils/heading';
 
 interface ActiveRental {
   id: string;
@@ -30,6 +31,7 @@ interface ActiveRental {
     speed: number | null;
     accuracy: number | null;
     batteryLevel: number | null;
+    heading?: number | null;
   }>;
   geofenceAlerts: any[];
   releasedAt?: string | null;
@@ -88,6 +90,124 @@ function polygonCentroid(points: Array<{ lat: number; lng: number }>): { lat: nu
   const sum = points.reduce((acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }), { lat: 0, lng: 0 });
   return { lat: sum.lat / points.length, lng: sum.lng / points.length };
 }
+
+// Material Design's "navigation" icon (a compass-needle/kite shape), 24x24 viewBox —
+// the same style of heading-aware arrow Google Maps itself uses for a moving
+// location puck. Replaces the previous static car silhouette, which never rotated.
+const NAV_ARROW_PATH = 'M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z';
+
+const ROTATION_ANIM_MS = 400;
+
+interface VehicleMarkerProps {
+  position: { lat: number; lng: number };
+  heading: number | null | undefined;
+  recordedAt: string;
+  color: string;
+  onClick: () => void;
+  onMouseOver: () => void;
+  onMouseOut: () => void;
+}
+
+/**
+ * The live vehicle marker for one rental. Split out from the parent's .map() into
+ * its own component so each vehicle gets its own independent rotation-animation
+ * state via hooks (not legal to call hooks per-iteration inside a plain .map()).
+ * Mounted with key={rental.id} in the parent, so this component's refs persist
+ * across re-renders for the lifetime of that same rental's marker.
+ */
+const VehicleMarker: React.FC<VehicleMarkerProps> = ({ position, heading, recordedAt, color, onClick, onMouseOver, onMouseOut }) => {
+  // Last point actually used to update the heading — lets us gate on "moved enough"
+  // and reject out-of-order/duplicate updates, independently of React's render cycle.
+  const lastRef = useRef<{ lat: number; lng: number; recordedAt: number; headingDeg: number | null } | null>(null);
+  const [displayAngle, setDisplayAngle] = useState<number | null>(null);
+  const displayAngleRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const prev = lastRef.current;
+    const recordedAtMs = recordedAt ? new Date(recordedAt).getTime() : NaN;
+
+    // Out-of-order or duplicate updates (same or older timestamp than the last point
+    // we already used) must never flip the arrow.
+    if (prev && Number.isFinite(recordedAtMs) && recordedAtMs <= prev.recordedAt) {
+      return;
+    }
+
+    let targetHeading: number | null = prev?.headingDeg ?? null;
+
+    if (isValidReportedHeading(heading)) {
+      targetHeading = heading;
+    } else if (prev) {
+      const moved = distanceMeters(prev.lat, prev.lng, position.lat, position.lng);
+      if (moved > MIN_MOVEMENT_METERS) {
+        targetHeading = calculateBearing(prev.lat, prev.lng, position.lat, position.lng);
+      }
+      // else: stationary (or GPS jitter under the threshold) — keep the last known
+      // heading unchanged rather than spinning the arrow while parked.
+    }
+
+    lastRef.current = {
+      lat: position.lat,
+      lng: position.lng,
+      recordedAt: Number.isFinite(recordedAtMs) ? recordedAtMs : (prev?.recordedAt ?? 0),
+      headingDeg: targetHeading,
+    };
+
+    if (targetHeading === null) {
+      return; // No heading known yet — render falls back to the "no direction" style below.
+    }
+
+    if (displayAngleRef.current === null) {
+      // First heading ever known for this vehicle — nothing to animate from yet.
+      displayAngleRef.current = targetHeading;
+      setDisplayAngle(targetHeading);
+      return;
+    }
+
+    const from = displayAngleRef.current;
+    const to = shortestRotationTarget(from, targetHeading);
+    const start = performance.now();
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / ROTATION_ANIM_MS);
+      const value = from + (to - from) * t;
+      displayAngleRef.current = value;
+      setDisplayAngle(value);
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position.lat, position.lng, recordedAt, heading]);
+
+  const hasHeading = displayAngle !== null;
+
+  return (
+    <Marker
+      position={position}
+      onClick={onClick}
+      onMouseOver={onMouseOver}
+      onMouseOut={onMouseOut}
+      icon={{
+        path: NAV_ARROW_PATH,
+        rotation: hasHeading ? displayAngle! : 0,
+        fillColor: color,
+        // Subtle "no direction yet" treatment for a brand-new vehicle with no
+        // heading and no second point to derive a bearing from — same icon/color,
+        // just faded, rather than inventing a new marker style.
+        fillOpacity: hasHeading ? 1 : 0.55,
+        strokeWeight: 2,
+        strokeColor: '#FFFFFF',
+        scale: 1.4,
+        anchor: new google.maps.Point(12, 12),
+      }}
+    />
+  );
+};
 
 const AdminLiveMapPage: React.FC = () => {
   const navigate = useNavigate();
@@ -299,7 +419,8 @@ const AdminLiveMapPage: React.FC = () => {
             recordedAt: newLoc.recordedAt,
             speed: newLoc.speed,
             accuracy: newLoc.accuracy || null,
-            batteryLevel: newLoc.batteryLevel || null
+            batteryLevel: newLoc.batteryLevel || null,
+            heading: newLoc.heading ?? null
           }]
         };
       }
@@ -329,7 +450,8 @@ const AdminLiveMapPage: React.FC = () => {
             recordedAt: newLoc.recordedAt,
             speed: newLoc.speed,
             accuracy: newLoc.accuracy || null,
-            batteryLevel: newLoc.batteryLevel || null
+            batteryLevel: newLoc.batteryLevel || null,
+            heading: newLoc.heading ?? null
           }]
         };
       }
@@ -487,20 +609,14 @@ const AdminLiveMapPage: React.FC = () => {
           
           return (
             <React.Fragment key={rental.id}>
-              <Marker
+              <VehicleMarker
                 position={{ lat: loc.latitude, lng: loc.longitude }}
+                heading={loc.heading}
+                recordedAt={loc.recordedAt}
+                color={rental.geofenceAlerts?.length > 0 ? '#DC2626' : (selectedRental?.id === rental.id ? '#000000' : '#AD9B8D')}
                 onClick={() => setPopupRentalId(rental.id)}
                 onMouseOver={() => setHoveredRental(rental)}
                 onMouseOut={() => setHoveredRental(null)}
-                icon={{
-                  path: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z',
-                  fillColor: rental.geofenceAlerts?.length > 0 ? '#DC2626' : (selectedRental?.id === rental.id ? '#000000' : '#AD9B8D'),
-                  fillOpacity: 1,
-                  strokeWeight: 2,
-                  strokeColor: '#FFFFFF',
-                  scale: 1.5,
-                  anchor: new google.maps.Point(12, 12)
-                }}
               />
               {(hoveredRental?.id === rental.id || popupRentalId === rental.id) && (
                 <InfoWindow

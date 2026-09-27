@@ -166,6 +166,7 @@ const HomeScreen = () => {
   const [trackingActive, setTrackingActive] = useState(false);
   const [lastLocation, setLastLocation] = useState<any>(null);
   const [trackingSession, setTrackingSession] = useState<any>(null);
+  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
 
   const fetchActiveBooking = async () => {
     try {
@@ -243,6 +244,45 @@ const HomeScreen = () => {
     return () => locationSubscription?.remove();
   }, [activeBooking, trackingSession]);
 
+  // Compass heading for "which way is my phone facing" — separate from the GPS
+  // position watcher above (course-over-ground from movement), and only reuses the
+  // location permission already granted/requested there; watchHeadingAsync needs no
+  // permission beyond that. Only runs while actively tracking, and is explicitly
+  // stopped (subscription.remove()) whenever tracking stops or this screen unmounts,
+  // so it never keeps the compass sensor running in the background to save battery.
+  useEffect(() => {
+    if (!trackingActive) {
+      setDeviceHeading(null);
+      return;
+    }
+
+    let headingSubscription: any = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const subscription = await Location.watchHeadingAsync((heading) => {
+          // trueHeading is compass-corrected against true north; devices/platforms
+          // without a magnetometer report -1, so fall back to magHeading.
+          const value = heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
+          setDeviceHeading(typeof value === 'number' && value >= 0 ? value : null);
+        });
+        if (cancelled) {
+          subscription.remove();
+        } else {
+          headingSubscription = subscription;
+        }
+      } catch (err) {
+        console.error('Heading Watch Error:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      headingSubscription?.remove();
+    };
+  }, [trackingActive]);
+
   // GPS offline-queue sync: listens for connectivity coming back online and for the
   // app returning to the foreground, flushing any locally-queued points via the batch
   // endpoint. Independent of whether a booking is currently active/loaded yet, so a
@@ -309,6 +349,22 @@ const HomeScreen = () => {
                       <Text style={{ color: '#958786', fontSize: 11, marginTop: 4 }}>
                         {lastLocation.coords.latitude.toFixed(6)}, {lastLocation.coords.longitude.toFixed(6)}
                       </Text>
+                      {/* Direction the phone is currently facing (compass heading) — separate
+                          from the vehicle's direction of travel shown on the admin map. There is
+                          no map on mobile to place a marker/cone on, so this is a small rotating
+                          arrow next to the coordinates instead. */}
+                      {deviceHeading !== null && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                          <NavIcon
+                            size={14}
+                            stroke="#7B1FA2"
+                            style={{ transform: [{ rotate: `${deviceHeading}deg` }] }}
+                          />
+                          <Text style={{ color: '#7B1FA2', fontSize: 11, fontWeight: '600' }}>
+                            Facing {Math.round(deviceHeading)}°
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   ) : (
                     <Text style={{ color: '#958786', fontSize: 12, marginTop: 10 }}>Getting your GPS location...</Text>
