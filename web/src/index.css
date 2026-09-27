@@ -611,6 +611,10 @@ h5 {
   top: calc(100% + 0.5rem);
   right: 0;
   min-width: 200px;
+  /* Never wider than the viewport (minus a small margin) — without this, a very long
+     full_name/email in .dropdown-header (below) could otherwise force this wider than
+     360px, since nothing here previously constrained its max width. */
+  max-width: calc(100vw - 2rem);
   background-color: var(--white);
   border: 1px solid var(--gray-200);
   border-radius: var(--border-radius-md);
@@ -640,6 +644,14 @@ h5 {
   margin-bottom: 0.5rem;
 }
 
+/* Long full_name/email truncate with an ellipsis instead of forcing .dropdown-menu
+   (and, since it's anchored right:0, the page itself) wider than the viewport. */
+.dropdown-header > div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dropdown-item {
   display: flex;
   align-items: center;
@@ -666,6 +678,105 @@ h5 {
 
 .dropdown-item.danger:hover {
   background-color: var(--status-error-bg);
+}
+
+/* Responsive navbar (<=768px) — the top bar's flex row has no wrap/collapse of its
+   own, so below the width where every item fits on one line, trailing items (the
+   user avatar/dropdown, or Login/Register) were simply pushed past the viewport edge
+   with nothing to reveal them again. Below adds a hamburger that reveals a slide-down
+   panel with everything .navbar-desktop-only hides, while items that must stay
+   reachable at every width (the avatar/dropdown trigger, the admin logout icon, and a
+   lean Login link when logged out) are never hidden in the first place — see
+   Navbar.tsx for which elements get which class. */
+.navbar-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  color: var(--black);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .navbar-hamburger:hover {
+    background-color: var(--gray-100);
+  }
+}
+
+.navbar-mobile-only {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .navbar-shell {
+    padding: 0 1rem;
+  }
+
+  /* !important: these elements' own inline `style` already sets `display`
+     (flex/inline-flex/inline-block via the .btn* classes) — a plain class rule
+     can't out-specificity an inline style, and this override must only ever apply
+     inside this mobile-only query, never touching desktop rendering. */
+  .navbar-desktop-only {
+    display: none !important;
+  }
+
+  .navbar-mobile-only {
+    display: inline-flex;
+  }
+
+  .navbar-hamburger {
+    display: inline-flex;
+  }
+}
+
+/* Mobile-only tap-target sizing for compact icon/text buttons that stay visible at
+   every width (the admin logout icon, the lean logged-out Login link, the hamburger
+   itself) — scoped to the same query so desktop's existing compact footprint for
+   these elements is completely unchanged. */
+@media (max-width: 767px) {
+  .navbar-tap-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.navbar-mobile-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--gray-100);
+  background-color: var(--white);
+  animation: dropdownFade 0.2s ease-out;
+}
+
+.navbar-mobile-panel-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--black);
+}
+
+.navbar-mobile-panel-link:active {
+  background-color: var(--gray-100);
+}
+
+@media (hover: hover) {
+  .navbar-mobile-panel-link:hover {
+    background-color: var(--gray-50);
+  }
 }
 
 /* Modal Styles */

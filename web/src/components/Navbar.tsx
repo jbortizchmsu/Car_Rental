@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Car, User, LogOut, Bell, Settings } from 'lucide-react';
+import { Car, User, LogOut, Bell, Settings, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsApi } from '../services/api';
 import { connectAuthedSocket } from '../utils/socket';
@@ -10,18 +10,49 @@ const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
+      // The hamburger button itself is excluded from the "outside" check — otherwise
+      // its own mousedown (which fires before its click handler toggles the menu)
+      // would close the menu here first, and the click's toggle would immediately
+      // reopen it.
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node) &&
+        hamburgerRef.current &&
+        !hamburgerRef.current.contains(event.target as Node)
+      ) {
+        setMobileMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  // Close the mobile menu on navigation, same as it closes on a link tap — covers
+  // back/forward navigation and any programmatic redirect too.
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const fetchUnreadCount = async () => {
     if (user && profile?.role === 'customer') {
@@ -69,7 +100,7 @@ const Navbar: React.FC = () => {
 
     // Refresh when tab gets focus
     window.addEventListener('focus', fetchUnreadCount);
-    
+
     // Listen for custom event when notifications are read/changed in other pages
     window.addEventListener('notifications-updated', fetchUnreadCount);
 
@@ -95,6 +126,7 @@ const Navbar: React.FC = () => {
   };
 
   const closeDropdown = () => setDropdownOpen(false);
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <nav style={{
@@ -106,7 +138,7 @@ const Navbar: React.FC = () => {
       zIndex: 1000,
       boxShadow: 'var(--shadow-soft)'
     }}>
-      <div className="container" style={{
+      <div className="container navbar-shell" style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
@@ -120,7 +152,7 @@ const Navbar: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           {(!user || profile?.role === 'customer') && (
-            <>
+            <div className="navbar-desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
               <Link
                 to="/"
                 className={`nav-link${location.pathname === '/' ? ' nav-link-current' : ''}`}
@@ -144,37 +176,37 @@ const Navbar: React.FC = () => {
                   My Bookings
                 </Link>
               )}
-            </>
+            </div>
           )}
-          
+
           {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginLeft: '1rem' }}>
               {profile?.role === 'customer' ? (
                 <>
-                  <Link to="/vehicles" className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Book Now</Link>
-                  
+                  <Link to="/vehicles" className="btn-primary navbar-desktop-only" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Book Now</Link>
+
                   <div className="dropdown-container" ref={dropdownRef}>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setDropdownOpen(!dropdownOpen)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.75rem', 
-                        borderLeft: '1px solid #eee', 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        borderLeft: '1px solid #eee',
                         paddingLeft: '1.5rem',
                         background: 'none',
                         padding: '0.25rem'
                       }}
                     >
                       <div className="profile-avatar-wrapper">
-                        <div style={{ 
-                          width: '36px', 
-                          height: '36px', 
-                          borderRadius: '50%', 
-                          backgroundColor: 'var(--soft-beige)', 
-                          display: 'flex', 
-                          alignItems: 'center', 
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--soft-beige)',
+                          display: 'flex',
+                          alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: '0.9rem',
                           fontWeight: 700,
@@ -192,18 +224,18 @@ const Navbar: React.FC = () => {
                           <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{profile?.full_name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{profile?.email}</div>
                         </div>
-                        
+
                         <Link to="/customer/notifications" className="dropdown-item" onClick={closeDropdown}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
                             <Bell size={18} />
                             Notifications
                           </div>
                           {unreadCount > 0 && (
-                            <span style={{ 
-                              fontSize: '0.75rem', 
-                              backgroundColor: 'var(--status-error)', 
-                              color: 'white', 
-                              padding: '0.1rem 0.4rem', 
+                            <span style={{
+                              fontSize: '0.75rem',
+                              backgroundColor: 'var(--status-error)',
+                              color: 'white',
+                              padding: '0.1rem 0.4rem',
                               borderRadius: '99px',
                               fontWeight: 700
                             }}>
@@ -211,14 +243,14 @@ const Navbar: React.FC = () => {
                             </span>
                           )}
                         </Link>
-                        
+
                         <Link to="/customer/profile" className="dropdown-item" onClick={closeDropdown}>
                           <Settings size={18} />
                           Profile Settings
                         </Link>
-                        
+
                         <div style={{ borderTop: '1px solid var(--gray-100)', margin: '0.5rem 0' }}></div>
-                        
+
                         <button onClick={handleSignOut} className="dropdown-item danger">
                           <LogOut size={18} />
                           Logout
@@ -229,10 +261,11 @@ const Navbar: React.FC = () => {
                 </>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <Link to="/admin/dashboard" className="btn-brand" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Admin Dashboard</Link>
-                  <button 
-                    onClick={handleSignOut} 
+                  <Link to="/admin/dashboard" className="btn-brand navbar-desktop-only" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Admin Dashboard</Link>
+                  <button
+                    onClick={handleSignOut}
                     title="Logout"
+                    className="navbar-tap-target"
                     style={{ color: 'var(--muted-mauve)', background: 'none', display: 'flex', alignItems: 'center' }}
                   >
                     <LogOut size={18} />
@@ -241,13 +274,62 @@ const Navbar: React.FC = () => {
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: '1rem', marginLeft: '1rem' }}>
-              <Link to="/login" className="btn-outline" style={{ padding: '0.4rem 1.2rem', fontSize: '0.9rem' }}>Login</Link>
-              <Link to="/register" className="btn-primary" style={{ padding: '0.4rem 1.2rem', fontSize: '0.9rem' }}>Register</Link>
-            </div>
+            <>
+              <div className="navbar-desktop-only" style={{ display: 'flex', gap: '1rem', marginLeft: '1rem' }}>
+                <Link to="/login" className="btn-outline" style={{ padding: '0.4rem 1.2rem', fontSize: '0.9rem' }}>Login</Link>
+                <Link to="/register" className="btn-primary" style={{ padding: '0.4rem 1.2rem', fontSize: '0.9rem' }}>Register</Link>
+              </div>
+              {/* Compact top-bar equivalent for logged-out visitors on mobile — Register
+                  moves into the hamburger panel below instead. */}
+              <Link
+                to="/login"
+                className="btn-outline navbar-mobile-only navbar-tap-target"
+                style={{ padding: '0.4rem 1.2rem', fontSize: '0.9rem', marginLeft: '1rem' }}
+              >
+                Login
+              </Link>
+            </>
           )}
+
+          <button
+            type="button"
+            ref={hamburgerRef}
+            className="navbar-hamburger navbar-tap-target"
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="navbar-mobile-panel"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
       </div>
+
+      {mobileMenuOpen && (
+        <div id="navbar-mobile-panel" className="navbar-mobile-panel container" ref={mobileMenuRef}>
+          {(!user || profile?.role === 'customer') && (
+            <>
+              <Link to="/" className="navbar-mobile-panel-link" onClick={closeMobileMenu}>Home</Link>
+              <Link to="/vehicles" className="navbar-mobile-panel-link" onClick={closeMobileMenu}>Vehicles</Link>
+              {user && profile?.role === 'customer' && (
+                <Link to="/customer/my-bookings" className="navbar-mobile-panel-link" onClick={closeMobileMenu}>My Bookings</Link>
+              )}
+            </>
+          )}
+          {user && profile?.role === 'customer' && (
+            <Link to="/vehicles" className="navbar-mobile-panel-link" onClick={closeMobileMenu}>Book Now</Link>
+          )}
+          {user && profile?.role !== 'customer' && (
+            <Link to="/admin/dashboard" className="navbar-mobile-panel-link" onClick={closeMobileMenu}>Admin Dashboard</Link>
+          )}
+          {!user && (
+            <>
+              <Link to="/login" className="navbar-mobile-panel-link" onClick={closeMobileMenu}>Login</Link>
+              <Link to="/register" className="navbar-mobile-panel-link" onClick={closeMobileMenu}>Register</Link>
+            </>
+          )}
+        </div>
+      )}
     </nav>
   );
 };
