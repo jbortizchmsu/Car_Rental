@@ -244,6 +244,7 @@ const RegisterPage: React.FC = () => {
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Full Name</label>
               <input
                 type="text"
+                autoComplete="name"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -256,6 +257,7 @@ const RegisterPage: React.FC = () => {
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Email Address</label>
               <input
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -268,6 +270,7 @@ const RegisterPage: React.FC = () => {
               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Phone Number</label>
               <input
                 type="tel"
+                autoComplete="tel"
                 required
                 inputMode='numeric'
                 pattern='[0-9]{11}'
@@ -288,6 +291,7 @@ const RegisterPage: React.FC = () => {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -321,6 +325,7 @@ const RegisterPage: React.FC = () => {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

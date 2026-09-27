@@ -106,6 +106,7 @@ const ResetPasswordPage: React.FC = () => {
           <div style={{ position: 'relative' }}>
             <input
               type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
               required
               value={password}
               onChange={e => { setPassword(e.target.value); setError(null); }}
@@ -124,6 +125,7 @@ const ResetPasswordPage: React.FC = () => {
           <div style={{ position: 'relative' }}>
             <input
               type={showConfirm ? 'text' : 'password'}
+              autoComplete="new-password"
               required
               value={confirmPassword}
               onChange={e => { setConfirmPassword(e.target.value); setError(null); }}

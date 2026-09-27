@@ -240,12 +240,13 @@ const LoginPage: React.FC = () => {
         <form onSubmit={handleLogin} style={{ textAlign: 'left' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Email Address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com" 
+              placeholder="name@example.com"
               style={{
                 width: '100%',
                 padding: '0.8rem 1rem',
@@ -261,12 +262,13 @@ const LoginPage: React.FC = () => {
               <Link to="/forgot-password" style={{ color: 'var(--warm-taupe)', fontSize: '0.9rem', textDecoration: 'none', fontWeight: 500 }}>Forgot password?</Link>
             </div>
             <div style={{ position: 'relative' }}>
-              <input 
-                type={showPassword ? "text" : "password"} 
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••" 
+                placeholder="••••••••"
                 style={{
                   width: '100%',
                   padding: '0.8rem 2.5rem 0.8rem 1rem',

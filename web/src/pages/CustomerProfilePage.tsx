@@ -212,6 +212,7 @@ const CustomerProfilePage: React.FC = () => {
             </label>
             <input
               className="form-input"
+              autoComplete="name"
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               required
@@ -224,8 +225,9 @@ const CustomerProfilePage: React.FC = () => {
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Mail size={16} /> Email Address (Read-only)
             </label>
-            <input 
+            <input
               className="form-input"
+              autoComplete="email"
               value={formData.email}
               readOnly
               style={{ backgroundColor: 'var(--gray-50)', color: 'var(--gray-400)', cursor: 'not-allowed' }}
@@ -241,6 +243,7 @@ const CustomerProfilePage: React.FC = () => {
               <input
                 type="tel"
                 className="form-input"
+                autoComplete="tel"
                 value={formData.phoneNumber}
                 inputMode="numeric"
                 pattern="[0-9]{11}"
@@ -288,6 +291,7 @@ const CustomerProfilePage: React.FC = () => {
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showNewPasswordToAdd ? 'text' : 'password'}
+                        autoComplete="new-password"
                         className="form-input"
                         value={newPasswordToAdd}
                         onChange={(e) => setNewPasswordToAdd(e.target.value)}
@@ -309,6 +313,7 @@ const CustomerProfilePage: React.FC = () => {
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showConfirmPasswordToAdd ? 'text' : 'password'}
+                        autoComplete="new-password"
                         className="form-input"
                         value={confirmPasswordToAdd}
                         onChange={(e) => setConfirmPasswordToAdd(e.target.value)}
@@ -383,6 +388,7 @@ const CustomerProfilePage: React.FC = () => {
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showCurrentPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
                         className="form-input"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
@@ -405,6 +411,7 @@ const CustomerProfilePage: React.FC = () => {
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showNewPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         className="form-input"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
@@ -426,6 +433,7 @@ const CustomerProfilePage: React.FC = () => {
                     <div style={{ position: 'relative' }}>
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         className="form-input"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
