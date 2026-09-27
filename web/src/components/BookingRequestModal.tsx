@@ -10,6 +10,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import ConfirmActionModal from './ConfirmActionModal';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 import { formatDate } from '../utils/formatDate';
+import { formatLicenseNumberInput, isValidLicenseNumber, LICENSE_NUMBER_MAX_LENGTH } from '../utils/license';
 
 export const formatApiDate = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -660,11 +661,20 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
     if (step === 2) {
       if (!formData.customer_full_name) errors.customer_full_name = 'Full name is required.';
       if (!formData.contact_number) errors.contact_number = 'Contact number is required.';
-      if (!formData.drivers_license_number) errors.drivers_license_number = 'License number is required.';
+      if (!formData.drivers_license_number) {
+        errors.drivers_license_number = 'License number is required.';
+      } else if (!isValidLicenseNumber(formData.drivers_license_number)) {
+        errors.drivers_license_number = 'License number must follow the format A00-00-000000 (e.g., N01-12-345678).';
+      }
       if (!formData.drivers_license_expiry) {
         errors.drivers_license_expiry = 'License expiry date is required.';
       } else if (new Date(formData.drivers_license_expiry) < now) {
         errors.drivers_license_expiry = "Your driver's license is expired.";
+      } else if (formData.end_date && formData.drivers_license_expiry < formData.end_date.slice(0, 10)) {
+        // Compares calendar dates only (both "YYYY-MM-DD"), not full datetimes — a
+        // license expiring on the same day the rental ends is still valid for that
+        // whole day, matching bookings.ts's own end-of-day comparison.
+        errors.drivers_license_expiry = "Your driver's license must be valid for the whole rental period.";
       }
       if (!formData.address) errors.address = 'Current address is required.';
       if (!formData.emergency_contact_name) errors.emergency_contact_name = 'Emergency contact name is required.';
@@ -1084,7 +1094,11 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <input
                           value={formData.drivers_license_number}
                           style={fieldErrors.drivers_license_number ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
-                          onChange={(e) => { setFormData({ ...formData, drivers_license_number: e.target.value }); clearFieldError('drivers_license_number'); }}
+                          onChange={(e) => {
+                            setFormData({ ...formData, drivers_license_number: formatLicenseNumberInput(e.target.value) });
+                            clearFieldError('drivers_license_number');
+                          }}
+                          maxLength={LICENSE_NUMBER_MAX_LENGTH}
                           placeholder="e.g. N01-23-456789"
                         />
                         {fieldErrors.drivers_license_number && <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 500 }}>⚠ {fieldErrors.drivers_license_number}</p>}
@@ -1094,6 +1108,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                         <input
                           type="date"
                           value={formData.drivers_license_expiry}
+                          min={formatApiDate(getLocalStartOfToday()).slice(0, 10)}
                           style={fieldErrors.drivers_license_expiry ? { borderColor: '#f87171', backgroundColor: '#fef2f2' } : undefined}
                           onChange={(e) => { setFormData({ ...formData, drivers_license_expiry: e.target.value }); clearFieldError('drivers_license_expiry'); }}
                         />

@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { bookingsApi, pricingApi, vehiclesApi } from '../services/api';
 import { bookingFormStatus } from '../services/bookingState';
-import { formatDateOnly, formatExpiryDisplay, calcDays } from '../utils/booking-form-utils';
+import { formatDateOnly, formatExpiryDisplay, calcDays, formatLicenseNumberInput, isValidLicenseNumber, LICENSE_NUMBER_MAX_LENGTH } from '../utils/booking-form-utils';
 
 const formatApiDate = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -443,14 +443,22 @@ export default function BookingFormScreen({ route, navigation }: any) {
 
     if (!licenseNumber.trim()) {
       errors.licenseNumber = "Driver's license number is required.";
-    } else if (licenseNumber.trim().length < 8) {
-      errors.licenseNumber = "Please enter a valid driver's license number (at least 8 characters).";
+    } else if (!isValidLicenseNumber(licenseNumber.trim())) {
+      errors.licenseNumber = 'License number must follow the format A00-00-000000 (e.g., N01-12-345678).';
     }
 
     if (!licenseExpiryDate) {
       errors.licenseExpiry = 'License expiry date is required.';
     } else if (licenseExpiryDate < getLocalStartOfToday()) {
       errors.licenseExpiry = "Your driver's license is expired.";
+    } else {
+      // Compares calendar days only — a license expiring on the same day the rental
+      // ends is still valid for that whole day, matching bookings.ts's own check.
+      const returnDay = new Date(returnDate);
+      returnDay.setHours(0, 0, 0, 0);
+      if (licenseExpiryDate < returnDay) {
+        errors.licenseExpiry = "Your driver's license must be valid for the whole rental period.";
+      }
     }
 
     if (!address.trim()) {
@@ -813,13 +821,12 @@ export default function BookingFormScreen({ route, navigation }: any) {
                 style={[styles.input, fieldErrors.licenseNumber && styles.inputError]}
                 value={licenseNumber}
                 onChangeText={(text) => {
-                  const cleaned = text.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 15);
-                  setLicenseNumber(cleaned);
+                  setLicenseNumber(formatLicenseNumberInput(text));
                   clearFieldError('licenseNumber');
                 }}
                 placeholder="e.g. N01-23-456789"
                 autoCapitalize="characters"
-                maxLength={15}
+                maxLength={LICENSE_NUMBER_MAX_LENGTH}
               />
               {fieldErrors.licenseNumber ? <Text style={styles.fieldErrorText}>⚠ {fieldErrors.licenseNumber}</Text> : null}
 

@@ -7,7 +7,7 @@ import { checkVehicleOilChangeDue } from '../lib/maintenance-alerts';
 import { checkVehicleAvailability } from '../lib/booking-availability';
 import { calculateBookingPrice } from '../lib/pricing';
 import { computeGeofence, generateCirclePolygon } from '../lib/negros-coords';
-import { bookingDateRangeSchema } from '../lib/validation';
+import { bookingDateRangeSchema, licenseNumberSchema, licenseExpirySchema, toManilaDateString } from '../lib/validation';
 import { parseNonNegativeNumber, isBlank } from '../lib/numeric-input';
 import multer from 'multer';
 import path from 'path';
@@ -65,13 +65,30 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: dateCheck.error.issues[0].message });
     }
 
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const licenseNumberCheck = licenseNumberSchema.safeParse(licenseNumber);
+    if (!licenseNumberCheck.success) {
+      return res.status(400).json({ error: licenseNumberCheck.error.issues[0].message });
+    }
+    const normalizedLicenseNumber = licenseNumberCheck.data;
+
+    const licenseExpiryCheck = licenseExpirySchema.safeParse(licenseExpiry);
+    if (!licenseExpiryCheck.success) {
+      return res.status(400).json({ error: licenseExpiryCheck.error.issues[0].message });
+    }
+    // The expiry itself is a bare calendar date, but a booking's endDate is a full
+    // datetime — reduced to its own Manila calendar day so "expires on the last day of
+    // the rental" compares equal, not less-than (a same-day expiry is still valid for
+    // that whole day, not already lapsed).
+    if (licenseExpiryCheck.data < toManilaDateString(end)) {
+      return res.status(400).json({ error: "Your driver's license must be valid for the whole rental period." });
+    }
+
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
     if (vehicle.status !== 'AVAILABLE') return res.status(400).json({ error: 'Vehicle is not available' });
-
-    // Calculate total amount
-    const start = new Date(startDate);
-    const end = new Date(endDate);
 
     // Double Booking Protection
     const availability = await checkVehicleAvailability(vehicleId, start, end);
@@ -102,7 +119,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
         fullName,
         contactNumber,
         address,
-        licenseNumber,
+        licenseNumber: normalizedLicenseNumber,
         licenseExpiry,
         emergencyContact,
         emergencyPhone

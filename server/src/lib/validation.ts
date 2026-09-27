@@ -100,3 +100,75 @@ export const profileUpdateSchema = z.object({
     .max(PROFILE_ADDRESS_MAX_LENGTH, `Location must be at most ${PROFILE_ADDRESS_MAX_LENGTH} characters`)
     .optional(),
 });
+
+// Booking creation (POST /api/bookings): PH LTO driver's license number and expiry.
+// Both web (<input type="date">) and mobile (formatDateOnly) send licenseExpiry as a
+// bare "YYYY-MM-DD" string — the Prisma column itself is a plain String, not a
+// DateTime, so nothing upstream ever parses or validates it today.
+const MANILA_TZ = 'Asia/Manila';
+const manilaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: MANILA_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+// A bare "YYYY-MM-DD" -> that calendar day's midnight instant in Asia/Manila. Uses an
+// explicit +08:00 offset rather than relying on process.env.TZ (only forced to
+// Asia/Manila by index.ts's top line, which route/lib unit tests never import) — same
+// approach as lib/availability-window.ts's parseAvailabilityBound.
+function manilaMidnight(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00+08:00`);
+}
+
+// Any JS Date, reduced to its own calendar day as seen in Asia/Manila ("YYYY-MM-DD").
+// Lets a bare license-expiry date and a full booking-end datetime be compared on equal
+// footing — both reduced to "which Manila calendar day is this" — via plain string
+// comparison (zero-padded ISO date strings sort lexically in chronological order).
+export function toManilaDateString(date: Date): string {
+  return manilaDateFormatter.format(date);
+}
+
+const LICENSE_NUMBER_PATTERN = /^[A-Z]\d{2}-\d{2}-\d{6}$/;
+const LICENSE_EXPIRY_MAX_YEARS_AHEAD = 10;
+
+// trim -> uppercase -> strip all whitespace -> if that leaves exactly one letter
+// followed by 10 digits (no hyphens), insert them to produce A00-00-000000. Anything
+// else (wrong lengths, extra characters, already-hyphenated input) is passed through
+// as-is for the pattern check below to accept or reject.
+export function normalizeLicenseNumber(raw: string): string {
+  const compact = raw.trim().toUpperCase().replace(/\s+/g, '');
+  if (/^[A-Z]\d{10}$/.test(compact)) {
+    return `${compact.slice(0, 3)}-${compact.slice(3, 5)}-${compact.slice(5)}`;
+  }
+  return compact;
+}
+
+export const licenseNumberSchema = z
+  .string()
+  .transform((v) => normalizeLicenseNumber(v))
+  .refine((v) => LICENSE_NUMBER_PATTERN.test(v), {
+    message: 'License number must follow the format A00-00-000000 (e.g., N01-12-345678)',
+  });
+
+// Only the self-contained rules: valid date, not already expired, not absurdly far out.
+// Whether it covers a specific booking's end date depends on that booking's own dates,
+// so bookings.ts checks that separately, after this schema and bookingDateRangeSchema
+// have both already passed.
+export const licenseExpirySchema = z
+  .string()
+  .trim()
+  .refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(manilaMidnight(v).getTime()), {
+    message: 'License expiry date is invalid.',
+  })
+  .refine((v) => manilaMidnight(v).getTime() >= manilaMidnight(toManilaDateString(new Date())).getTime(), {
+    message: "Your driver's license has expired.",
+  })
+  .refine(
+    (v) => {
+      const maxDate = manilaMidnight(toManilaDateString(new Date()));
+      maxDate.setUTCFullYear(maxDate.getUTCFullYear() + LICENSE_EXPIRY_MAX_YEARS_AHEAD);
+      return manilaMidnight(v).getTime() <= maxDate.getTime();
+    },
+    { message: `License expiry date cannot be more than ${LICENSE_EXPIRY_MAX_YEARS_AHEAD} years in the future.` }
+  );
