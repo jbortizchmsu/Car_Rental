@@ -6,6 +6,7 @@ import { createNotification, createAdminNotification } from '../lib/notification
 import { checkVehicleAvailability } from '../lib/booking-availability';
 import { paymentTypeSchema } from '../lib/validation';
 import { parseNonNegativeNumber } from '../lib/numeric-input';
+import { resolvePaymentTypeFilter } from '../lib/payment-type-filter';
 
 const router = Router();
 
@@ -128,8 +129,9 @@ router.get('/list', authenticate, authorizeAdmin, async (req, res) => {
   try {
     const whereClause: any = {};
     if (status) whereClause.status = status as string;
-    if (paymentType && paymentType !== 'ALL') {
-      whereClause.paymentType = { contains: paymentType as string };
+    const paymentTypeIn = resolvePaymentTypeFilter(paymentType);
+    if (paymentTypeIn !== null) {
+      whereClause.paymentType = { in: paymentTypeIn };
     }
     if (startDate || endDate) {
       whereClause.createdAt = {};
@@ -409,8 +411,9 @@ router.get('/admin/aggregates', authenticate, authorizeAdmin, async (req, res) =
     const { startDate, endDate, paymentType } = req.query;
 
     const paymentWhere: any = {};
-    if (paymentType && paymentType !== 'ALL') {
-      paymentWhere.paymentType = { contains: paymentType as string };
+    const aggregatesPaymentTypeIn = resolvePaymentTypeFilter(paymentType);
+    if (aggregatesPaymentTypeIn !== null) {
+      paymentWhere.paymentType = { in: aggregatesPaymentTypeIn };
     }
     if (startDate || endDate) {
       paymentWhere.createdAt = {};
@@ -535,10 +538,20 @@ router.get('/admin/aggregates', authenticate, authorizeAdmin, async (req, res) =
 // Admin: Export Payments as CSV
 router.get('/export', authenticate, authorizeAdmin, async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, paymentType } = req.query;
+
+    // Previously ignored entirely — the web page already sent paymentType on every
+    // export, but this route never read it, so the exported CSV silently included
+    // every payment type regardless of which filter was selected on screen.
+    const exportWhere: any = {};
+    if (status) exportWhere.status = status as string;
+    const exportPaymentTypeIn = resolvePaymentTypeFilter(paymentType);
+    if (exportPaymentTypeIn !== null) {
+      exportWhere.paymentType = { in: exportPaymentTypeIn };
+    }
 
     const payments = await prisma.payment.findMany({
-      where: status ? { status: status as string } : {},
+      where: exportWhere,
       include: {
         booking: {
           include: {

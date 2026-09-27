@@ -6,10 +6,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { ChevronLeft, CheckCircle2, Upload, Smartphone, Banknote, CreditCard } from 'lucide-react-native';
+import { ChevronLeft, CheckCircle2, Upload, Smartphone, CreditCard } from 'lucide-react-native';
 import { paymentsApi } from '../services/api';
 
-type PaymentType = 'FULL_GCASH' | 'DOWNPAYMENT_GCASH' | 'CASH_AT_PICKUP';
+type PaymentType = 'FULL_GCASH' | 'DOWNPAYMENT_GCASH';
 
 const GCASH_NUMBER = '0917-XXX-XXXX'; // Replace with actual GCash number
 
@@ -24,7 +24,6 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const isGCash = paymentType !== 'CASH_AT_PICKUP';
   const amount = paymentType === 'DOWNPAYMENT_GCASH' ? downpaymentAmount : Number(totalAmount);
 
   const pickProof = async () => {
@@ -44,15 +43,13 @@ export default function PaymentScreen({ route, navigation }: any) {
   };
 
   const handleSubmit = async () => {
-    if (isGCash) {
-      if (!referenceNumber.trim()) {
-        Alert.alert('Required', 'Please enter the GCash reference number.');
-        return;
-      }
-      if (!proofImage) {
-        Alert.alert('Required', 'Please upload a screenshot of your payment proof.');
-        return;
-      }
+    if (!referenceNumber.trim()) {
+      Alert.alert('Required', 'Please enter the GCash reference number.');
+      return;
+    }
+    if (!proofImage) {
+      Alert.alert('Required', 'Please upload a screenshot of your payment proof.');
+      return;
     }
 
     setSubmitting(true);
@@ -60,16 +57,13 @@ export default function PaymentScreen({ route, navigation }: any) {
       const formData = new FormData();
       formData.append('paymentType', paymentType);
       formData.append('amount', String(amount));
-
-      if (isGCash) {
-        formData.append('referenceNumber', referenceNumber.trim());
-        // @ts-ignore
-        formData.append('proof', {
-          uri: proofImage.uri,
-          name: proofImage.fileName || `payment_${Date.now()}.jpg`,
-          type: 'image/jpeg',
-        });
-      }
+      formData.append('referenceNumber', referenceNumber.trim());
+      // @ts-ignore
+      formData.append('proof', {
+        uri: proofImage.uri,
+        name: proofImage.fileName || `payment_${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      });
 
       await paymentsApi.submit(bookingId, formData);
       setSuccess(true);
@@ -160,75 +154,41 @@ export default function PaymentScreen({ route, navigation }: any) {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.paymentOption, paymentType === 'CASH_AT_PICKUP' && styles.paymentOptionActive]}
-            onPress={() => setPaymentType('CASH_AT_PICKUP')}
-          >
-            <View style={[styles.paymentIcon, { backgroundColor: '#D1FAE5' }]}>
-              <Banknote size={20} stroke="#059669" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.paymentTitle}>Cash at Pickup</Text>
-              <Text style={styles.paymentAmount}>₱{Number(totalAmount).toLocaleString()}</Text>
-              <Text style={styles.paymentNote}>Pay in full when you pick up the vehicle</Text>
-            </View>
-            <View style={[styles.radioOuter, paymentType === 'CASH_AT_PICKUP' && styles.radioActive]}>
-              {paymentType === 'CASH_AT_PICKUP' && <View style={styles.radioInner} />}
-            </View>
-          </TouchableOpacity>
-
           {/* GCash instructions */}
-          {isGCash && (
-            <View style={styles.gcashBox}>
-              <Text style={styles.gcashTitle}>GCash Instructions</Text>
-              <Text style={styles.gcashStep}>1. Open your GCash app</Text>
-              <Text style={styles.gcashStep}>2. Send <Text style={{ fontWeight: '800' }}>₱{amount.toLocaleString()}</Text> to:</Text>
-              <Text style={styles.gcashNumber}>{GCASH_NUMBER}</Text>
-              <Text style={styles.gcashStep}>3. Enter your reference number and upload the screenshot below.</Text>
-            </View>
-          )}
+          <View style={styles.gcashBox}>
+            <Text style={styles.gcashTitle}>GCash Instructions</Text>
+            <Text style={styles.gcashStep}>1. Open your GCash app</Text>
+            <Text style={styles.gcashStep}>2. Send <Text style={{ fontWeight: '800' }}>₱{amount.toLocaleString()}</Text> to:</Text>
+            <Text style={styles.gcashNumber}>{GCASH_NUMBER}</Text>
+            <Text style={styles.gcashStep}>3. Enter your reference number and upload the screenshot below.</Text>
+          </View>
 
           {/* GCash form fields */}
-          {isGCash && (
-            <>
-              <Text style={styles.fieldLabel}>GCash Reference Number</Text>
-              <TextInput
-                style={styles.input}
-                value={referenceNumber}
-                onChangeText={setReferenceNumber}
-                placeholder="e.g. 1234567890"
-                keyboardType="numeric"
-                maxLength={20}
-              />
+          <Text style={styles.fieldLabel}>GCash Reference Number</Text>
+          <TextInput
+            style={styles.input}
+            value={referenceNumber}
+            onChangeText={setReferenceNumber}
+            placeholder="e.g. 1234567890"
+            keyboardType="numeric"
+            maxLength={20}
+          />
 
-              <Text style={styles.fieldLabel}>Payment Screenshot</Text>
-              <TouchableOpacity style={styles.uploadArea} onPress={pickProof}>
-                {proofImage ? (
-                  <Image source={{ uri: proofImage.uri }} style={styles.proofPreview} />
-                ) : (
-                  <View style={styles.uploadPlaceholder}>
-                    <Upload size={28} stroke="#AD9B8D" />
-                    <Text style={styles.uploadHint}>Tap to upload payment screenshot</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              {proofImage && (
-                <TouchableOpacity onPress={() => setProofImage(null)} style={styles.removeProof}>
-                  <Text style={styles.removeProofText}>Remove photo</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-
-          {/* Cash at pickup confirmation */}
-          {!isGCash && (
-            <View style={styles.cashBox}>
-              <Banknote size={28} stroke="#059669" />
-              <Text style={styles.cashTitle}>Cash Payment Confirmed</Text>
-              <Text style={styles.cashNote}>
-                Please bring the full amount of <Text style={{ fontWeight: '800' }}>₱{Number(totalAmount).toLocaleString()}</Text> when you pick up the vehicle. Our staff will process your payment on-site.
-              </Text>
-            </View>
+          <Text style={styles.fieldLabel}>Payment Screenshot</Text>
+          <TouchableOpacity style={styles.uploadArea} onPress={pickProof}>
+            {proofImage ? (
+              <Image source={{ uri: proofImage.uri }} style={styles.proofPreview} />
+            ) : (
+              <View style={styles.uploadPlaceholder}>
+                <Upload size={28} stroke="#AD9B8D" />
+                <Text style={styles.uploadHint}>Tap to upload payment screenshot</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {proofImage && (
+            <TouchableOpacity onPress={() => setProofImage(null)} style={styles.removeProof}>
+              <Text style={styles.removeProofText}>Remove photo</Text>
+            </TouchableOpacity>
           )}
 
           {/* Submit button */}
@@ -239,9 +199,7 @@ export default function PaymentScreen({ route, navigation }: any) {
           >
             {submitting
               ? <ActivityIndicator color="#FFF" />
-              : <Text style={styles.submitBtnText}>
-                  {isGCash ? 'Submit Payment Proof' : 'Confirm Cash Payment'}
-                </Text>
+              : <Text style={styles.submitBtnText}>Submit Payment Proof</Text>
             }
           </TouchableOpacity>
 
@@ -305,12 +263,6 @@ const styles = StyleSheet.create({
   proofPreview: { width: '100%', height: 180, resizeMode: 'cover' },
   removeProof: { alignItems: 'center', marginBottom: 12 },
   removeProofText: { color: '#EF4444', fontSize: 13, fontWeight: '600' },
-  cashBox: {
-    backgroundColor: '#ECFDF5', borderRadius: 14, padding: 20,
-    alignItems: 'center', gap: 8, marginVertical: 12,
-  },
-  cashTitle: { fontSize: 16, fontWeight: '800', color: '#065F46' },
-  cashNote: { fontSize: 13, color: '#047857', textAlign: 'center', lineHeight: 20 },
   submitBtn: {
     backgroundColor: '#000', borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', marginTop: 16,

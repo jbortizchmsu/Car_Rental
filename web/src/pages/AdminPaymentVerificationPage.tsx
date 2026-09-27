@@ -252,7 +252,14 @@ const AdminPaymentVerificationPage: React.FC = () => {
     let filtered = payments;
 
     if (paymentTypeFilter && paymentTypeFilter !== 'ALL' && !isCashMode) {
-      filtered = filtered.filter((p: any) => p.paymentType?.includes(paymentTypeFilter));
+      // Exact matching, not substring — .includes() previously let "CASH" match
+      // FULL_GCASH/DOWNPAYMENT_GCASH too (both contain the substring "CASH").
+      const matchingTypes = paymentTypeFilter === 'GCASH'
+        ? ['FULL_GCASH', 'DOWNPAYMENT_GCASH']
+        : paymentTypeFilter === 'CASH'
+        ? ['REMAINING_CASH']
+        : [];
+      filtered = filtered.filter((p: any) => matchingTypes.includes(p.paymentType));
     }
 
     if (searchQuery) {
@@ -328,7 +335,6 @@ const AdminPaymentVerificationPage: React.FC = () => {
           <option value="ALL">All Payment Types</option>
           <option value="GCASH">GCash</option>
           <option value="CASH">Cash</option>
-          <option value="BANK">Bank Transfer</option>
         </select>
 
         {/* Date Range Dropdown */}
