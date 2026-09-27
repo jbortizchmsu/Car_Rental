@@ -2588,6 +2588,19 @@ h5 {
   transition: all 0.2s;
 }
 
+/* Recent Damage Reports' Action cell: two buttons ("Create Log" + "Resolve") that
+   previously sat in a plain nowrap flex row, so once their combined width exceeded
+   the ACTION column's available space, the second button was pushed past the card's
+   right edge and clipped by .table-container's overflow: hidden (not touched here —
+   it's shared with 3 other pages). flex-wrap lets "Resolve" drop to its own line,
+   aligned the same way (flex-start, same gap) on every row, instead of overflowing. */
+.maintenance-damage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
 /* Confirm Modal Styles */
 /* NOTE: .confirm-modal-backdrop is defined a second time further down (search
    "CONFIRM ACTION MODAL"), with different background opacity, z-index (9000 vs this

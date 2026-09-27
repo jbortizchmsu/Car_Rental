@@ -385,7 +385,15 @@ const AdminMaintenancePage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+      {/* minmax raised from 320px: the Recent Damage Reports table (5 columns, two
+          side-by-side action buttons) needs roughly 700-750px to render every column
+          without wrapping or clipping. 320px let two ~600-650px columns sit side by
+          side long before either card was actually wide enough, which is what forced
+          the ACTION column's buttons and the Vehicle name into their own squeeze. This
+          card now falls back to a single, full-width column until the viewport is
+          genuinely wide enough for two comfortable columns, instead of shrinking the
+          table's own content further. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(700px, 1fr))', gap: '2rem' }}>
         {/* Recent Damage Reports */}
         <div className="maintenance-table-card">
           <div className="table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -462,10 +470,16 @@ const AdminMaintenancePage: React.FC = () => {
                             ✓ Resolved
                           </span>
                         ) : (
-                          <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          // flexWrap so the second button drops to its own line, aligned
+                          // the same way on every row, instead of overflowing the card
+                          // when there isn't room for both side by side; whiteSpace:
+                          // nowrap on each button keeps its own label on one line either
+                          // way (was previously free to wrap mid-label, e.g. "Create /
+                          // Log").
+                          <div className="maintenance-damage-actions">
                             <button
                               className="btn-outline"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '8px' }}
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '8px', whiteSpace: 'nowrap' }}
                               onClick={() => {
                                 setSelectedVehicleId(report.booking.vehicleId);
                                 setSelectedDamageReportId(report.id);
@@ -486,7 +500,7 @@ const AdminMaintenancePage: React.FC = () => {
                             </button>
                             <button
                               className="btn-outline"
-                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '8px', color: '#16A34A', borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', fontWeight: 600 }}
+                              style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '8px', color: '#16A34A', borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', fontWeight: 600, whiteSpace: 'nowrap' }}
                               disabled={resolvingReportId === report.id}
                               onClick={() => handleResolveDamageReport(report.id)}
                               title="Mark this damage report as resolved directly"
@@ -574,7 +588,7 @@ const AdminMaintenancePage: React.FC = () => {
                         {log.status !== 'COMPLETED' ? (
                           <button
                             className="btn-outline"
-                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px', color: '#16A34A', borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', fontWeight: 600 }}
+                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', borderRadius: '6px', color: '#16A34A', borderColor: '#BBF7D0', backgroundColor: '#F0FDF4', fontWeight: 600, whiteSpace: 'nowrap' }}
                             disabled={updatingLogId === log.id}
                             onClick={() => handleCompleteLog(log.id)}
                             title="Mark this service entry as completed"
