@@ -1028,23 +1028,23 @@ const AdminLiveMapPage: React.FC = () => {
         </main>
 
         {/* Right Column: Monitoring Panels */}
-        <aside className="w-72 flex-shrink-0 h-full overflow-y-auto flex flex-col gap-3 pb-4" style={{ scrollbarWidth: 'thin' }}>
+        <aside className="map-fleet-column h-full flex flex-col gap-3" style={{ scrollbarWidth: 'thin' }}>
           {/* Fleet Status Summary */}
           <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400" style={{ margin: 0 }}>Fleet Overview</h3>
-              <Activity size={16} className="text-gray-300" />
+            <div className="map-fleet-panel-header flex items-center justify-between">
+              <h3 className="map-fleet-panel-heading font-black text-gray-400" style={{ margin: 0 }}>Fleet Overview</h3>
+              <Activity size={16} className="text-gray-300" style={{ flexShrink: 0 }} />
             </div>
-            
+
             <div className="space-y-3">
-              <div className="fleet-active-bar flex items-center justify-between bg-black text-white p-3.5 rounded-2xl shadow-md">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+              <div className="fleet-active-bar map-fleet-active-bar flex items-center bg-black text-white rounded-2xl shadow-md">
+                <div className="map-fleet-active-label-group flex items-center gap-3">
+                  <div className="map-fleet-active-icon-box rounded-lg flex items-center justify-center">
                     <NavIcon size={16} />
                   </div>
-                  <span className="text-[11px] font-black uppercase">Active on road</span>
+                  <span className="map-fleet-active-label font-black">Active on road</span>
                 </div>
-                <span className="text-lg font-black">{fleetStats?.active || 0}</span>
+                <span className="map-fleet-active-count text-lg font-black">{fleetStats?.active || 0}</span>
               </div>
 
               <div className="monitoring-stat-grid">
@@ -1062,16 +1062,16 @@ const AdminLiveMapPage: React.FC = () => {
 
           {/* Alerts Panel */}
           <section className="bg-white rounded-2xl border border-gray-100 p-4 flex-shrink-0 shadow-sm">
-            <div className="flex items-center justify-between mb-5">
+            <div className="map-fleet-panel-header flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400" style={{ margin: 0 }}>Live Alerts</h3>
+                <h3 className="map-fleet-panel-heading font-black text-gray-400" style={{ margin: 0 }}>Live Alerts</h3>
                 {unresolvedAlerts.length > 0 && (
                   <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
                     {unresolvedAlerts.length}
                   </span>
                 )}
               </div>
-              <AlertTriangle size={16} className={unresolvedAlerts.length > 0 ? 'text-red-600' : 'text-gray-300'} />
+              <AlertTriangle size={16} className={unresolvedAlerts.length > 0 ? 'text-red-600' : 'text-gray-300'} style={{ flexShrink: 0 }} />
             </div>
 
             <div className="space-y-3">
