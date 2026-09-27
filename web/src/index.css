@@ -3020,10 +3020,24 @@ h5 {
   gap: 1rem;
 }
 
+/* Vehicle + Schedule sub-columns as a fixed even split, not unconstrained flex — the
+   previous plain `display: flex` sized each side to its own content, so Schedule's
+   start position drifted card to card depending on that card's own vehicle
+   name/plate length. minmax(0, 1fr) (not plain 1fr) so a long name can still wrap
+   inside its own half instead of forcing this wider. New, scoped to this page only —
+   .booking-list-meta below is reused as-is, untouched. */
+.booking-list-vehicle-schedule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem;
+  min-width: 0;
+}
+
 .booking-list-meta {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  min-width: 0;
 }
 
 .booking-list-status {

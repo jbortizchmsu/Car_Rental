@@ -813,8 +813,11 @@ const BookingRequestsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Middle: Vehicle & Dates */}
-                  <div style={{ display: 'flex', gap: '2rem', flex: 1 }}>
+                  {/* Middle: Vehicle & Dates — fixed even split (not content-sized flex),
+                      so Schedule always starts at the same offset regardless of how long
+                      this row's vehicle name/plate happens to be. New scoped class, not a
+                      shared one. */}
+                  <div className="booking-list-vehicle-schedule">
                     <div className="booking-list-meta">
                       <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Vehicle</span>
                       <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--black)' }}>{booking.vehicle.brand} {booking.vehicle.model}</span>
@@ -831,11 +834,14 @@ const BookingRequestsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Right: Amount & Status */}
+                  {/* Right: Amount & Status — amount/badge row is untouched (still allowed
+                      to wrap below the amount if it must); status text and the button are
+                      now always two separate stacked rows instead of a shared row that
+                      wrapped/sat side-by-side inconsistently depending on text length. */}
                   <div className="booking-list-status" style={{ minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--black)' }}>₱{Number(booking.totalAmount).toLocaleString()}</span>
-                      
+
                       {wf.actionPriority === 'ACTION_REQUIRED' && (
                         <span style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: '#FEF2F2', color: '#DC2626', padding: '0.2rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>
                           Action Required
@@ -847,21 +853,19 @@ const BookingRequestsPage: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    
-                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-                      <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)' }}>{wf.label}</span>
-                      <button
-                        className={`booking-list-action ${wf.actionPriority === 'ACTION_REQUIRED' ? 'priority' : ''}`}
-                        style={{
-                          flexShrink: 0,
-                          backgroundColor: wf.actionPriority === 'ACTION_REQUIRED' ? 'var(--warm-taupe)' : 'var(--gray-100)',
-                          color: wf.actionPriority === 'ACTION_REQUIRED' ? 'white' : 'var(--gray-600)',
-                          border: 'none'
-                        }}
-                      >
-                        {wf.actionLabel}
-                      </button>
-                    </div>
+
+                    <span style={{ width: '100%', textAlign: 'right', fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)' }}>{wf.label}</span>
+
+                    <button
+                      className={`booking-list-action ${wf.actionPriority === 'ACTION_REQUIRED' ? 'priority' : ''}`}
+                      style={{
+                        backgroundColor: wf.actionPriority === 'ACTION_REQUIRED' ? 'var(--warm-taupe)' : 'var(--gray-100)',
+                        color: wf.actionPriority === 'ACTION_REQUIRED' ? 'white' : 'var(--gray-600)',
+                        border: 'none'
+                      }}
+                    >
+                      {wf.actionLabel}
+                    </button>
                   </div>
                 </div>
               );
