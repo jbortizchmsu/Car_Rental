@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { profileUpdateSchema } from '../lib/validation';
 
 const router = Router();
 
@@ -61,15 +62,28 @@ router.get('/profile', authenticate, async (req: AuthRequest, res) => {
 
 router.put('/profile', authenticate, async (req: AuthRequest, res) => {
   const { fullName, phoneNumber, address } = req.body;
-  
+
+  // Only validate fields actually present in the request — the schema itself makes
+  // every field optional, but building this object explicitly (rather than passing
+  // req.body straight through) means an unrelated extra field can't slip past.
+  const toValidate: Record<string, unknown> = {};
+  if (fullName !== undefined) toValidate.fullName = fullName;
+  if (phoneNumber !== undefined) toValidate.phoneNumber = phoneNumber;
+  if (address !== undefined) toValidate.address = address;
+
+  const parsed = profileUpdateSchema.safeParse(toValidate);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0].message });
+  }
+
   try {
     // Only allow updating non-sensitive fields
     const updatedUser = await prisma.user.update({
       where: { id: req.user!.id },
       data: {
-        fullName,
-        phoneNumber,
-        address
+        fullName: parsed.data.fullName,
+        phoneNumber: parsed.data.phoneNumber,
+        address: parsed.data.address
       },
       select: {
         id: true,

@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { User, Mail, Phone, MapPin, Loader2, Save, CheckCircle2, AlertCircle, Eye, EyeOff, Lock } from 'lucide-react';
 import { customerApi, authApi } from '../services/api';
 
+// Mirrors server/src/lib/validation.ts's profileUpdateSchema — kept in sync manually,
+// same as RegisterPage.tsx does for its own fields (no shared web/server validation module).
+const FULL_NAME_MAX_LENGTH = 100;
+const ADDRESS_MAX_LENGTH = 200;
+const isValidPhoneNumber = (phone: string) => /^09\d{9}$/.test(phone);
+
 const CustomerProfilePage: React.FC = () => {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -47,19 +53,28 @@ const CustomerProfilePage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(false);
+
+    const trimmedFullName = formData.fullName.trim();
+    const trimmedAddress = formData.address.trim();
+
+    if (!isValidPhoneNumber(formData.phoneNumber)) {
+      setError('Phone number must be 11 digits starting with 09 (e.g., 09123456789).');
+      return;
+    }
+
     try {
       setSaving(true);
-      setError(null);
-      setSuccess(false);
       await customerApi.updateProfile({
-        fullName: formData.fullName,
+        fullName: trimmedFullName,
         phoneNumber: formData.phoneNumber,
-        address: formData.address
+        address: trimmedAddress
       });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError('Failed to update profile');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -141,11 +156,12 @@ const CustomerProfilePage: React.FC = () => {
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <User size={16} /> Full Name
             </label>
-            <input 
+            <input
               className="form-input"
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               required
+              maxLength={FULL_NAME_MAX_LENGTH}
               placeholder="Enter your full name"
             />
           </div>
@@ -168,10 +184,17 @@ const CustomerProfilePage: React.FC = () => {
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Phone size={16} /> Phone Number
               </label>
-              <input 
+              <input
+                type="tel"
                 className="form-input"
                 value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                inputMode="numeric"
+                pattern="[0-9]{11}"
+                maxLength={11}
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setFormData({ ...formData, phoneNumber: digitsOnly });
+                }}
                 required
                 placeholder="09123456789"
               />
@@ -180,11 +203,12 @@ const CustomerProfilePage: React.FC = () => {
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <MapPin size={16} /> Location
               </label>
-              <input 
+              <input
                 className="form-input"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 required
+                maxLength={ADDRESS_MAX_LENGTH}
                 placeholder="City, Province"
               />
             </div>

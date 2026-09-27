@@ -74,3 +74,29 @@ export const userApprovalSchema = z.object({
   }),
   reason: z.string().trim().min(1).optional(),
 });
+
+// Profile update (PUT /api/customer/profile): registerSchema/RegisterPage.tsx don't
+// actually define a max length for fullName or address today (only non-empty is
+// enforced) — these are new, minimal limits introduced here, not reused from an
+// existing constant, chosen to comfortably fit a real PH name/address (DB columns are
+// unbounded — no @db.VarChar — so this is the only length limit that will exist).
+export const PROFILE_FULL_NAME_MAX_LENGTH = 100;
+export const PROFILE_ADDRESS_MAX_LENGTH = 200;
+
+// All fields optional so the route can validate only what's present (partial update) —
+// .trim() before .min(1) means a whitespace-only value is rejected the same as empty.
+export const profileUpdateSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(1, 'Full name is required')
+    .max(PROFILE_FULL_NAME_MAX_LENGTH, `Full name must be at most ${PROFILE_FULL_NAME_MAX_LENGTH} characters`)
+    .optional(),
+  phoneNumber: phoneNumberSchema.optional(),
+  address: z
+    .string()
+    .trim()
+    .min(1, 'Location is required')
+    .max(PROFILE_ADDRESS_MAX_LENGTH, `Location must be at most ${PROFILE_ADDRESS_MAX_LENGTH} characters`)
+    .optional(),
+});
