@@ -7,6 +7,28 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, Car, Users, Fuel, Calendar } from 'lucide-react-native';
 import { vehiclesApi } from '../services/api';
+import { getVehicleImageUri } from '../utils/vehicleImage';
+
+/** Vehicle photo with a graceful car-icon placeholder for no image / a failed load —
+ * its own component (not inline JSX) so it can hold its own error state per row. */
+function VehicleImage({ uri, style }: { uri: string | null; style: any }) {
+  const [failed, setFailed] = useState(!uri);
+  if (!uri || failed) {
+    return (
+      <View style={[style, styles.imagePlaceholder]}>
+        <Car size={36} stroke="#9CA3AF" />
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      style={style}
+      resizeMode="cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 const CATEGORY_COLOR: Record<string, string> = {
   Sedan: '#DBEAFE',
@@ -50,7 +72,7 @@ export default function VehiclesScreen({ navigation, route }: any) {
 
   const renderVehicle = ({ item }: { item: any }) => {
     const available = item.status === 'AVAILABLE';
-    const imgUrl = vehiclesApi.getImageUrl(item.id);
+    const imgUrl = getVehicleImageUri(item);
 
     return (
       <TouchableOpacity
@@ -60,12 +82,7 @@ export default function VehiclesScreen({ navigation, route }: any) {
       >
         {/* Vehicle image */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: imgUrl }}
-            style={styles.vehicleImage}
-            resizeMode="cover"
-            onError={() => {}} // silently fail — fallback bg shows
-          />
+          <VehicleImage uri={imgUrl} style={styles.vehicleImage} />
           <View style={[
             styles.statusBadge,
             { backgroundColor: available ? '#10B981' : '#EF4444' }
@@ -214,6 +231,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   vehicleImage: { width: '100%', height: '100%' },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' },
   statusBadge: {
     position: 'absolute', top: 10, right: 10,
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,

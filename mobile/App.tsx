@@ -32,7 +32,19 @@ import VehiclesScreen from './src/screens/VehiclesScreen';
 import BookingFormScreen from './src/screens/BookingFormScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import { bookingFormStatus } from './src/services/bookingState';
-import { signInWithGoogleNative, getGoogleSignInErrorMessage, isGoogleSignInConfigured } from './src/services/googleAuth';
+import {
+  signInWithGoogleNative,
+  getGoogleSignInErrorMessage,
+  isGoogleSignInConfigured,
+  isGoogleSignInCancelled,
+  logGoogleSignInError,
+} from './src/services/googleAuth';
+import {
+  normalizeNotificationsResponse,
+  formatNotificationTime,
+  getNotificationAccentColor,
+} from './src/utils/notifications';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 const LoginScreen = ({ onLogin, navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -58,14 +70,27 @@ const LoginScreen = ({ onLogin, navigation }: any) => {
     } catch (error: any) {
       if (error?.isAxiosError) {
         // Failed at our own backend (POST /auth/google), not at the native sign-in step.
+        console.warn('[Google Sign-In] Backend rejected the sign-in:', {
+          status: error.response?.status,
+          message: error.response?.data?.error,
+        });
         if (!error.response) {
           Alert.alert('Google Sign-In Failed', 'Cannot connect to server. Check your connection and try again.');
         } else {
+          // 401 (invalid/expired token or unverified email), 403 (account disabled),
+          // and 409 (email already registered another way) all already carry a
+          // specific, accurate message from the server — shown as-is.
           Alert.alert('Google Sign-In Failed', error.response?.data?.error || 'An unexpected error occurred.');
         }
       } else {
-        // Failed at the native GoogleSignin step (e.g. Play Services missing).
-        Alert.alert('Google Sign-In Failed', getGoogleSignInErrorMessage(error));
+        // Failed at the native GoogleSignin step (e.g. Play Services missing, or a
+        // configuration mismatch like code 10). Always logged in full so a failing
+        // preview/production build is diagnosable from device logs; a plain user
+        // cancellation is the one case that should never show an alert.
+        logGoogleSignInError(error);
+        if (!isGoogleSignInCancelled(error)) {
+          Alert.alert('Google Sign-In Failed', getGoogleSignInErrorMessage(error));
+        }
       }
     } finally {
       setGoogleLoading(false);
@@ -546,7 +571,10 @@ const NotificationsScreen = () => {
   const fetchNotifications = async () => {
     try {
       const response = await notificationsApi.getNotifications();
-      setNotifications(response.data);
+      // GET /customer/notifications returns { data, total, skip, take, hasMore },
+      // not a bare array — normalize defensively so this can never again set state
+      // to something .map()/.length can't be called on.
+      setNotifications(normalizeNotificationsResponse(response.data));
     } catch (error) {
       console.error('Fetch Notifications Error:', error);
     } finally {
@@ -596,20 +624,20 @@ const NotificationsScreen = () => {
             <Text style={styles.subtitle}>No notifications yet.</Text>
           </View>
         ) : (
-          notifications.map(n => (
+          notifications.map((n, idx) => (
             <TouchableOpacity
-              key={n.id}
-              style={[styles.notificationItem, { backgroundColor: n.isRead ? '#FFF' : '#F3E5F5' }]}
-              onPress={() => !n.isRead && markAsRead(n.id)}
+              key={n?.id ?? idx}
+              style={[styles.notificationItem, { backgroundColor: n?.isRead ? '#FFF' : '#F3E5F5' }]}
+              onPress={() => n?.id && !n?.isRead && markAsRead(n.id)}
             >
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={[styles.notifIcon, { backgroundColor: n.isRead ? '#F3F4F6' : '#7B1FA2' }]}>
-                  <Bell size={18} stroke={n.isRead ? '#9CA3AF' : '#FFF'} />
+                <View style={[styles.notifIcon, { backgroundColor: getNotificationAccentColor(n?.isRead) }]}>
+                  <Bell size={18} stroke={n?.isRead ? '#9CA3AF' : '#FFF'} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifTitle, { fontWeight: n.isRead ? '600' : '800' }]}>{n.title}</Text>
-                  <Text style={styles.notifMessage}>{n.message}</Text>
-                  <Text style={styles.notifTime}>{new Date(n.createdAt).toLocaleString()}</Text>
+                  <Text style={[styles.notifTitle, { fontWeight: n?.isRead ? '600' : '800' }]}>{n?.title}</Text>
+                  <Text style={styles.notifMessage}>{n?.message}</Text>
+                  <Text style={styles.notifTime}>{formatNotificationTime(n?.createdAt)}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -752,10 +780,11 @@ function AppNavigator({ user, setUser }: { user: any; setUser: (u: any) => void 
             tabBarStyle: { height: 60 + insets.bottom, paddingBottom: insets.bottom + 10 },
           })}
         >
-          <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Active' }} />
+          <Tab.Screen name="Home" options={{ tabBarLabel: 'Active' }}>
+            {() => <ErrorBoundary><HomeScreen /></ErrorBoundary>}
+          </Tab.Screen>
           <Tab.Screen
             name="Book"
-            component={VehiclesStackNavigator}
             options={{ tabBarLabel: 'Book' }}
             listeners={({ navigation }) => ({
               tabPress: () => {
@@ -764,14 +793,20 @@ function AppNavigator({ user, setUser }: { user: any; setUser: (u: any) => void 
                 }
               },
             })}
-          />
-          <Tab.Screen name="Bookings" component={BookingsStackNavigator} options={{ tabBarLabel: 'Bookings' }} />
-          <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ tabBarLabel: 'Alerts' }} />
+          >
+            {() => <ErrorBoundary><VehiclesStackNavigator /></ErrorBoundary>}
+          </Tab.Screen>
+          <Tab.Screen name="Bookings" options={{ tabBarLabel: 'Bookings' }}>
+            {() => <ErrorBoundary><BookingsStackNavigator /></ErrorBoundary>}
+          </Tab.Screen>
+          <Tab.Screen name="Alerts" options={{ tabBarLabel: 'Alerts' }}>
+            {() => <ErrorBoundary><NotificationsScreen /></ErrorBoundary>}
+          </Tab.Screen>
           <Tab.Screen
             name="Profile"
             options={{ tabBarLabel: 'Profile' }}
           >
-            {(props) => <ProfileScreen {...props} onLogout={() => setUser(null)} />}
+            {(props) => <ErrorBoundary><ProfileScreen {...props} onLogout={() => setUser(null)} /></ErrorBoundary>}
           </Tab.Screen>
         </Tab.Navigator>
       ) : (

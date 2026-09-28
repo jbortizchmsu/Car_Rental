@@ -1,10 +1,15 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBaseUrl } from '../utils/env';
 
 // JD Car Rental - Mobile Supabase Client Configuration
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+// Derived, not read raw — eas.json's EXPO_PUBLIC_SUPABASE_URL currently includes a
+// trailing /rest/v1 path (meant for direct REST calls, not for supabase-js's own
+// client constructor, which needs the bare project URL). getSupabaseBaseUrl() strips
+// that safely, so this works whether or not eas.json's value is ever corrected.
+const supabaseUrl = getSupabaseBaseUrl() || undefined;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // Safe Validation (Does not log full keys)
@@ -15,8 +20,6 @@ const validateEnv = () => {
     issues.push("EXPO_PUBLIC_SUPABASE_URL is missing or using a placeholder.");
   } else if (!supabaseUrl.startsWith("https://")) {
     issues.push("EXPO_PUBLIC_SUPABASE_URL must start with https://");
-  } else if (supabaseUrl.includes("/rest/v1") || supabaseUrl.includes("/auth/v1")) {
-    issues.push("EXPO_PUBLIC_SUPABASE_URL should NOT include /rest/v1 or /auth/v1.");
   }
 
   if (!supabaseAnonKey || supabaseAnonKey.includes("PASTE_")) {

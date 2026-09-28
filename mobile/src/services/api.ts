@@ -1,16 +1,21 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiBaseUrl, getRawApiBaseUrl } from '../utils/env';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+// Trimmed and trailing-slash-free — a stray leading/trailing space in eas.json's
+// EXPO_PUBLIC_API_URL (as the preview profile's has had) would otherwise end up
+// baked into axios's baseURL and every URL built by string concatenation from it
+// (e.g. vehicle image URIs), breaking outgoing requests silently.
+const API_BASE_URL = getApiBaseUrl();
 
-if (!API_BASE_URL) {
+if (!getRawApiBaseUrl()) {
   console.error("Mobile API URL is missing. Set EXPO_PUBLIC_API_URL in mobile/.env.");
 } else {
   console.log(`API Base URL: ${API_BASE_URL}`);
 }
 
 const api = axios.create({
-  baseURL: API_BASE_URL || 'http://localhost:4000/api',
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -56,17 +61,19 @@ export const vehiclesApi = {
     const query = params.toString();
     return api.get(`/vehicles/available${query ? `?${query}` : ''}`);
   },
-  getImageUrl: (id: string) =>
-    `${API_BASE_URL || 'http://localhost:4000/api'}/vehicles/${id}/image`,
+  // Superseded by utils/vehicleImage.ts's getVehicleImageUri() for actual vehicle
+  // image rendering (it reads a stored absolute imageUrl directly when available);
+  // kept here since it's still a valid fallback URL shape other code may rely on.
+  getImageUrl: (id: string) => `${API_BASE_URL}/vehicles/${id}/image`,
 };
 
 export const filesApi = {
-  getFileUrl: (fileId: string) => `${API_BASE_URL || 'http://localhost:4000/api'}/files/${fileId}`,
+  getFileUrl: (fileId: string) => `${API_BASE_URL}/files/${fileId}`,
   getSignedUrl: async (fileId: string) => {
     const res = await api.get(`/files/${fileId}?json=true`);
     const url = res.data?.url || res.data?.signedUrl;
     if (!url || typeof url !== 'string' || url.trim() === '') {
-      return `${API_BASE_URL || 'http://localhost:4000/api'}/files/${fileId}`;
+      return `${API_BASE_URL}/files/${fileId}`;
     }
     return url;
   },
