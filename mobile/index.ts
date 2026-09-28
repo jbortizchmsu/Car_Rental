@@ -1,3 +1,8 @@
+// Registers the background GPS task before anything else runs — including the case
+// where the OS restarts the app process specifically to redeliver a location update
+// to an already-started background task. Must be imported first.
+import './src/services/backgroundLocation';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

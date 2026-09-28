@@ -31,7 +31,17 @@
     "plugins": [
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "JD Car Rental uses your location to track your rented vehicle during an active rental.",
+          "locationAlwaysAndWhenInUsePermission": "JD Car Rental tracks your rented vehicle's location during an active rental, even when the app is closed, for vehicle safety and geofencing. Tracking stops when the rental ends.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ]
     ],
     "extra": {
       "eas": {

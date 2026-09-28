@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,10 +11,18 @@ import {
 import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Car, MapPin, AlertCircle, CheckCircle2, Navigation as NavIcon, Calendar, RefreshCw, Bell, User, FileText, Upload, ChevronRight, X, Eye, EyeOff } from 'lucide-react-native';
-import api, { authApi, bookingsApi, gpsApi, notificationsApi, customerApi } from './src/services/api';
+import api, { authApi, bookingsApi, notificationsApi, customerApi } from './src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { enqueue as enqueueGpsPoint } from './src/services/gpsQueue';
 import { startGpsSyncListener } from './src/services/gpsSync';
+import {
+  buildGpsPayload,
+  sendOrQueueGpsPoint,
+  startBackgroundTracking,
+  stopBackgroundTracking,
+  hasDeclinedBackgroundFor,
+  markDeclinedBackgroundFor,
+  TrackingContext,
+} from './src/services/backgroundLocation';
 
 // New screen imports
 import BookingsListScreen from './src/screens/BookingsListScreen';
@@ -167,6 +175,23 @@ const HomeScreen = () => {
   const [lastLocation, setLastLocation] = useState<any>(null);
   const [trackingSession, setTrackingSession] = useState<any>(null);
   const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
+  const [trackingMode, setTrackingMode] = useState<'background' | 'foreground' | null>(null);
+  const [showBgExplainer, setShowBgExplainer] = useState(false);
+
+  // Which trackingSessionId (if any) is currently running via the background task —
+  // a ref, not state, so it survives every ~30s re-run of the tracking effect below
+  // (each poll produces a brand new activeBooking/trackingSession object) without
+  // ever re-triggering a redundant start/stop of the already-running background task.
+  const bgSessionRef = useRef<string | null>(null);
+  // Which trackingSessionId the background-permission explainer has already been
+  // resolved for (allowed or declined) — so it is only ever shown once per rental.
+  const bgModalResolvedForRef = useRef<string | null>(null);
+  const pendingBgChoiceRef = useRef<((choice: 'allow' | 'not-now') => void) | null>(null);
+
+  const handleBgExplainerChoice = (choice: 'allow' | 'not-now') => {
+    pendingBgChoiceRef.current?.(choice);
+    pendingBgChoiceRef.current = null;
+  };
 
   const fetchActiveBooking = async () => {
     try {
@@ -193,55 +218,129 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
+    let cancelled = false;
     let locationSubscription: any = null;
+
+    const startForegroundWatch = () => {
+      return Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 15000, distanceInterval: 30 },
+        async (location) => {
+          setLastLocation(location);
+          if (!activeBooking || !trackingSession) return;
+          const context: TrackingContext = {
+            bookingId: activeBooking.id,
+            vehicleId: activeBooking.vehicleId,
+            trackingSessionId: trackingSession.id,
+          };
+          const point = buildGpsPayload(context, location);
+          await sendOrQueueGpsPoint(point);
+        }
+      );
+    };
+
     const startTracking = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
+        if (cancelled) return;
         setLocationPermission(status === 'granted');
-        if (status === 'granted' && activeBooking && trackingSession) {
-          setTrackingActive(true);
-          locationSubscription = await Location.watchPositionAsync(
-            { accuracy: Location.Accuracy.Balanced, timeInterval: 15000, distanceInterval: 30 },
-            async (location) => {
-              setLastLocation(location);
-              const point = {
-                trackingSessionId: trackingSession.id,
-                bookingId: activeBooking.id,
-                vehicleId: activeBooking.vehicleId,
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                speed: location.coords.speed,
-                heading: location.coords.heading,
-                accuracy: location.coords.accuracy,
-                recordedAt: new Date(location.timestamp).toISOString(),
-              };
-              try {
-                await gpsApi.sendLocation(point);
-              } catch (err: any) {
-                // No response received at all (offline, timeout, DNS failure, etc.) is a
-                // genuine connectivity failure — queue the point locally for later sync.
-                // A response WAS received (e.g. a 400 from a legitimate server-side
-                // rejection) means the server is reachable and actively rejected this
-                // point — that's not a connectivity problem, so it must NOT be queued/
-                // retried, exactly like it wasn't retried before this feature existed.
-                if (!err?.response) {
-                  console.error('GPS Upload Error (offline — point queued):', err);
-                  await enqueueGpsPoint(point);
-                } else {
-                  console.error('GPS Upload Error (server rejected — not queued):', err);
-                }
-              }
-            }
-          );
-        } else {
+
+        const sessionId = trackingSession?.id ?? null;
+
+        if (status !== 'granted' || !activeBooking || !sessionId) {
           setTrackingActive(false);
+          setTrackingMode(null);
+          if (bgSessionRef.current) {
+            bgSessionRef.current = null;
+            await stopBackgroundTracking();
+          }
+          return;
         }
+
+        setTrackingActive(true);
+
+        // Background tracking already running for this exact rental session — leave
+        // it running (never restart it just because this effect re-ran on a routine
+        // 30s poll), but re-check that background permission is still granted, in
+        // case it was revoked from system settings while tracking.
+        if (bgSessionRef.current === sessionId) {
+          const stillGranted = (await Location.getBackgroundPermissionsAsync()).status === 'granted';
+          if (!cancelled && stillGranted) {
+            setTrackingMode('background');
+            return;
+          }
+          bgSessionRef.current = null;
+          await stopBackgroundTracking();
+          if (cancelled) return;
+          locationSubscription = await startForegroundWatch();
+          setTrackingMode('foreground');
+          return;
+        }
+
+        // A different session was previously running in the background — stop it
+        // before deciding what to do for the new one.
+        if (bgSessionRef.current) {
+          bgSessionRef.current = null;
+          await stopBackgroundTracking();
+        }
+
+        const context: TrackingContext = {
+          bookingId: activeBooking.id,
+          vehicleId: activeBooking.vehicleId,
+          trackingSessionId: sessionId,
+        };
+
+        let shouldTryBackground = (await Location.getBackgroundPermissionsAsync()).status === 'granted';
+
+        if (!shouldTryBackground && bgModalResolvedForRef.current !== sessionId) {
+          const alreadyDeclined = await hasDeclinedBackgroundFor(sessionId);
+          if (!alreadyDeclined) {
+            bgModalResolvedForRef.current = sessionId;
+            const choice = await new Promise<'allow' | 'not-now'>((resolve) => {
+              pendingBgChoiceRef.current = resolve;
+              setShowBgExplainer(true);
+            });
+            setShowBgExplainer(false);
+            if (cancelled) return;
+
+            if (choice === 'allow') {
+              const req = await Location.requestBackgroundPermissionsAsync();
+              shouldTryBackground = req.status === 'granted';
+              if (!shouldTryBackground) {
+                await markDeclinedBackgroundFor(sessionId);
+              }
+            } else {
+              await markDeclinedBackgroundFor(sessionId);
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        if (shouldTryBackground) {
+          const started = await startBackgroundTracking(context);
+          if (cancelled) return;
+          if (started) {
+            bgSessionRef.current = sessionId;
+            setTrackingMode('background');
+            return;
+          }
+        }
+
+        // Fallback: foreground-only tracking, exactly as before this feature existed.
+        locationSubscription = await startForegroundWatch();
+        setTrackingMode('foreground');
       } catch (err) {
         console.error('Location Setup Error:', err);
       }
     };
     startTracking();
-    return () => locationSubscription?.remove();
+    return () => {
+      cancelled = true;
+      locationSubscription?.remove();
+      // Background tracking is intentionally NOT stopped here — a routine re-render
+      // or 30s poll must never interrupt it. It is stopped explicitly above, only
+      // when the session actually ends or changes, and on logout (ProfileScreen).
+    };
   }, [activeBooking, trackingSession]);
 
   // Compass heading for "which way is my phone facing" — separate from the GPS
@@ -338,6 +437,11 @@ const HomeScreen = () => {
                 <>
                   <NavIcon size={32} stroke="#7B1FA2" />
                   <Text style={[styles.trackingText, { color: '#7B1FA2' }]}>GPS tracking active</Text>
+                  {trackingMode && (
+                    <Text style={{ color: '#7B1FA2', fontSize: 11, fontWeight: '700', marginTop: 2 }}>
+                      {trackingMode === 'background' ? 'Tracking: background' : 'Tracking: only while app is open'}
+                    </Text>
+                  )}
                   {lastLocation ? (
                     <View style={{ marginTop: 10, alignItems: 'center' }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -393,6 +497,41 @@ const HomeScreen = () => {
           </View>
         )}
       </ScrollView>
+
+      <Modal visible={showBgExplainer} transparent animationType="fade" onRequestClose={() => handleBgExplainerChoice('not-now')}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#FFF', borderRadius: 20, padding: 24 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A1A', marginBottom: 10 }}>
+              Keep tracking on during your rental
+            </Text>
+            <Text style={{ fontSize: 13, color: '#4B4B4B', lineHeight: 19 }}>
+              JD Car Rental tracks your rented vehicle's location during an active rental,
+              even when the app is closed or your screen is locked, for vehicle safety and
+              geofencing. A notification will stay visible while tracking is on. Tracking
+              stops automatically when the rental ends.
+            </Text>
+            {Platform.OS === 'android' && (
+              <Text style={{ fontSize: 12, color: '#7B1FA2', marginTop: 10, fontWeight: '600' }}>
+                On the next screen, please choose "Allow all the time".
+              </Text>
+            )}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <TouchableOpacity
+                style={[styles.button, { flex: 1, backgroundColor: '#F3F4F6', height: 48 }]}
+                onPress={() => handleBgExplainerChoice('not-now')}
+              >
+                <Text style={{ color: '#1A1A1A', fontWeight: '700' }}>Not now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, { flex: 1, backgroundColor: '#AD9B8D', height: 48 }]}
+                onPress={() => handleBgExplainerChoice('allow')}
+              >
+                <Text style={{ color: '#FFF', fontWeight: '700' }}>Allow</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -496,6 +635,7 @@ const ProfileScreen = ({ onLogout }: any) => {
   }, []);
 
   const handleLogout = async () => {
+    await stopBackgroundTracking();
     await AsyncStorage.removeItem('jd_token');
     await AsyncStorage.removeItem('jd_user');
     onLogout();
