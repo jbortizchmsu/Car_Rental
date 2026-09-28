@@ -136,6 +136,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('jd_user');
     setUser(null);
     setProfile(null);
+    // Cancels any pending Google One Tap/auto-select prompt for this browser session,
+    // so signing out here can never be followed by an automatic Google re-sign-in.
+    // Guarded — the GSI script may not have loaded (or ever load, if no Google
+    // client ID is configured), and this must never block the rest of logout.
+    window.google?.accounts?.id?.disableAutoSelect();
   };
 
   return (

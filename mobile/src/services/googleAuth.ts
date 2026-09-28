@@ -56,12 +56,45 @@ function ensureConfigured() {
  */
 export async function signInWithGoogleNative(): Promise<string | null> {
   ensureConfigured();
+
+  // Clear any lingering native session first, so the account picker always shows —
+  // without this, Play Services silently re-signs the user into whichever Google
+  // account was used last time (even across a JD Car Rental logout, since our own
+  // logout only clears our own token, not the separate native Google session).
+  // signOut(), never revokeAccess() — revoking would force the user to re-grant
+  // permissions on every single sign-in instead of just re-picking an account.
+  if (GoogleSignin.hasPreviousSignIn()) {
+    try {
+      await GoogleSignin.signOut();
+    } catch (err) {
+      console.warn('[Google Sign-In] Failed to clear the previous session before signing in (continuing anyway):', err);
+    }
+  }
+
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
   if (isSuccessResponse(response)) {
     return response.data.idToken;
   }
   return null;
+}
+
+/**
+ * Signs out of the native Google session only (never revokeAccess — that would make
+ * the user re-grant permissions on every future sign-in instead of just re-picking
+ * an account). Call this from every JD Car Rental logout path so a later "Sign in
+ * with Google" always shows the account picker instead of silently reusing the
+ * previous session. Never throws and is a no-op if Google Sign-In isn't configured
+ * or no native session exists — safe to call unconditionally on every logout,
+ * regardless of how the user actually signed in.
+ */
+export async function signOutFromGoogle(): Promise<void> {
+  if (!isGoogleSignInConfigured) return;
+  try {
+    await GoogleSignin.signOut();
+  } catch (err) {
+    console.warn('[Google Sign-In] signOut failed (ignored — logout continues):', err);
+  }
 }
 
 // Raw Android GoogleSignInStatusCodes that surface as error.code but have no named

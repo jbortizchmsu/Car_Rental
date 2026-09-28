@@ -38,6 +38,7 @@ import {
   isGoogleSignInConfigured,
   isGoogleSignInCancelled,
   logGoogleSignInError,
+  signOutFromGoogle,
 } from './src/services/googleAuth';
 import {
   normalizeNotificationsResponse,
@@ -664,6 +665,7 @@ const ProfileScreen = ({ onLogout }: any) => {
 
   const handleLogout = async () => {
     await stopBackgroundTracking();
+    await signOutFromGoogle();
     await AsyncStorage.removeItem('jd_token');
     await AsyncStorage.removeItem('jd_user');
     onLogout();

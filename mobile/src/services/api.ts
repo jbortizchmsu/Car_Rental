@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiBaseUrl, getRawApiBaseUrl } from '../utils/env';
+import { signOutFromGoogle } from './googleAuth';
 
 // Trimmed and trailing-slash-free — a stray leading/trailing space in eas.json's
 // EXPO_PUBLIC_API_URL (as the preview profile's has had) would otherwise end up
@@ -38,6 +39,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('jd_token');
       await AsyncStorage.removeItem('jd_user');
+      // Session-expiry logout path — same as the explicit Profile logout, this must
+      // also clear the native Google session so a later "Sign in with Google" shows
+      // the account picker instead of silently reusing the expired session's account.
+      await signOutFromGoogle();
     }
     return Promise.reject(error);
   }
