@@ -154,22 +154,20 @@ const ResetPasswordPage: React.FC = () => {
 
 // Shared layout shell — keeps both states consistent
 const PageShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{
+  <div className="login-page-wrapper" style={{
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'var(--primary-bg)',
-    padding: '2rem'
+    backgroundColor: 'var(--primary-bg)'
   }}>
     <div style={{ maxWidth: '450px', width: '100%' }}>
       <Link to="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem', textDecoration: 'none' }}>
         <Car size={36} color="var(--warm-taupe)" />
         <span style={{ fontSize: '1.75rem', fontWeight: 800 }}>JD <span style={{ color: 'var(--warm-taupe)' }}>CAR RENTAL</span></span>
       </Link>
-      <div style={{
+      <div className="login-card" style={{
         backgroundColor: 'var(--white)',
-        padding: '3rem',
         borderRadius: 'var(--border-radius)',
         boxShadow: 'var(--shadow-soft)',
         textAlign: 'center'

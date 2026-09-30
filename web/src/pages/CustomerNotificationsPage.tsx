@@ -110,9 +110,18 @@ const CustomerNotificationsPage: React.FC = () => {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  // paddingTop/paddingBottom only (not the `padding` shorthand) — the shorthand was
+  // overriding .container's own `padding: 0 2rem`, zeroing the page's horizontal
+  // gutter entirely at every viewport width (inline always wins over a class for
+  // the same property). maxWidth raised from .container's default 1280px to 1344px
+  // (+2 * 32px, the restored gutter) so the visible content width at desktop is
+  // unchanged: 1344 - 2*32 = 1280px, identical to before. Applied to both the
+  // skeleton and loaded states below so neither regresses relative to the other.
+  const containerStyle: React.CSSProperties = { paddingTop: '2rem', paddingBottom: '2rem', maxWidth: '1344px' };
+
   if (isInitialLoad) {
     return (
-      <div className="container" style={{ padding: '2rem 0' }}>
+      <div className="container" style={containerStyle}>
         <SkeletonGroup style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {Array.from({ length: 6 }).map((_, i) => <SkeletonListRow key={i} />)}
         </SkeletonGroup>
@@ -121,7 +130,7 @@ const CustomerNotificationsPage: React.FC = () => {
   }
 
   return (
-    <div className="container" style={{ padding: '2rem 0' }}>
+    <div className="container" style={containerStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Notifications</h1>
@@ -185,8 +194,8 @@ const CustomerNotificationsPage: React.FC = () => {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.05rem' }}>{notification.title}</h4>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.05rem', minWidth: 0 }}>{notification.title}</h4>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
                     <Clock size={14} />
                     {formatDate(notification.createdAt, 'short')}
                   </span>

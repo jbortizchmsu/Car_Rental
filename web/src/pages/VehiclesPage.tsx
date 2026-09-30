@@ -164,7 +164,7 @@ const VehiclesPage: React.FC = () => {
           </div>
 
           {isInitialLoad ? (
-            <SkeletonGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '2.5rem' }}>
+            <SkeletonGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '2.5rem' }}>
               {Array.from({ length: 6 }).map((_, i) => <SkeletonVehicleCard key={i} />)}
             </SkeletonGroup>
           ) : filteredVehicles.length === 0 ? (
@@ -181,7 +181,7 @@ const VehiclesPage: React.FC = () => {
           ) : (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
               gap: '2.5rem'
             }}>
               {filteredVehicles.map((vehicle) => (

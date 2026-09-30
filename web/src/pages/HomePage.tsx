@@ -188,11 +188,11 @@ const HomePage: React.FC = () => {
             </div>
 
             {isInitialLoad ? (
-              <SkeletonGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
+              <SkeletonGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '2.5rem' }}>
                 {Array.from({ length: 3 }).map((_, i) => <SkeletonVehicleCard key={i} />)}
               </SkeletonGroup>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '2.5rem' }}>
                 {featuredVehicles.map((vehicle) => (
                   <VehicleCard 
                     key={vehicle.id}

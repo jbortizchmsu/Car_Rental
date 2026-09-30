@@ -122,6 +122,98 @@ h5 {
   flex: 1;
 }
 
+/* Login page — padding moved here from inline styles (LoginPage.tsx) specifically
+   so it can be reduced under the mobile breakpoint below; an inline `style` prop
+   can never be overridden by a @media query (inline styles always win over any
+   CSS class regardless of specificity), so a class is the only way to make this
+   value responsive at all. Base values here match the original inline padding
+   exactly — no visual change above the breakpoint. */
+.login-page-wrapper {
+  padding: 2rem;
+}
+
+.login-card {
+  padding: 3rem;
+}
+
+/* Reuses the same 480px breakpoint the booking modal's mobile overrides already
+   established (search this file for "@media (max-width: 480px)") rather than
+   inventing a different value — kept as its own block here, next to the base
+   classes it overrides, instead of appended into that (much further down, modal-
+   specific) block, for locality: a maintainer editing login styles shouldn't have
+   to scroll 4000+ lines to find its responsive override. Width math this fixes,
+   content width available to the Google Sign-In button (whose own wrapper already
+   clamps to a 200-384px range — see GoogleSignInButton.tsx):
+     320px viewport: 320 - 2*16 (this 1rem outer) = 288; 288 - 2*20 (this 1.25rem
+       card) = 248px of content width — comfortably above the button's 200px floor.
+     360px viewport: 360 - 32 = 328; 328 - 40 = 288px.
+     390px viewport: 390 - 32 = 358; 358 - 40 = 318px.
+   (Before this change: 320 - 2*32 (2rem) = 256; 256 - 2*48 (3rem) = 160px — below
+   the 200px floor, which is what was causing the button to be visibly cropped.) */
+@media (max-width: 480px) {
+  .login-page-wrapper {
+    padding: 1rem;
+  }
+
+  .login-card {
+    padding: 1.25rem;
+  }
+}
+
+/* Payment proof upload page (PaymentSubmissionPage.tsx) — the form and the order
+   summary/GCash-merchant-details card were a fixed 1.5fr 1fr grid with no mobile
+   override, squeezing both columns at every mobile width. Stacks to one column at
+   768px rather than the 480px used elsewhere in this file: this is a full standalone
+   page layout (not a compact modal), and its two columns each carry enough content
+   (a form with a payment-type toggle and file upload; an order summary plus GCash
+   merchant details) that 480px would leave them squeezed for the 480-767px range —
+   768px matches the breakpoint this codebase already uses for other full-width page
+   grids (e.g. .booking-modal-grid). Stacking order is left as plain DOM order (form
+   first, summary second) rather than reordered with the CSS `order` property: the
+   page's primary action (choose payment type, upload proof, submit) belongs first
+   for a mobile user scanning top-to-bottom, and avoiding `order` also avoids any
+   mismatch between visual order and keyboard/tab order. */
+.payment-submission-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .payment-submission-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Profile Settings page (CustomerProfilePage.tsx) — Phone Number / Location fields. */
+.profile-contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 480px) {
+  .profile-contact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Register page (RegisterPage.tsx) — Password / Confirm Password fields. Each input
+   also reserves ~40px of its own right padding for a show/hide icon button, so the
+   ~70px column width this grid produced at 320px left almost no room for the actual
+   password dots — stacking removes that compounding squeeze entirely. */
+.register-password-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .register-password-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Navbar text links (Home, Vehicles) — padding + negative margin keep the visual
    hover/press "chip" without changing the link's footprint in the flex gap layout.
    border-bottom is reserved (transparent by default) for .nav-link-current below, so
@@ -847,6 +939,50 @@ h5 {
   bottom: 0;
   background-color: var(--white);
   z-index: 10;
+}
+
+/* My Bookings — booking detail modal grids (MyBookingsPage.tsx). Scoped to their own
+   classes, not .modal-content itself, since .modal-content/.modal-container are shared
+   with admin and FilePreviewModal.tsx and must not change. Reuses the existing
+   max-width: 480px breakpoint (same value already used for the booking wizard's own
+   mobile overrides) rather than inventing a new one. */
+.booking-detail-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.booking-detail-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+}
+
+/* Vehicle thumbnail in the Vehicle Details section — was a fixed 100x100px,
+   flexShrink: 0 box that could not shrink and would overflow its grid column once
+   squeezed below ~150px wide. Kept as a real (not zero) size at the breakpoint,
+   just smaller, rather than hiding it, since it's still useful at a glance. */
+.booking-detail-thumbnail {
+  width: 100px;
+  height: 70px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  /* grid-column: span 2 on the Address field (MyBookingsPage.tsx) needs no
+     matching override here — a span greater than the available column count is
+     automatically clamped by the grid spec once grid-template-columns drops to a
+     single column, so it resolves on its own. */
+  .booking-detail-grid-2,
+  .booking-detail-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .booking-detail-thumbnail {
+    width: 64px;
+    height: 48px;
+  }
 }
 
 /* Scrollbar for modal */
@@ -3942,10 +4078,11 @@ h5 {
 }/* Booking Request Modal */
 .booking-modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  /* inset: 0 (= top/right/bottom/left: 0) instead of width:100vw;height:100vh —
+     100vw includes the width of any reserved (non-overlay) scrollbar, making the
+     backdrop wider than the actually-visible viewport and centering the modal
+     slightly left of true center on any browser that reserves scrollbar space. */
+  inset: 0;
   background-color: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
   z-index: 9999;
@@ -4236,6 +4373,10 @@ h5 {
   border-top: 1px solid var(--gray-100);
   display: flex;
   justify-content: flex-end;
+  /* Harmless on desktop (both buttons already fit on one line there — wrapping
+     only ever activates when they genuinely don't fit), lets the primary action
+     drop to its own row on narrow screens instead of squeezing both buttons. */
+  flex-wrap: wrap;
   gap: 1rem;
   background-color: var(--gray-50);
   border-radius: 0 0 24px 24px;
@@ -4452,6 +4593,98 @@ h5 {
 .booking-review-value {
   color: var(--black);
   font-weight: 600;
+  /* min-width: 0 overrides the flex item's default auto-min-width (which is
+     bounded by its content and would otherwise refuse to shrink below an
+     unbroken filename's full rendered width, forcing .booking-review-row wider
+     than the modal). overflow-wrap: anywhere then gives the browser permission
+     to actually break within that unbroken text once it can't fit on one line —
+     min-width: 0 alone would only let it shrink, not wrap, and could still clip.
+     Chosen over word-break: break-word (a legacy/non-standard value with older
+     Safari quirks) since anywhere is the standards-track property and — unlike
+     break-word — is explicitly factored into intrinsic/min-content size
+     calculations, which is exactly what a flex child needs here. This is the
+     shared class for every review row (Vehicle, Schedule, Destination, Name,
+     License No., Contact, and the two document rows), so it protects all of
+     them, not just filenames. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Booking Request Modal — narrow-phone overrides. No breakpoint below 768px
+   existed anywhere in this stylesheet before this block; 768px itself is too
+   wide a threshold for these specific fixes (.booking-modal-grid already goes
+   to a single column at 768px with plenty of width to spare, so wrapping
+   buttons / hiding stepper labels / shrinking padding that early would look
+   wasteful, not fixed). 480px is a new, narrower breakpoint scoped to exactly
+   the elements this audit found broken. */
+@media (max-width: 480px) {
+  /* Only the horizontal padding is reduced — vertical padding (and .booking-
+     modal-header's distinct bottom value) is left untouched, since the reported
+     problem is horizontal squeeze, not vertical rhythm. .booking-modal-content
+     is currently unused by any JSX in this codebase (confirmed via search) but
+     is included anyway since the task named it explicitly; it costs nothing. */
+  .booking-modal-header,
+  .booking-modal-body,
+  .booking-modal-footer,
+  .booking-modal-content {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  /* Scoped to this footer only — .btn-primary itself is untouched, so every
+     other .btn-primary in the app (including all of admin) is unaffected. */
+  .booking-modal-footer .btn-primary {
+    flex: 1 1 100%;
+  }
+
+  /* Stack label above value instead of a narrower fixed label width. Rejected
+     a narrower fixed width (e.g. 90px) because the seven different labels here
+     range from "Name" to "Driver's License" — no single narrow width avoids
+     either cramping the longer labels or wasting space on the short ones.
+     Stacking works uniformly for all of them, and vertical space is cheap here
+     since .booking-modal-body already scrolls (overflow-y: auto) — unlike the
+     horizontal space this whole set of fixes exists to protect. */
+  .booking-review-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .booking-review-label {
+    width: auto;
+  }
+
+  /* Numbers-only stepper on phones — at 320px, with the reduced 1.25rem body
+     padding above, four 32px circles plus their connecting line comfortably
+     fit inside the ~240px of remaining width; the uppercase, letter-spaced
+     labels ("Information" especially) do not reliably fit without wrapping
+     onto the connector line. */
+  .booking-step-label {
+    display: none;
+  }
+
+  /* react-datepicker popup — scoped to .booking-modal-field only, so the unscoped
+     .react-datepicker rules further down (which could affect any other date-picker
+     instance in the app) are untouched. The library's own default CSS (imported in
+     BookingRequestModal.tsx from react-datepicker/dist/react-datepicker.css) sets
+     .react-datepicker's font-size to 0.8rem with the calendar's day cells sized in
+     em units relative to it, and a plain (non-inline, no !important) width: 85px on
+     both .react-datepicker__time-container and .react-datepicker__time-box — both
+     confirmed safely overridable. Shrinking the font-size shrinks the whole
+     day-grid proportionally (not just its text), combined with a narrower
+     time-list column, to fit closer to the modal's own reduced content width at
+     this breakpoint. This is a best-effort sizing reduction based on the library's
+     documented default CSS, not verified against a live render — see the response's
+     Remaining Risks for what to confirm on a real device before treating this as
+     fully fixed. */
+  .booking-modal-field .react-datepicker {
+    font-size: 0.7rem;
+  }
+
+  .booking-modal-field .react-datepicker__time-container,
+  .booking-modal-field .react-datepicker__time-container .react-datepicker__time-box {
+    width: 65px;
+  }
 }
 
 /* Booking Layout Grid for Dashboard */

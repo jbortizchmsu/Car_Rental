@@ -580,9 +580,9 @@ const MyBookingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                  <div className="booking-detail-grid-2">
                     {/* Schedule */}
-                    <section>
+                    <section style={{ minWidth: 0 }}>
                       <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', color: 'var(--muted-mauve)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Calendar size={18} /> Rental Schedule
                       </h3>
@@ -605,12 +605,12 @@ const MyBookingsPage: React.FC = () => {
                     </section>
 
                     {/* Vehicle */}
-                    <section>
+                    <section style={{ minWidth: 0 }}>
                       <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', color: 'var(--muted-mauve)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <ShieldCheck size={18} /> Vehicle Details
                       </h3>
                       <div style={{ display: 'flex', gap: '1.5rem' }}>
-                        <div style={{ width: '100px', height: '70px', backgroundColor: 'var(--soft-beige)', borderRadius: '8px', flexShrink: 0, overflow: 'hidden' }}>
+                        <div className="booking-detail-thumbnail" style={{ backgroundColor: 'var(--soft-beige)', borderRadius: '8px', overflow: 'hidden' }}>
                           <VehicleImage
                             vehicleId={details.vehicle.id}
                             brand={details.vehicle.brand}
@@ -633,7 +633,7 @@ const MyBookingsPage: React.FC = () => {
                     <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', color: 'var(--muted-mauve)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <User size={18} /> Submitted Requirements
                     </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem' }}>
+                    <div className="booking-detail-grid-3">
                       <div>
                         <label style={{ fontSize: '0.8rem', color: 'var(--muted-mauve)', display: 'block' }}>Full Name</label>
                         <div style={{ fontWeight: 600 }}>{details.fullName || details.customer.fullName}</div>
@@ -658,7 +658,7 @@ const MyBookingsPage: React.FC = () => {
                   </section>
 
                   {/* Documents & Payments */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', borderTop: '1px solid var(--gray-100)', paddingTop: '2rem' }}>
+                  <div className="booking-detail-grid-2" style={{ borderTop: '1px solid var(--gray-100)', paddingTop: '2rem' }}>
                     {/* Documents */}
                     <section>
                       <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', color: 'var(--muted-mauve)', marginBottom: '1.25rem' }}>Documents</h3>

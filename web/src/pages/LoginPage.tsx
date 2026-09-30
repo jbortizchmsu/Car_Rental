@@ -107,19 +107,17 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{
+    <div className="login-page-wrapper" style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'var(--primary-bg)',
-      padding: '2rem'
+      backgroundColor: 'var(--primary-bg)'
     }}>
-      <div style={{
+      <div className="login-card" style={{
         maxWidth: '450px',
         width: '100%',
         backgroundColor: 'var(--white)',
-        padding: '3rem',
         borderRadius: 'var(--border-radius)',
         boxShadow: 'var(--shadow-soft)',
         textAlign: 'center'

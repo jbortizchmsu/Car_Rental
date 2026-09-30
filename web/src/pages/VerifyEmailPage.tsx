@@ -5,11 +5,13 @@ import { authApi } from '../services/api';
 
 type Status = 'idle' | 'verifying' | 'success' | 'error';
 
+// padding intentionally omitted here — supplied by the "login-card" class instead
+// (see every `<div style={cardStyle}>` below, each given className="login-card"),
+// so it can respond to the existing max-width: 480px mobile breakpoint.
 const cardStyle: React.CSSProperties = {
   maxWidth: '480px',
   width: '100%',
   backgroundColor: 'white',
-  padding: '3rem',
   borderRadius: '24px',
   boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
   textAlign: 'center',
@@ -81,7 +83,7 @@ const VerifyEmailPage: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDFDFD', padding: '2rem' }}>
+    <div className="login-page-wrapper" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDFDFD' }}>
       <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem', textDecoration: 'none' }}>
         <div style={{ backgroundColor: 'black', color: 'white', padding: '0.5rem', borderRadius: '12px' }}>
           <Car size={28} />
@@ -91,7 +93,7 @@ const VerifyEmailPage: React.FC = () => {
 
       {/* IDLE — user must click to trigger verification */}
       {status === 'idle' && (
-        <div style={cardStyle}>
+        <div className="login-card" style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
             <div style={{ backgroundColor: '#EFF6FF', padding: '1rem', borderRadius: '50%' }}>
               <ShieldCheck size={48} color="#3B82F6" />
@@ -113,7 +115,7 @@ const VerifyEmailPage: React.FC = () => {
 
       {/* VERIFYING — in-flight */}
       {status === 'verifying' && (
-        <div style={cardStyle}>
+        <div className="login-card" style={cardStyle}>
           <Loader2 className="animate-spin" size={48} color="#3B82F6" style={{ margin: '0 auto 1.5rem' }} />
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Verifying…</h2>
           <p style={{ color: '#6B7280' }}>Please wait a moment.</p>
@@ -122,7 +124,7 @@ const VerifyEmailPage: React.FC = () => {
 
       {/* SUCCESS */}
       {status === 'success' && (
-        <div style={cardStyle}>
+        <div className="login-card" style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
             <div style={{ backgroundColor: '#F0FDF4', padding: '1rem', borderRadius: '50%' }}>
               <CheckCircle2 size={48} color="#22C55E" />
@@ -144,7 +146,7 @@ const VerifyEmailPage: React.FC = () => {
 
       {/* ERROR — invalid/expired token or no token in URL */}
       {status === 'error' && (
-        <div style={cardStyle}>
+        <div className="login-card" style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
             <div style={{ backgroundColor: '#FEF2F2', padding: '1rem', borderRadius: '50%' }}>
               <AlertCircle size={48} color="#EF4444" />

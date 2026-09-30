@@ -1,5 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 
+// Google documents only a maximum for GsiButtonConfiguration's `width` (400px,
+// https://developers.google.com/identity/gsi/web/reference/js-reference) — no
+// minimum is documented. 384 is this app's existing desktop design width (already
+// under the 400px ceiling); 200 is a practical floor we chose ourselves (not a
+// Google-documented value) to avoid asking Google's own button to lay out its icon
+// and label inside something so narrow that its *internal* rendering breaks in a
+// way we can't control or predict — see the wrapper's own overflow:hidden below
+// for what happens on the rare viewport where even 200px doesn't fit.
+const MAX_BUTTON_WIDTH = 384;
+const MIN_BUTTON_WIDTH = 200;
+
 declare global {
   interface Window {
     google?: any;
@@ -45,15 +56,46 @@ function ensureGoogleInitialized() {
  * existing email/password form above/below it is completely unaffected either way.
  */
 const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onIdToken, disabled }) => {
+  // wrapperRef is measured for available width and carries the overflow safety net;
+  // buttonRef is the actual node Google's renderButton draws into. Two nodes, not
+  // one, specifically so the safety net (maxWidth/overflow on the outer node) can
+  // never itself be wiped out by renderButton's own innerHTML replacement.
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
   const onIdTokenRef = useRef(onIdToken);
   onIdTokenRef.current = onIdToken;
+  // Persists across effect re-runs (e.g. the `disabled` toggle during a sign-in
+  // attempt) so a re-run that doesn't actually change the available width is a
+  // no-op instead of clearing and re-drawing the button for no visual change.
+  const renderedWidthRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!CLIENT_ID || disabled) return;
 
     let cancelled = false;
     let attempts = 0;
+    let resizeObserver: ResizeObserver | null = null;
+    let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const getTargetWidth = () => {
+      const available = wrapperRef.current?.getBoundingClientRect().width;
+      if (!available) return MAX_BUTTON_WIDTH;
+      return Math.round(Math.min(MAX_BUTTON_WIDTH, Math.max(MIN_BUTTON_WIDTH, available)));
+    };
+
+    const renderButtonAtWidth = (width: number) => {
+      if (!buttonRef.current || !window.google?.accounts?.id) return;
+      if (renderedWidthRef.current === width) return; // already correct — do not duplicate
+      renderedWidthRef.current = width;
+      buttonRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(buttonRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        width,
+        text: 'signin_with',
+      });
+    };
 
     // The GSI script tag is `async defer` (index.html) — it may not have executed yet
     // by the time this component mounts, so poll briefly for window.google to appear
@@ -71,25 +113,43 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({ onIdToken, disa
       // (disabled toggling off then on) and re-renders alike.
       activeOnIdToken = (idToken: string) => onIdTokenRef.current(idToken);
 
-      if (buttonRef.current) {
-        buttonRef.current.innerHTML = '';
-        window.google.accounts.id.renderButton(buttonRef.current, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          width: 384,
-          text: 'signin_with',
+      renderButtonAtWidth(getTargetWidth());
+
+      // Re-measures on any wrapper size change, which already covers window resize,
+      // orientation change, and container-driven width changes uniformly (all of
+      // them are, from the wrapper's point of view, just "my width changed") — a
+      // separate resize/orientationchange window listener would duplicate this and
+      // could fire when the wrapper's own width hasn't actually moved (e.g. a
+      // purely vertical resize), causing a pointless re-render/flicker.
+      if (wrapperRef.current && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          if (resizeTimeout) clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            if (!cancelled) renderButtonAtWidth(getTargetWidth());
+          }, 150);
         });
+        resizeObserver.observe(wrapperRef.current);
       }
     };
 
     tryInit();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      resizeObserver?.disconnect();
+    };
   }, [disabled]);
 
   if (!CLIENT_ID) return null;
 
-  return <div ref={buttonRef} style={{ display: 'flex', justifyContent: 'center' }} />;
+  return (
+    <div
+      ref={wrapperRef}
+      style={{ display: 'flex', justifyContent: 'center', width: '100%', maxWidth: '100%', overflow: 'hidden' }}
+    >
+      <div ref={buttonRef} />
+    </div>
+  );
 };
 
 export default GoogleSignInButton;

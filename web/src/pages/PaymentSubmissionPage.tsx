@@ -113,7 +113,7 @@ const PaymentSubmissionPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '2rem' }}>
+            <div className="payment-submission-grid">
               {/* Left Column: Payment Form */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '16px', boxShadow: 'var(--shadow-soft)' }}>
@@ -197,7 +197,7 @@ const PaymentSubmissionPage: React.FC = () => {
                             style={{ position: 'absolute', opacity: 0, top: 0, left: 0, right: 0, bottom: 0, cursor: 'pointer' }}
                           />
                           <Upload size={24} color="var(--muted-mauve)" style={{ marginBottom: '0.5rem' }} />
-                          <p style={{ fontSize: '0.85rem', color: 'var(--muted-mauve)' }}>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--muted-mauve)', minWidth: 0, overflowWrap: 'anywhere' }}>
                             {proofFile ? proofFile.name : 'Click to upload GCash receipt'}
                           </p>
                         </div>

@@ -184,7 +184,20 @@ const CustomerProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="container" style={{ padding: '2rem 0', maxWidth: '800px' }}>
+    <div
+      className="container"
+      style={{
+        // paddingTop/paddingBottom only (not the `padding` shorthand) — the
+        // shorthand was overriding .container's own `padding: 0 2rem`, zeroing the
+        // page's horizontal gutter entirely at every viewport width (inline always
+        // wins over a class for the same property). maxWidth raised from 800px to
+        // 864px (+2 * 32px, the restored gutter) so the visible content width at
+        // desktop is unchanged: 864 - 2*32 = 800px, identical to before.
+        paddingTop: '2rem',
+        paddingBottom: '2rem',
+        maxWidth: '864px'
+      }}
+    >
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Profile Settings</h1>
         <p style={{ color: 'var(--gray-500)' }}>Manage your personal information and contact details.</p>
@@ -235,7 +248,7 @@ const CustomerProfilePage: React.FC = () => {
             <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>Email cannot be changed for security reasons.</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div className="profile-contact-grid">
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Phone size={16} /> Phone Number

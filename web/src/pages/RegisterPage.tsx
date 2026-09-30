@@ -152,8 +152,8 @@ const RegisterPage: React.FC = () => {
     };
 
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDFDFD', padding: '2rem' }}>
-        <div style={{ maxWidth: '500px', width: '100%', textAlign: 'center', padding: '3rem', backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05)' }}>
+      <div className="login-page-wrapper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDFDFD' }}>
+        <div className="login-card" style={{ maxWidth: '500px', width: '100%', textAlign: 'center', backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
             <div style={{ backgroundColor: '#EFF6FF', padding: '1rem', borderRadius: '50%' }}>
               <CheckCircle2 color="#3B82F6" size={48} />
@@ -219,7 +219,7 @@ const RegisterPage: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDFDFD', padding: '2rem' }}>
+    <div className="login-page-wrapper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDFDFD' }}>
       <div style={{ maxWidth: '500px', width: '100%' }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '2.5rem', textDecoration: 'none' }}>
           <div style={{ backgroundColor: 'black', color: 'white', padding: '0.5rem', borderRadius: '12px' }}>
@@ -228,7 +228,7 @@ const RegisterPage: React.FC = () => {
           <span style={{ fontSize: '1.75rem', fontWeight: 900, color: 'black', letterSpacing: '-0.025em' }}>JD <span style={{ color: '#6B7280' }}>CAR RENTAL</span></span>
         </Link>
 
-        <div style={{ backgroundColor: 'white', padding: '3rem', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid #F3F4F6' }}>
+        <div className="login-card" style={{ backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid #F3F4F6' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Create your account</h1>
           <p style={{ color: '#6B7280', marginBottom: '2rem' }}>Join us for premium self-drive car rentals.</p>
 
@@ -285,7 +285,7 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="register-password-grid">
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>Password</label>
                 <div style={{ position: 'relative' }}>
