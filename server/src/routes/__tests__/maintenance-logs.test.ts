@@ -172,6 +172,14 @@ describe('PUT /api/admin/maintenance/logs/:id', () => {
 });
 
 describe('POST /api/admin/maintenance/vehicles/:vehicleId/mark-maintenance', () => {
+  beforeEach(() => {
+    prismaMock.vehicle.findUnique.mockResolvedValue({
+      id: 'veh-1',
+      currentOdometerKm: 12345,
+      bookings: []
+    } as any);
+  });
+
   function markMaintenanceRequest(body: Record<string, any>) {
     return request(app)
       .post('/api/admin/maintenance/vehicles/veh-1/mark-maintenance')
