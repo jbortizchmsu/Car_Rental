@@ -4625,16 +4625,46 @@ h5 {
      is included anyway since the task named it explicitly; it costs nothing. */
   .booking-modal-header,
   .booking-modal-body,
-  .booking-modal-footer,
   .booking-modal-content {
     padding-left: 1.25rem;
     padding-right: 1.25rem;
   }
 
-  /* Scoped to this footer only — .btn-primary itself is untouched, so every
-     other .btn-primary in the app (including all of admin) is unaffected. */
+  /* Scoped mobile footer layout: prevents vertical collapse and keeps buttons 
+     cleanly aligned side-by-side with proper touch targets and padding */
+  .booking-modal-footer {
+    padding: 0.875rem 1.25rem;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .booking-modal-footer .btn-outline {
+    flex: 0 0 auto;
+    padding: 0.65rem 1rem;
+    border-radius: var(--border-radius-md);
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    white-space: nowrap;
+  }
+
   .booking-modal-footer .btn-primary {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
+    padding: 0.65rem 1rem;
+    border-radius: var(--border-radius-md);
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    white-space: nowrap;
   }
 
   /* Stack label above value instead of a narrower fixed label width. Rejected
