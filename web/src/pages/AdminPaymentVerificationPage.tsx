@@ -151,11 +151,13 @@ const AdminPaymentVerificationPage: React.FC = () => {
   }>({ isOpen: false, type: null });
   const [modalError, setModalError] = useState<string | null>(null);
 
-  const handleAction = (action: 'VERIFY' | 'REJECT' | 'CONFIRM_CASH') => {
-    if (!selectedPayment) return;
-    if (action === 'REJECT' && !remarks) {
-      return toast.warning('Remarks required', 'Please provide a reason for rejection.');
+  const handleAction = (action: 'VERIFY' | 'REJECT' | 'CONFIRM_CASH', targetPayment?: any) => {
+    const payment = targetPayment || selectedPayment;
+    if (!payment) return;
+    if (targetPayment) {
+      setSelectedPayment(targetPayment);
     }
+    setRemarks('');
     setModalError(null);
     setModalConfig({ isOpen: true, type: action });
   };
@@ -169,6 +171,10 @@ const AdminPaymentVerificationPage: React.FC = () => {
   const executeModalAction = async () => {
     if (!selectedPayment || !modalConfig.type) return;
 
+    if (modalConfig.type === 'REJECT' && !remarks.trim()) {
+      return toast.warning('Remarks required', 'Please provide a reason for rejection.');
+    }
+
     setModalError(null);
     setActionLoading(true);
 
@@ -177,7 +183,7 @@ const AdminPaymentVerificationPage: React.FC = () => {
         await paymentsApi.verify(selectedPayment.id);
         toast.success('Payment verified', 'The payment record has been updated successfully.');
       } else if (modalConfig.type === 'REJECT') {
-        await paymentsApi.reject(selectedPayment.id, remarks);
+        await paymentsApi.reject(selectedPayment.id, remarks.trim());
         toast.success('Payment rejected', 'The customer has been notified to re-submit.');
       } else if (modalConfig.type === 'CONFIRM_CASH') {
         const safePayments = Array.isArray(selectedPayment.payments) ? selectedPayment.payments : [];
@@ -695,12 +701,12 @@ const AdminPaymentVerificationPage: React.FC = () => {
                       <td style={{ padding: '1rem', textAlign: 'center' }}>
                         {activeTab === 'SUBMITTED' && (
                           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                            <button onClick={(e) => { e.stopPropagation(); setSelectedPayment(p); handleAction('VERIFY'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#16A34A', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✓ Verify</button>
-                            <button onClick={(e) => { e.stopPropagation(); setSelectedPayment(p); handleAction('REJECT'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✕ Reject</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleAction('VERIFY', p); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#16A34A', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✓ Verify</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleAction('REJECT', p); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✕ Reject</button>
                           </div>
                         )}
                         {activeTab === 'CASH_AT_PICKUP' && (
-                          <button onClick={(e) => { e.stopPropagation(); setSelectedPayment(p); handleAction('CONFIRM_CASH'); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#0284C7', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Record</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleAction('CONFIRM_CASH', p); }} style={{ padding: '0.4rem 0.8rem', backgroundColor: '#0284C7', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Record</button>
                         )}
                       </td>
                     </tr>
