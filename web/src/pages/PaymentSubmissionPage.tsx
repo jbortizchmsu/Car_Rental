@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { paymentsApi, getApiErrorMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, CreditCard, Upload, AlertCircle, CheckCircle2, ChevronLeft, Info, Smartphone } from 'lucide-react';
+import { Loader2, CreditCard, Upload, AlertCircle, CheckCircle2, ChevronLeft, Info, Smartphone, Eye, RefreshCw, X, Check } from 'lucide-react';
+import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 const PaymentSubmissionPage: React.FC = () => {
   const { bookingId } = useParams();
@@ -20,6 +21,44 @@ const PaymentSubmissionPage: React.FC = () => {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [downpaymentAmount, setDownpaymentAmount] = useState<number>(0);
+
+  // Receipt local preview state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useBodyScrollLock(previewOpen);
+
+  useEffect(() => {
+    if (proofFile) {
+      const url = URL.createObjectURL(proofFile);
+      setPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [proofFile]);
+
+  const handleOpenPreview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (proofFile) {
+      setPreviewOpen(true);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
+  };
+
+  const handleChangeReceipt = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    fileInputRef.current?.click();
+  };
 
   useEffect(() => {
     if (bookingId && user) {
@@ -181,26 +220,141 @@ const PaymentSubmissionPage: React.FC = () => {
 
                       <div style={{ marginBottom: '1.5rem' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Upload Receipt/Proof</label>
-                        <div style={{ 
-                          border: '2px dashed #ddd', 
-                          padding: '1.5rem', 
-                          borderRadius: '12px', 
-                          textAlign: 'center',
-                          position: 'relative',
-                          cursor: 'pointer'
-                        }}>
-                          <input 
-                            type="file" 
-                            accept="image/*"
-                            required
-                            onChange={handleFileChange}
-                            style={{ position: 'absolute', opacity: 0, top: 0, left: 0, right: 0, bottom: 0, cursor: 'pointer' }}
-                          />
-                          <Upload size={24} color="var(--muted-mauve)" style={{ marginBottom: '0.5rem' }} />
-                          <p style={{ fontSize: '0.85rem', color: 'var(--muted-mauve)', minWidth: 0, overflowWrap: 'anywhere' }}>
-                            {proofFile ? proofFile.name : 'Click to upload GCash receipt'}
-                          </p>
-                        </div>
+                        <input 
+                          ref={fileInputRef}
+                          type="file" 
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          style={{ display: 'none' }}
+                        />
+
+                        {!proofFile ? (
+                          <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{ 
+                              border: '2px dashed #ddd', 
+                              padding: '1.5rem', 
+                              borderRadius: '12px', 
+                              textAlign: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: 'var(--gray-50)',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <Upload size={24} color="var(--muted-mauve)" style={{ margin: '0 auto 0.5rem' }} />
+                            <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--black)', margin: 0 }}>
+                              Click to upload GCash receipt
+                            </p>
+                            <p style={{ fontSize: '0.78rem', color: 'var(--muted-mauve)', marginTop: '0.25rem' }}>
+                              JPG, PNG, and WEBP images accepted
+                            </p>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              border: '2px dashed #bbf7d0',
+                              backgroundColor: '#f0fdf4',
+                              padding: '0.9rem 1rem',
+                              borderRadius: '12px',
+                              gap: '0.75rem',
+                              minWidth: 0
+                            }}
+                          >
+                            {/* Left: Thumbnail & File Info (Clickable for preview) */}
+                            <div
+                              onClick={handleOpenPreview}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                flex: 1,
+                                cursor: 'pointer',
+                                minWidth: 0,
+                                overflow: 'hidden'
+                              }}
+                              title="Click to preview receipt"
+                            >
+                              {previewUrl ? (
+                                <div style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '1px solid #86efac', backgroundColor: 'white' }}>
+                                  <img src={previewUrl} alt="Receipt Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                              ) : (
+                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <CheckCircle2 color="#2E7D32" size={22} />
+                                </div>
+                              )}
+
+                              <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', minWidth: 0 }}>
+                                  <h5 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--black)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                                    Payment Receipt
+                                  </h5>
+                                  <span
+                                    style={{
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      color: '#15803d',
+                                      backgroundColor: '#dcfce7',
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    <Eye size={11} /> Preview
+                                  </span>
+                                </div>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    marginTop: '0.2rem',
+                                    fontSize: '0.8rem',
+                                    color: '#2E7D32',
+                                    fontWeight: 600,
+                                    minWidth: 0
+                                  }}
+                                >
+                                  <Check size={13} style={{ flexShrink: 0 }} />
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{proofFile.name}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right: Change Button */}
+                            <button
+                              type="button"
+                              onClick={handleChangeReceipt}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                padding: '0.45rem 0.75rem',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                color: 'var(--gray-700)',
+                                backgroundColor: 'var(--white)',
+                                border: '1px solid var(--gray-300)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <RefreshCw size={12} /> Change
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {error && (
@@ -272,6 +426,59 @@ const PaymentSubmissionPage: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* Payment Receipt Preview Modal */}
+      {previewOpen && previewUrl && proofFile && (
+        <div className="modal-overlay" style={{ zIndex: 2200 }} onClick={handleClosePreview}>
+          <div
+            className="modal-container"
+            style={{
+              maxWidth: '750px',
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: 'var(--white)',
+              borderRadius: '16px',
+              overflow: 'hidden'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header" style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-200)' }}>
+              <div>
+                <h3 className="modal-title" style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>Payment Receipt Preview</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--muted-mauve)', margin: '2px 0 0' }}>{proofFile.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClosePreview}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%', color: 'var(--gray-500)' }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div
+              className="modal-content"
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1.5rem',
+                backgroundColor: '#f8fafc',
+                minHeight: '350px'
+              }}
+            >
+              <img
+                src={previewUrl}
+                alt={proofFile.name}
+                style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
