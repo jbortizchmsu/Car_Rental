@@ -265,8 +265,8 @@ const AdminPaymentVerificationPage: React.FC = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((p: any) => {
-        const customer = isCashMode ? p.customer?.fullName : p.booking?.customer?.fullName;
-        const bookingId = isCashMode ? p.id : p.bookingId;
+        const customer = isCashMode ? p.customer?.fullName : (p.booking?.customer?.fullName || p.customer?.fullName);
+        const bookingId = (isCashMode ? p.id : (p.bookingId || p.booking?.id || p.id)) || '';
         return customer?.toLowerCase().includes(query) || bookingId?.toLowerCase().includes(query);
       });
     }
@@ -579,7 +579,12 @@ const AdminPaymentVerificationPage: React.FC = () => {
         ].map((tab) => (
           <div key={tab.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
-              onClick={() => { setActiveTab(tab.id as any); setSelectedPayment(null); }}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                setSelectedPayment(null);
+                setCurrentPage(1);
+                setPayments([]);
+              }}
               style={{
                 padding: '1rem 0',
                 borderBottom: activeTab === tab.id ? '3px solid var(--warm-taupe)' : '3px solid transparent',
@@ -653,12 +658,14 @@ const AdminPaymentVerificationPage: React.FC = () => {
                   const safePayments = Array.isArray(p.payments) ? p.payments : [];
                   const paid = isCashMode ? safePayments.reduce((sum: number, pay: any) => sum + Number(pay.amount), 0) : 0;
                   const amount = isCashMode ? (Number(p.totalAmount) - paid) : Number(p.amount);
-                  const ref = isCashMode ? 'N/A' : (p.proofs?.[0]?.referenceNumber || '-');
-                  const customer = isCashMode ? p.customer?.fullName : p.booking?.customer?.fullName;
-                  const vehicle = isCashMode ? `${p.vehicle?.brand} ${p.vehicle?.model}` : `${p.booking?.vehicle?.brand} ${p.booking?.vehicle?.model}`;
-                  const bookingId = isCashMode ? p.id : p.bookingId;
+                  const ref = isCashMode ? 'N/A' : (p.proofs?.[0]?.referenceNumber || p.referenceNumber || '-');
+                  const customer = isCashMode ? p.customer?.fullName : (p.booking?.customer?.fullName || p.customer?.fullName || '—');
+                  const vehicle = isCashMode 
+                    ? `${p.vehicle?.brand || ''} ${p.vehicle?.model || ''}`.trim() || '—' 
+                    : `${p.booking?.vehicle?.brand || p.vehicle?.brand || ''} ${p.booking?.vehicle?.model || p.vehicle?.model || ''}`.trim() || '—';
+                  const bookingId = (isCashMode ? p.id : (p.bookingId || p.booking?.id || p.id)) || '';
                   const status = isCashMode ? 'BALANCE DUE' : p.status;
-                  const isOverdue = !isCashMode && new Date(p.booking?.endDate) < new Date() && p.status === 'SUBMITTED';
+                  const isOverdue = !isCashMode && p.booking?.endDate && new Date(p.booking.endDate) < new Date() && p.status === 'SUBMITTED';
 
                   return (
                     <tr
@@ -676,9 +683,9 @@ const AdminPaymentVerificationPage: React.FC = () => {
                       <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{formatDate(p.createdAt || p.updatedAt, 'short')}</td>
                       <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{customer}</td>
                       <td style={{ padding: '1rem', fontSize: '0.9rem' }}>{vehicle}</td>
-                      <td style={{ padding: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>#{bookingId.slice(0, 8).toUpperCase()}</td>
+                      <td style={{ padding: '1rem', fontSize: '0.9rem', fontWeight: 600 }}>{bookingId ? `#${bookingId.slice(0, 8).toUpperCase()}` : '—'}</td>
                       <td style={{ padding: '1rem', textAlign: 'right', fontSize: '0.95rem', fontWeight: 700 }}>₱{amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--gray-600)' }} title={ref}>{ref.length > 15 ? ref.slice(0, 15) + '...' : ref}</td>
+                      <td style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--gray-600)' }} title={ref}>{typeof ref === 'string' && ref.length > 15 ? ref.slice(0, 15) + '...' : ref}</td>
                       <td style={{ padding: '1rem', textAlign: 'center' }}>
                         <span style={{ backgroundColor: getStatusBgColor(status), color: getStatusColor(status), padding: '0.35rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600 }}>
                           {status}
