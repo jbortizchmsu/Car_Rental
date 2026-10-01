@@ -4618,22 +4618,39 @@ h5 {
    wasteful, not fixed). 480px is a new, narrower breakpoint scoped to exactly
    the elements this audit found broken. */
 @media (max-width: 480px) {
-  /* Only the horizontal padding is reduced — vertical padding (and .booking-
-     modal-header's distinct bottom value) is left untouched, since the reported
-     problem is horizontal squeeze, not vertical rhythm. .booking-modal-content
-     is currently unused by any JSX in this codebase (confirmed via search) but
-     is included anyway since the task named it explicitly; it costs nothing. */
+  /* Give the modal full breathing room on narrow mobile screens */
+  .booking-modal-backdrop {
+    padding: 0.75rem 0.5rem;
+  }
+
   .booking-modal-header,
   .booking-modal-body,
   .booking-modal-content {
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Prevent CSS grid and upload card from expanding wider than modal viewport */
+  .booking-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .booking-modal-field {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .booking-upload-card {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 0.65rem !important;
   }
 
   /* Scoped mobile footer layout: prevents vertical collapse and keeps buttons 
      cleanly aligned side-by-side with proper touch targets and padding */
   .booking-modal-footer {
-    padding: 0.875rem 1.25rem;
+    padding: 0.875rem 1rem;
     flex-shrink: 0;
     flex-wrap: nowrap;
     justify-content: space-between;
