@@ -338,21 +338,30 @@ const AdminMaintenancePage: React.FC = () => {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {vehicle.status !== 'UNDER_MAINTENANCE' ? (
-                          <button
-                            className="maintenance-action-button"
-                            style={{ color: '#DC2626', backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}
-                            onClick={() => openConfirmModal(vehicle, 'SHOP')}
-                          >
-                            Send to Shop
-                          </button>
-                        ) : (
+                        {vehicle.status === 'UNDER_MAINTENANCE' ? (
                           <button
                             className="maintenance-action-button"
                             style={{ color: '#16A34A', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}
                             onClick={() => openConfirmModal(vehicle, 'AVAILABLE')}
                           >
                             Mark Ready
+                          </button>
+                        ) : vehicle.status === 'RENTED' ? (
+                          <button
+                            disabled
+                            className="maintenance-action-button"
+                            style={{ color: '#6B7280', backgroundColor: '#F3F4F6', border: '1px solid #E5E7EB', cursor: 'not-allowed', opacity: 0.75 }}
+                            title="Vehicle is currently on an active rental. Please route to maintenance upon vehicle return."
+                          >
+                            On Rental
+                          </button>
+                        ) : (
+                          <button
+                            className="maintenance-action-button"
+                            style={{ color: '#DC2626', backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}
+                            onClick={() => openConfirmModal(vehicle, 'SHOP')}
+                          >
+                            Send to Shop
                           </button>
                         )}
                           <button

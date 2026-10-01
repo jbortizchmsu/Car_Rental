@@ -277,8 +277,8 @@ router.post('/logs', authenticate, authorizeAdmin, async (req, res) => {
       });
     }
 
-    // If status is IN_PROGRESS, optionally mark vehicle as UNDER_MAINTENANCE
-    if (status === 'IN_PROGRESS') {
+    // If status is IN_PROGRESS and vehicle is not currently rented, mark vehicle as UNDER_MAINTENANCE
+    if (status === 'IN_PROGRESS' && log.vehicle.status !== 'RENTED') {
       await prisma.vehicle.update({
         where: { id: vehicleId },
         data: { status: 'UNDER_MAINTENANCE' }
@@ -365,6 +365,32 @@ router.post('/vehicles/:vehicleId/mark-maintenance', authenticate, authorizeAdmi
   }
 
   try {
+    const existingVehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      include: {
+        bookings: {
+          where: { status: 'ACTIVE' },
+          take: 1
+        }
+      }
+    });
+
+    if (!existingVehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
+    if (existingVehicle.status === 'RENTED' || existingVehicle.bookings.length > 0) {
+      return res.status(400).json({
+        error: 'Cannot send vehicle to maintenance while an active rental is ongoing. Please inspect and route to maintenance upon vehicle return.'
+      });
+    }
+
+    if (existingVehicle.status === 'RETIRED') {
+      return res.status(400).json({
+        error: 'Retired vehicles cannot be marked as under maintenance.'
+      });
+    }
+
     const vehicle = await prisma.vehicle.update({
       where: { id: vehicleId },
       data: { status: 'UNDER_MAINTENANCE' }
