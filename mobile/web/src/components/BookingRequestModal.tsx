@@ -674,11 +674,36 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                             <DatePicker
                               selected={pickupDateObj}
                               onChange={(date: Date | null) => {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  start_date: date ? date.toISOString() : '',
-                                  end_date: ''
-                                }));
+                                if (!date) {
+                                  setFormData(prev => ({ ...prev, start_date: '', end_date: '' }));
+                                  clearFieldError('start_date');
+                                  clearFieldError('end_date');
+                                  return;
+                                }
+
+                                const newStartStr = date.toISOString();
+                                setFormData(prev => {
+                                  let newEndStr = '';
+                                  if (prev.end_date) {
+                                    const candidateEnd = new Date(prev.end_date);
+                                    candidateEnd.setHours(date.getHours(), date.getMinutes(), 0, 0);
+
+                                    // If same day and return time <= pickup, default to end of day/closing
+                                    if (candidateEnd.toDateString() === date.toDateString() && candidateEnd <= date && date.getHours() < 18) {
+                                      candidateEnd.setHours(18, 0, 0, 0);
+                                    }
+
+                                    if (candidateEnd > date) {
+                                      newEndStr = candidateEnd.toISOString();
+                                    }
+                                  }
+
+                                  return {
+                                    ...prev,
+                                    start_date: newStartStr,
+                                    end_date: newEndStr
+                                  };
+                                });
                                 clearFieldError('start_date');
                                 clearFieldError('end_date');
                               }}
@@ -712,9 +737,26 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                             <DatePicker
                               selected={formData.end_date ? new Date(formData.end_date) : null}
                               onChange={(date: Date | null) => {
+                                if (!date) {
+                                  setFormData(prev => ({ ...prev, end_date: '' }));
+                                  clearFieldError('end_date');
+                                  return;
+                                }
+
+                                const returnDate = new Date(date);
+                                // If end_date was previously empty and pickup time is known, automatically inherit the pickup time
+                                if (!formData.end_date && pickupDateObj) {
+                                  returnDate.setHours(pickupDateObj.getHours(), pickupDateObj.getMinutes(), 0, 0);
+
+                                  // If same calendar day and return <= pickup time, default to 6:00 PM
+                                  if (returnDate.toDateString() === pickupDateObj.toDateString() && returnDate <= pickupDateObj && pickupDateObj.getHours() < 18) {
+                                    returnDate.setHours(18, 0, 0, 0);
+                                  }
+                                }
+
                                 setFormData(prev => ({
                                   ...prev,
-                                  end_date: date ? date.toISOString() : ''
+                                  end_date: returnDate.toISOString()
                                 }));
                                 clearFieldError('end_date');
                               }}
@@ -722,7 +764,14 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                               timeFormat="HH:mm"
                               timeIntervals={30}
                               dateFormat="MMMM d, yyyy h:mm aa"
+                              openToDate={pickupDateObj ?? new Date()}
                               minDate={pickupDateObj ?? new Date()}
+                              minTime={
+                                formData.end_date && pickupDateObj && new Date(formData.end_date).toDateString() === pickupDateObj.toDateString()
+                                  ? pickupDateObj
+                                  : (isToday(formData.end_date ? new Date(formData.end_date) : null) ? new Date() : startOfDay)
+                              }
+                              maxTime={endOfDay}
                               excludeDateIntervals={bookedRanges.map(r => ({
                                 start: new Date(r.startDate),
                                 end: new Date(r.endDate)
