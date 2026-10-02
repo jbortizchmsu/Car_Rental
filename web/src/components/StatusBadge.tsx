@@ -29,6 +29,7 @@ const statusStyles: Record<string, { bg: string, text: string, label?: string }>
   'RESERVED_VEHICLE': { bg: '#E3F2FD', text: '#1565C0', label: 'Reserved' },
   'RENTED': { bg: '#F3E5F5', text: '#7B1FA2', label: 'Rented' },
   'UNDER_MAINTENANCE': { bg: '#FFF3E0', text: '#E65100', label: 'Maintenance' },
+  'MAINTENANCE': { bg: '#FFF3E0', text: '#E65100', label: 'Maintenance' },
   'RETIRED': { bg: '#BDBDBD', text: '#212121', label: 'Retired' },
 };
 

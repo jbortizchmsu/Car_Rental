@@ -121,11 +121,20 @@ const AdminLiveMapPage: React.FC = () => {
       setActiveRentals(locationsRes.data);
 
       if (summaryRes.data) {
+        const vTotal = summaryRes.data.vehicles.total;
+        const vAvail = summaryRes.data.vehicles.available;
+        const vRented = summaryRes.data.vehicles.rented !== undefined
+          ? summaryRes.data.vehicles.rented
+          : summaryRes.data.bookings.active;
+        const vMaint = summaryRes.data.vehicles.underMaintenance !== undefined
+          ? summaryRes.data.vehicles.underMaintenance
+          : Math.max(0, vTotal - vAvail - vRented);
+
         setFleetStats({
-          total: summaryRes.data.vehicles.total,
-          available: summaryRes.data.vehicles.available,
-          active: summaryRes.data.bookings.active,
-          maintenance: summaryRes.data.vehicles.total - summaryRes.data.vehicles.available - summaryRes.data.bookings.active,
+          total: vTotal,
+          available: vAvail,
+          active: vRented,
+          maintenance: vMaint,
         });
       }
 

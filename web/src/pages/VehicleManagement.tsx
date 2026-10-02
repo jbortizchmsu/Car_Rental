@@ -163,7 +163,7 @@ const VehicleManagement: React.FC = () => {
       total: active.length,
       available: active.filter(v => v.status === 'AVAILABLE').length,
       rented: active.filter(v => v.status === 'RENTED' || v.status === 'RESERVED').length,
-      maintenance: active.filter(v => v.status === 'UNDER_MAINTENANCE').length,
+      maintenance: active.filter(v => v.status === 'UNDER_MAINTENANCE' || (v.status as string) === 'MAINTENANCE').length,
       dueService: active.filter(v => v.currentOdometerKm >= (v.lastOilChangeOdometerKm + v.oilChangeIntervalKm)).length
     };
   }, [vehicles]);
@@ -179,7 +179,9 @@ const VehicleManagement: React.FC = () => {
         // Exclude RETIRED by default in ALL view
         const matchesStatus = statusFilter === 'ALL' 
           ? v.status !== 'RETIRED' 
-          : v.status === statusFilter;
+          : statusFilter === 'UNDER_MAINTENANCE'
+            ? (v.status === 'UNDER_MAINTENANCE' || (v.status as string) === 'MAINTENANCE')
+            : v.status === statusFilter;
         const matchesCategory = categoryFilter === 'ALL' || v.category === categoryFilter;
         
         return matchesSearch && matchesStatus && matchesCategory;

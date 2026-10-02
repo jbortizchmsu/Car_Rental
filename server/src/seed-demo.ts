@@ -54,7 +54,7 @@ async function main() {
     { brand: 'Toyota', model: 'Vios', category: 'Sedan', year: 2023, licensePlate: 'ABC 1234', dailyRate: 1500, status: 'AVAILABLE', description: 'Economical and reliable sedan.' },
     { brand: 'Mitsubishi', model: 'Xpander', category: 'MPV', year: 2022, licensePlate: 'XYZ 7890', dailyRate: 2500, status: 'RENTED', description: 'Spacious family car.' },
     { brand: 'Ford', model: 'Ranger', category: 'Pickup', year: 2023, licensePlate: 'FRD 555', dailyRate: 3500, status: 'AVAILABLE', description: 'Powerful pickup for all terrains.' },
-    { brand: 'Honda', model: 'Civic', category: 'Sedan', year: 2023, licensePlate: 'HND 888', dailyRate: 2800, status: 'MAINTENANCE', description: 'Sporty and comfortable drive.' },
+    { brand: 'Honda', model: 'Civic', category: 'Sedan', year: 2023, licensePlate: 'HND 888', dailyRate: 2800, status: 'UNDER_MAINTENANCE', description: 'Sporty and comfortable drive.' },
     { brand: 'Nissan', model: 'Terra', category: 'SUV', year: 2022, licensePlate: 'NSN 444', dailyRate: 4000, status: 'AVAILABLE', description: 'Premium SUV experience.' },
   ];
 
