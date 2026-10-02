@@ -395,7 +395,7 @@ const MyBookingsPage: React.FC = () => {
                         <div style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem' }}>₱{booking.totalAmount.toLocaleString()}</div>
                         
                         {booking.status === 'APPROVED_FOR_PAYMENT' && (
-                          <Link to={`/customer/payment/${booking.id}`} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Link to={`/customer/payment/${booking.id}`} className="btn-primary" style={{ padding: '0.55rem 1.15rem', fontSize: '0.9rem', fontWeight: 700, borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
                             <CreditCard size={16} /> Pay Now
                           </Link>
                         )}
@@ -825,8 +825,8 @@ const MyBookingsPage: React.FC = () => {
                 </button>
               )}
               {details?.status === 'APPROVED_FOR_PAYMENT' && (
-                <Link to={`/customer/payment/${details.id}`} className="btn-primary">
-                  Proceed to Payment
+                <Link to={`/customer/payment/${details.id}`} className="btn-primary" style={{ padding: '0.65rem 1.35rem', fontSize: '0.95rem', fontWeight: 700, borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+                  <CreditCard size={16} /> Proceed to Payment
                 </Link>
               )}
             </div>

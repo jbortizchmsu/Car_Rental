@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { paymentsApi, getApiErrorMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, CreditCard, Upload, AlertCircle, CheckCircle2, ChevronLeft, Info, Smartphone, Eye, RefreshCw, X, Check } from 'lucide-react';
+import { Loader2, CreditCard, Upload, AlertCircle, CheckCircle2, ChevronLeft, Info, Smartphone, Eye, RefreshCw, X, Check, ShieldCheck } from 'lucide-react';
 import { useBodyScrollLock } from '../utils/useBodyScrollLock';
 
 const PaymentSubmissionPage: React.FC = () => {
@@ -368,10 +368,35 @@ const PaymentSubmissionPage: React.FC = () => {
                         type="submit" 
                         disabled={submitting}
                         className="btn-primary" 
-                        style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}
+                        style={{ 
+                          width: '100%', 
+                          padding: '0.95rem 1.5rem', 
+                          fontSize: '1.05rem', 
+                          fontWeight: 700,
+                          borderRadius: '12px',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          gap: '0.65rem',
+                          cursor: submitting ? 'not-allowed' : 'pointer',
+                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
+                          transition: 'all 0.2s ease',
+                          minHeight: '48px'
+                        }}
                       >
-                        {submitting ? <Loader2 className="animate-spin" size={24} /> : 'Submit Payment Proof'}
+                        {submitting ? (
+                          <>
+                            <Loader2 className="animate-spin" size={20} /> Verifying Submission...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck size={20} /> Submit Payment Proof
+                          </>
+                        )}
                       </button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', marginTop: '0.85rem', fontSize: '0.8rem', color: 'var(--gray-500)', fontWeight: 500 }}>
+                        <ShieldCheck size={14} color="#16A34A" /> Encrypted & directly reviewed by JD Car Rental Admin
+                      </div>
                     </form>
                   )}
                 </div>

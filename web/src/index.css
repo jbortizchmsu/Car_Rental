@@ -4369,18 +4369,75 @@ h5 {
 }
 
 .booking-modal-footer {
-  padding: 1.5rem 2.5rem;
-  border-top: 1px solid var(--gray-100);
+  padding: 1.25rem 2.5rem;
+  border-top: 1px solid var(--gray-200);
   display: flex;
-  justify-content: flex-end;
-  /* Harmless on desktop (both buttons already fit on one line there — wrapping
-     only ever activates when they genuinely don't fit), lets the primary action
-     drop to its own row on narrow screens instead of squeezing both buttons. */
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
   gap: 1rem;
-  background-color: var(--gray-50);
+  background-color: var(--white);
   border-radius: 0 0 24px 24px;
 }
+
+.booking-modal-footer .btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  min-height: 46px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: 1.5px solid var(--gray-200);
+  background-color: transparent;
+  color: var(--black);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.booking-modal-footer .btn-outline:hover:not(:disabled) {
+  background-color: var(--gray-100);
+  border-color: var(--gray-300);
+  transform: translateY(-1px);
+}
+
+.booking-modal-footer .btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.booking-modal-footer .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.75rem;
+  min-height: 46px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background-color: var(--black);
+  color: var(--white);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s ease;
+}
+
+.booking-modal-footer .btn-primary:hover:not(:disabled) {
+  background-color: #1a1a1a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.booking-modal-footer .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Booking Modal Redesign */
 .booking-modal-shell {
   display: flex;

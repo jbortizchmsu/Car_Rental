@@ -1343,22 +1343,30 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
 
             <div className="booking-modal-footer">
               {currentStep > 1 ? (
-                <button type="button" onClick={handleBack} className="btn-outline" disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button type="button" onClick={handleBack} className="btn-outline" disabled={loading}>
                   <ChevronLeft size={18} /> Back
                 </button>
               ) : (
                 <button type="button" onClick={onClose} className="btn-outline" disabled={loading}>
-                  Cancel
+                  <X size={16} /> Cancel
                 </button>
               )}
 
               {currentStep < 4 ? (
-                <button type="button" onClick={handleNext} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button type="button" onClick={handleNext} className="btn-primary">
                   Next <ChevronRight size={18} />
                 </button>
               ) : (
-                <button type="submit" form="step-booking-form" className="btn-primary" disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {loading ? <Loader2 className="animate-spin" size={20} /> : 'Submit Booking Request'}
+                <button type="submit" form="step-booking-form" className="btn-primary" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} /> Submitting...
+                    </>
+                  ) : (
+                    <>
+                      Submit Booking Request <Check size={18} />
+                    </>
+                  )}
                 </button>
               )}
             </div>
