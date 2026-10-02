@@ -32,6 +32,7 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
       availableVehicles,
       underMaintenanceVehicles,
       rentedVehicles,
+      reservedVehicles,
       totalRevenue,
       unresolvedAlerts
     ] = await Promise.all([
@@ -42,7 +43,8 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
       prisma.vehicle.count({ where: { status: { not: 'RETIRED' } } }),
       prisma.vehicle.count({ where: { status: 'AVAILABLE' } }),
       prisma.vehicle.count({ where: { status: { in: ['UNDER_MAINTENANCE', 'MAINTENANCE'] } } }),
-      prisma.vehicle.count({ where: { status: { in: ['RENTED', 'RESERVED'] } } }),
+      prisma.vehicle.count({ where: { status: 'RENTED' } }),
+      prisma.vehicle.count({ where: { status: 'RESERVED' } }),
       prisma.payment.aggregate({
         where: { status: { in: ['VERIFIED', 'PAID_IN_PERSON'] } },
         _sum: { amount: true }
@@ -61,7 +63,8 @@ router.get('/summary', authenticate, authorizeAdmin, async (req, res) => {
         total: vehiclesCount,
         available: availableVehicles,
         underMaintenance: underMaintenanceVehicles,
-        rented: rentedVehicles
+        rented: rentedVehicles,
+        reserved: reservedVehicles
       },
       revenue: {
         totalVerified: totalRevenue._sum.amount || 0

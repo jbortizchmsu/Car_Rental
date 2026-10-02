@@ -126,9 +126,10 @@ const AdminLiveMapPage: React.FC = () => {
         const vRented = summaryRes.data.vehicles.rented !== undefined
           ? summaryRes.data.vehicles.rented
           : summaryRes.data.bookings.active;
+        const vReserved = summaryRes.data.vehicles.reserved ?? 0;
         const vMaint = summaryRes.data.vehicles.underMaintenance !== undefined
           ? summaryRes.data.vehicles.underMaintenance
-          : Math.max(0, vTotal - vAvail - vRented);
+          : Math.max(0, vTotal - vAvail - vRented - vReserved);
 
         setFleetStats({
           total: vTotal,
