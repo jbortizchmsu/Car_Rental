@@ -792,6 +792,9 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
   const sixAM = new Date(); sixAM.setHours(6, 0, 0, 0);
   const sixPM = new Date(); sixPM.setHours(18, 0, 0, 0);
   const pickupDateObj = formData.start_date ? new Date(formData.start_date) : null;
+  const nextDayOfPickup = pickupDateObj
+    ? new Date(pickupDateObj.getFullYear(), pickupDateObj.getMonth(), pickupDateObj.getDate() + 1)
+    : new Date();
 
   if (!isOpen) return null;
 
@@ -892,12 +895,8 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                                   if (prev.end_date) {
                                     const existingEnd = new Date(prev.end_date);
                                     const candidateEnd = new Date(existingEnd);
+                                    // Lock return time strictly to the new pickup time
                                     candidateEnd.setHours(date.getHours(), date.getMinutes(), 0, 0);
-
-                                    // If same calendar day and candidate time is <= pickup, default to 6:00 PM if pickup is before 6:00 PM
-                                    if (candidateEnd.toDateString() === date.toDateString() && candidateEnd <= date && date.getHours() < 18) {
-                                      candidateEnd.setHours(18, 0, 0, 0);
-                                    }
 
                                     if (candidateEnd > date) {
                                       newEndStr = formatApiDate(candidateEnd);
@@ -938,7 +937,14 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
 
                         {/* Return Date */}
                         <div ref={el => { fieldRefs.current['end_date'] = el; }} className="booking-modal-field">
-                          <label><Calendar size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Return Date & Time</label>
+                          <label>
+                            <Calendar size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Return Date
+                            {pickupDateObj && (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--muted-mauve)', fontWeight: 500, marginLeft: '6px' }}>
+                                (Returns at {pickupDateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })})
+                              </span>
+                            )}
+                          </label>
                           <div style={fieldErrors.end_date ? { borderRadius: '6px', outline: '2px solid #f87171' } : undefined}>
                             <DatePicker
                               selected={formData.end_date ? new Date(formData.end_date) : null}
@@ -950,14 +956,9 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                                 }
 
                                 const returnDate = new Date(date);
-                                // If end_date was previously empty and pickup time is known, automatically inherit the pickup time
-                                if (!formData.end_date && pickupDateObj) {
+                                // Strictly lock return time to match pickup time:
+                                if (pickupDateObj) {
                                   returnDate.setHours(pickupDateObj.getHours(), pickupDateObj.getMinutes(), 0, 0);
-
-                                  // If same calendar day and return <= pickup time, default to 6:00 PM
-                                  if (returnDate.toDateString() === pickupDateObj.toDateString() && returnDate <= pickupDateObj && pickupDateObj.getHours() < 18) {
-                                    returnDate.setHours(18, 0, 0, 0);
-                                  }
                                 }
 
                                 setFormData(prev => ({
@@ -966,23 +967,14 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ isOpen, onClo
                                 }));
                                 clearFieldError('end_date');
                               }}
-                              showTimeSelect
-                              timeFormat="h:mm aa"
-                              timeIntervals={30}
                               dateFormat="MMMM d, yyyy h:mm aa"
-                              openToDate={pickupDateObj ?? new Date()}
-                              minDate={pickupDateObj ?? new Date()}
-                              minTime={
-                                formData.end_date && pickupDateObj && new Date(formData.end_date).toDateString() === pickupDateObj.toDateString()
-                                  ? pickupDateObj
-                                  : (isToday(formData.end_date ? new Date(formData.end_date) : null) ? (now > sixAM ? now : sixAM) : sixAM)
-                              }
-                              maxTime={sixPM}
+                              openToDate={nextDayOfPickup}
+                              minDate={nextDayOfPickup}
                               excludeDateIntervals={bookedRanges.map(r => ({
                                 start: new Date(r.startDate),
                                 end: new Date(r.endDate)
                               }))}
-                              placeholderText="Select return date & time"
+                              placeholderText={pickupDateObj ? `Select return date (returns at ${pickupDateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })})` : 'Select return date'}
                               popperPlacement="bottom-start"
                               disabled={!formData.start_date}
                             />
